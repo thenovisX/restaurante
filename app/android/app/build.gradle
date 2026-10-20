@@ -8,8 +8,8 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         // En GitHub cada compilación sube el número de versión, así la app se actualiza encima de la anterior
-        versionCode (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInteger()
-        versionName "1.0." + (System.getenv("GITHUB_RUN_NUMBER") ?: "0")
+        versionCode = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInteger()
+        versionName = "1.0." + (System.getenv("GITHUB_RUN_NUMBER") ?: "0")
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -21,10 +21,10 @@ android {
         // Clave de firma. Para publicar en Google Play, crea una propia y pásala con los secretos de GitHub
         // (ANDROID_KEYSTORE_PASSWORD, etc.); si no, se usa la clave incluida en keystore/app.keystore.
         app {
-            storeFile file(System.getenv("ANDROID_KEYSTORE_PATH") ?: "../keystore/app.keystore")
-            storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: "reservas123"
-            keyAlias System.getenv("ANDROID_KEY_ALIAS") ?: "reservas"
-            keyPassword System.getenv("ANDROID_KEY_PASSWORD") ?: "reservas123"
+            storeFile = file(System.getenv("ANDROID_KEYSTORE_PATH") ?: "../keystore/app.keystore")
+            storePassword = (System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: "reservas123")
+            keyAlias = (System.getenv("ANDROID_KEY_ALIAS") ?: "reservas")
+            keyPassword = (System.getenv("ANDROID_KEY_PASSWORD") ?: "reservas123")
         }
     }
     buildTypes {
