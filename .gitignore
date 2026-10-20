@@ -1,0 +1,10 @@
+node_modules/
+.DS_Store
+# Datos del servidor (nunca al repositorio)
+web/config.php
+web/data/*.sqlite
+web/uploads/*
+!web/uploads/.htaccess
+!web/uploads/.gitkeep
+*.apk
+web-restaurante.zip
