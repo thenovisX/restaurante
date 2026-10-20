@@ -1,0 +1,10 @@
+<?php
+declare(strict_types=1);
+
+require __DIR__ . '/core.php';
+require __DIR__ . '/reservas.php';
+require __DIR__ . '/carta.php';
+require __DIR__ . '/auth.php';
+
+date_default_timezone_set(cfg()['timezone'] ?? 'Europe/Madrid');
+ini_set('display_errors', !empty(cfg()['debug']) ? '1' : '0');
