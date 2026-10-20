@@ -30,8 +30,10 @@ jobs:
           java-version: 21
           cache: gradle
 
-      - name: Preparar el SDK de Android
-        uses: android-actions/setup-android@v3
+      - name: Comprobar el SDK de Android
+        run: |
+          echo "ANDROID_HOME=${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          ls "${ANDROID_HOME:-$ANDROID_SDK_ROOT}/platforms" || echo "::error::No hay SDK de Android en el runner"
 
       - name: Instalar dependencias
         working-directory: app
