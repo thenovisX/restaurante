@@ -23,6 +23,21 @@ scripts/    → utilidades (copiar el panel, generar iconos)
 
 ## 1. Subir la web a Hostinger
 
+### Opción A: con Git (se actualiza sola)
+
+La rama **`hostinger`** contiene solo la web, con `index.php` en la raíz. GitHub la actualiza sola cada vez que cambia `main`. **No conectes `main`**: ahí la web está dentro de `web/` y Hostinger daría error 404.
+
+1. En hPanel → **Avanzado → Git**, borra el repositorio si ya lo habías añadido con `main`.
+2. En **Archivos → Administrador de archivos**, vacía `public_html` (Hostinger exige que esté vacía).
+3. En **Git → Crear un nuevo repositorio**, rellena:
+   - Repositorio: `https://github.com/thenovisX/restaurante.git`
+   - Rama: **`hostinger`**
+   - Directorio: déjalo **vacío** (así se instala en `public_html`).
+4. Pulsa **Crear** y luego **Desplegar**. Si activas el **despliegue automático**, Hostinger te da una URL de webhook: pégala en GitHub → Settings → Webhooks.
+5. Sigue con el paso 4 de la opción B (`install.php`).
+
+### Opción B: subiendo el ZIP
+
 1. En **hPanel → Sitios web**, elige el dominio y abre **Bases de datos → Bases de datos MySQL**. Crea una base de datos con su usuario y contraseña, y apúntalos.
 2. Descarga **`web-restaurante.zip`** desde la sección [Releases](../../releases/latest) del repositorio.
 3. En **Archivos → Administrador de archivos**, entra en `public_html`, sube el ZIP y descomprímelo ahí. Tienen que quedar `index.php`, `api/`, `panel/`… directamente dentro de `public_html`.
