@@ -86,19 +86,57 @@ function customer_register(array $in): array
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) throw new ValidationError('El email no parece correcto');
     if ($phone !== '' && strlen(preg_replace('/\D/', '', $phone)) < 6) throw new ValidationError('El teléfono no parece correcto');
     if (strlen($pass) < 8) throw new ValidationError('La contraseña necesita al menos 8 caracteres');
-    if (empty($in['privacy'])) throw new ValidationError('Tienes que aceptar la política de privacidad');
+    if (empty($in['privacy'])) throw new ValidationError('Tienes que aceptar las condiciones de uso y la política de privacidad');
     $ip = customer_attempts_guard();
-    if (q('SELECT id FROM customers WHERE email_idx = ?', [email_idx($email)])->fetch()) {
+    $old = q('SELECT id, verified_at FROM customers WHERE email_idx = ?', [email_idx($email)])->fetch();
+    if ($old && $old['verified_at']) {
         q('INSERT INTO login_attempts (ip, at) VALUES (?, ?)', [$ip, now()]);
         throw new ValidationError('Ya hay una cuenta con ese email. Entra con tu contraseña.');
+    }
+    if ($old) {
+        // Cuenta sin activar con ese email: se sustituye (quien la creó no demostró que el email era suyo)
+        q('DELETE FROM customers WHERE id = ?', [$old['id']]);
     }
     q('INSERT INTO customers (name, email, email_idx, phone, pass_hash, created_at) VALUES (?, ?, ?, ?, ?, ?)',
         [enc($name), enc($email), email_idx($email), enc($phone), password_hash($pass, PASSWORD_DEFAULT), now()]);
     $id = (int)db()->lastInsertId();
+    audit('registro', $id, 'Acepta condiciones de uso y privacidad, versión ' . LEGAL_VERSION);
+    send_activation($id, $email, $name);
+    return ['pending' => true, 'email' => $email];
+}
+
+/** Doble opt-in: envía el enlace para activar la cuenta (válido 48 horas). */
+function send_activation(int $id, string $email, string $name): void
+{
+    $token = bin2hex(random_bytes(24));
+    q('UPDATE customers SET verify_hash = ?, verify_expires = ? WHERE id = ?', [hash('sha256', $token), date('Y-m-d H:i:s', time() + 48 * 3600), $id]);
+    $url = base_url() . '/cuenta.php?activar=' . $token . '&c=' . $id;
+    $s = settings();
+    send_mail($email, "Activa tu cuenta en {$s['name']}",
+        "Hola $name:\n\nPara activar tu cuenta en {$s['name']} abre este enlace (caduca en 48 horas):\n\n$url\n\nSi no has creado tú esta cuenta, ignora este email y no se activará.");
+    if (!empty(cfg()['debug'])) error_log("[restaurante] enlace de activación: $url");
+}
+
+function customer_activate(int $id, string $token): bool
+{
+    $c = q('SELECT * FROM customers WHERE id = ?', [$id])->fetch();
+    if (!$c || $c['verified_at'] || $c['verify_hash'] === '' || !preg_match('/^[a-f0-9]{48}$/', $token)) return (bool)($c['verified_at'] ?? false);
+    if (!hash_equals($c['verify_hash'], hash('sha256', $token)) || strtotime((string)$c['verify_expires']) < time()) return false;
+    q("UPDATE customers SET verified_at = ?, verify_hash = '', verify_expires = NULL WHERE id = ?", [now(), $id]);
+    // Ahora que el email está comprobado, sus reservas anteriores pasan a su cuenta
+    q('UPDATE reservations SET customer_id = ? WHERE customer_id = 0 AND email_idx = ?', [$id, $c['email_idx']]);
+    audit('email_verificado', $id);
     customer_login_session($id);
-    // Las reservas que hizo antes con ese email pasan a su cuenta
-    q('UPDATE reservations SET customer_id = ? WHERE customer_id = 0 AND email_idx = ?', [$id, email_idx($email)]);
-    return customer_out(customer_plain(q('SELECT * FROM customers WHERE id = ?', [$id])->fetch()));
+    return true;
+}
+
+function customer_resend(array $in): void
+{
+    $email = mb_strtolower(str_in($in, 'email', 120, true, 'email'));
+    customer_attempts_guard();
+    $c = q('SELECT * FROM customers WHERE email_idx = ?', [email_idx($email)])->fetch();
+    // Respuesta igual exista o no la cuenta, para no revelar qué emails están registrados
+    if ($c && !$c['verified_at']) send_activation((int)$c['id'], $email, dec($c['name']));
 }
 
 function customer_login(array $in): array
@@ -110,6 +148,9 @@ function customer_login(array $in): array
     if (!$c || !password_verify($pass, $c['pass_hash'])) {
         q('INSERT INTO login_attempts (ip, at) VALUES (?, ?)', [$ip, now()]);
         throw new ValidationError('Email o contraseña incorrectos');
+    }
+    if (!$c['verified_at']) {
+        throw new ValidationError('Tu cuenta aún no está activada. Abre el enlace que te enviamos por email (mira también en spam).');
     }
     q('DELETE FROM login_attempts WHERE ip = ?', [$ip]);
     customer_login_session((int)$c['id']);
@@ -142,12 +183,20 @@ function customer_update(array $c, array $in): array
         throw new ValidationError('Ese email ya lo usa otra cuenta');
     }
     $new = (string)($in['new_password'] ?? '');
-    if ($new !== '') {
+    $emailChanged = $email !== $c['email'];
+    if ($new !== '' || $emailChanged) {
         $row = q('SELECT pass_hash FROM customers WHERE id = ?', [$c['id']])->fetch();
-        if (!password_verify((string)($in['password'] ?? ''), $row['pass_hash'])) throw new ValidationError('La contraseña actual no es correcta');
+        if (!password_verify((string)($in['password'] ?? ''), $row['pass_hash'])) {
+            throw new ValidationError($emailChanged && $new === '' ? 'Para cambiar el email escribe tu contraseña actual (en «Cambiar contraseña»)' : 'La contraseña actual no es correcta');
+        }
+    }
+    if ($new !== '') {
         if (strlen($new) < 8) throw new ValidationError('La nueva contraseña necesita al menos 8 caracteres');
         q('UPDATE customers SET pass_hash = ? WHERE id = ?', [password_hash($new, PASSWORD_DEFAULT), $c['id']]);
+        audit('cambio_contrasena', (int)$c['id']);
     }
+    if ($emailChanged) audit('cambio_email', (int)$c['id']);
+    if ($name !== $c['name'] || $phone !== $c['phone']) audit('cambio_datos', (int)$c['id']);
     q('UPDATE customers SET name = ?, email = ?, email_idx = ?, phone = ? WHERE id = ?', [enc($name), enc($email), email_idx($email), enc($phone), $c['id']]);
     return customer_out(customer_plain(q('SELECT * FROM customers WHERE id = ?', [$c['id']])->fetch()));
 }
@@ -159,6 +208,7 @@ function customer_delete(array $c, array $in): void
     // Las reservas se quedan para el restaurante, pero dejan de estar unidas a la cuenta
     q('UPDATE reservations SET customer_id = 0 WHERE customer_id = ?', [$c['id']]);
     q('DELETE FROM customers WHERE id = ?', [$c['id']]);
+    audit('cuenta_borrada', (int)$c['id']);
     customer_logout();
 }
 
@@ -203,4 +253,23 @@ function customer_cancel(array $c, int $id): array
     );
     notify_customer($r);
     return $r;
+}
+
+/** Portabilidad (RGPD art. 20): todos los datos del cliente en un archivo JSON. */
+function customer_export(array $c): array
+{
+    $res = array_map(function ($r) {
+        $o = res_out($r);
+        unset($o['id'], $o['source'], $o['customer']);
+        return $o;
+    }, q('SELECT * FROM reservations WHERE customer_id = ? ORDER BY rdate, rtime', [$c['id']])->fetchAll());
+    $log = q('SELECT at, event, detail FROM audit_log WHERE customer_id = ? ORDER BY id', [$c['id']])->fetchAll();
+    audit('exportacion_datos', (int)$c['id']);
+    return [
+        'generado' => date('c'),
+        'responsable' => settings()['owner_name'] ?: settings()['name'],
+        'cuenta' => ['nombre' => $c['name'], 'email' => $c['email'], 'telefono' => $c['phone'], 'alta' => $c['created_at']],
+        'reservas' => $res,
+        'registro_de_actividad' => $log,
+    ];
 }

@@ -115,6 +115,7 @@ function create_public_reservation(array $in): array
     ]);
     $id = (int)$pdo->lastInsertId();
     $pdo->commit();
+    audit('reserva', $customer ? (int)$customer['id'] : 0, "Reserva #$id: acepta políticas de reserva y privacidad, versión " . LEGAL_VERSION);
 
     $when = fmt_date_es($d['rdate']) . ' a las ' . $d['rtime'];
     send_mail(

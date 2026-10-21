@@ -129,6 +129,12 @@ Todas las rutas son `api/?r=<ruta>`. Las de gestión necesitan la cabecera `X-To
 
 ### Seguridad incluida
 
+Resumen y plan de respuesta a brechas de seguridad: [SEGURIDAD.md](SEGURIDAD.md).
+
+
+- Datos personales (nombre, teléfono, email, notas, IP) cifrados en la base de datos, y borrado automático de los datos de cada reserva a las 24 h.
+- Cuentas de cliente con doble opt-in (activación por email), descarga de datos (portabilidad) y registro de auditoría de consentimientos.
+- Aviso de cookies con «Rechazar todas» al mismo nivel que «Aceptar todas»; respeta la señal GPC del navegador.
 - Las contraseñas se guardan con `password_hash`, y los tokens de sesión como hash SHA-256 que caduca a los 90 días.
 - El login se bloquea durante 15 minutos tras 10 intentos fallidos.
 - Las reservas tienen protección contra bots (campo trampa) y un límite de 5 por hora desde la misma conexión.

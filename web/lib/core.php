@@ -50,7 +50,9 @@ function purge_old_reservations(bool $force = false): int
 }
 
 /** Actualiza la base de datos de instalaciones anteriores sin perder datos. */
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
+/** Versión de las condiciones y la privacidad: se guarda con cada aceptación. Súbela si cambias los textos. */
+const LEGAL_VERSION = '2026-10-21';
 function ensure_schema(): void
 {
     $v = (int)(q("SELECT v FROM settings WHERE k = '_schema'")->fetchColumn() ?: 1);
@@ -92,8 +94,37 @@ function ensure_schema(): void
             }
         }
     }
+    if ($v < 4) {
+        // v4: activación de cuentas por email (doble opt-in) y registro de auditoría
+        foreach ([
+            'ALTER TABLE customers ADD COLUMN verified_at DATETIME NULL',
+            "ALTER TABLE customers ADD COLUMN verify_hash VARCHAR(64) NOT NULL DEFAULT ''",
+            'ALTER TABLE customers ADD COLUMN verify_expires DATETIME NULL',
+        ] as $sql) {
+            try { db()->exec($sql); } catch (Throwable $e) { /* ya existe */ }
+        }
+        // Las cuentas creadas antes de este cambio se dan por activadas
+        q('UPDATE customers SET verified_at = created_at WHERE verified_at IS NULL');
+    }
     q("DELETE FROM settings WHERE k = '_schema'");
     q("INSERT INTO settings (k, v) VALUES ('_schema', ?)", [(string)SCHEMA_VERSION]);
+}
+
+/**
+ * Registro de auditoría: quién aceptó qué y cuándo, cambios de contraseña y de datos.
+ * Solo se añaden filas, nunca se modifican. La IP se guarda cifrada.
+ */
+function audit(string $event, int $customerId = 0, string $detail = ''): void
+{
+    try {
+        q('INSERT INTO audit_log (at, customer_id, event, detail, ip, ua) VALUES (?, ?, ?, ?, ?, ?)', [
+            now(), $customerId, $event, mb_substr($detail, 0, 255),
+            function_exists('enc') ? enc((string)($_SERVER['REMOTE_ADDR'] ?? '')) : '',
+            mb_substr((string)($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 255),
+        ]);
+    } catch (Throwable $e) {
+        error_log('[restaurante] auditoría: ' . $e->getMessage());
+    }
 }
 
 function db(): PDO
@@ -371,5 +402,10 @@ function send_mail(string $to, string $subject, string $body): void
         'Content-Type: text/plain; charset=UTF-8',
     ];
     if (filter_var($s['email'], FILTER_VALIDATE_EMAIL)) $headers[] = 'Reply-To: ' . $s['email'];
+    // Identificación del remitente en todos los emails (LSSI-CE)
+    $who = trim(($s['owner_name'] ?: $s['name']) . ($s['owner_nif'] ? ' · NIF ' . $s['owner_nif'] : ''));
+    $addr = trim($s['address'] . ', ' . $s['city'], ', ');
+    $body .= "\n\n--\n" . $who . ($addr ? "\n" . $addr : '') . "\nEste email es solo sobre tu reserva o tu cuenta: no enviamos publicidad.\n"
+        . 'Privacidad: ' . base_url() . '/legal.php#privacidad';
     @mail($to, mb_encode_mimeheader($subject), $body, implode("\r\n", $headers));
 }

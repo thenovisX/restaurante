@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/tema.php';
 
-const ASSET_V = '18';
+const ASSET_V = '19';
 
 function tel_href(string $t): string
 {
@@ -133,7 +133,7 @@ function site_footer(): void
       </div>
       <div>
         <h2>Más</h2>
-        <p><a href="cuenta.php">Mi cuenta</a><br><a href="./#politicas">Políticas de reserva</a><br><a href="legal.php#aviso">Aviso legal</a><br><a href="legal.php#privacidad">Privacidad</a><br><a href="legal.php#cookies">Cookies</a><br><a href="legal.php#cookies" data-cookies>Configurar cookies</a></p>
+        <p><a href="cuenta.php">Mi cuenta</a><br><a href="./#politicas">Políticas de reserva</a><br><a href="legal.php#aviso">Aviso legal</a><br><a href="legal.php#condiciones">Condiciones de uso</a><br><a href="legal.php#privacidad">Privacidad</a><br><a href="legal.php#cookies">Cookies</a><br><a href="legal.php#cookies" data-cookies>Configurar cookies</a></p>
       </div>
     </div>
     <p class="ft-legal">© <?= date('Y') ?> <?= h($s['name']) ?>.<?php $cr = photo_credits(); if ($cr): ?> Fotos de

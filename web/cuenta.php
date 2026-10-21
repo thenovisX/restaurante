@@ -5,6 +5,12 @@ require __DIR__ . '/lib/plantilla.php';
 if (!installed()) { header('Location: install.php'); exit; }
 
 $s = settings();
+// Enlace de activación del email (doble opt-in)
+if (isset($_GET['activar'], $_GET['c'])) {
+    $ok = customer_activate((int)$_GET['c'], (string)$_GET['activar']);
+    header('Location: cuenta.php?' . ($ok ? 'activada=1' : 'enlace=caducado'));
+    exit;
+}
 $c = current_customer();
 header('Cache-Control: no-store');
 page_start(($c ? 'Mi cuenta' : 'Entrar') . ' · ' . $s['name'], '', 'page-account');
@@ -16,6 +22,7 @@ site_header($c);
     <div class="acc-auth">
       <div>
         <h1 class="title">Tu cuenta</h1>
+        <?php if (isset($_GET['enlace'])): ?><p class="acc-aviso">El enlace de activación no es válido o ha caducado. Vuelve a crear la cuenta o pide otro enlace.</p><?php endif; ?>
         <p class="acc-lead">Reserva sin escribir tus datos cada vez, mira tus próximas reservas y cancélalas tú mismo hasta <?= (int)$s['cancel_hours'] ?> horas antes.</p>
       </div>
       <div class="acc-box">
@@ -36,16 +43,22 @@ site_header($c);
           <label>Teléfono <span>para avisarte si hay algún cambio</span><input name="phone" type="tel" autocomplete="tel" maxlength="30"></label>
           <label>Contraseña <span>mínimo 8 caracteres</span><input name="password" type="password" autocomplete="new-password" minlength="8" required></label>
           <label class="hp" aria-hidden="true">No rellenar <input name="website" tabindex="-1" autocomplete="off"></label>
-          <label class="check"><input type="checkbox" name="privacy" value="1"><span>Acepto la <a href="legal.php#privacidad" target="_blank">política de privacidad</a>.</span></label>
+          <label class="check"><input type="checkbox" name="privacy" value="1"><span>He leído y acepto las <a href="legal.php#condiciones" target="_blank">condiciones de uso</a> y la <a href="legal.php#privacidad" target="_blank">política de privacidad</a>.</span></label>
           <p class="form-err" role="alert"></p>
           <button class="btn btn-rubor" type="submit">Crear cuenta</button>
-          <p class="form-help">Si ya habías reservado con este email, esas reservas aparecerán en tu cuenta.</p>
+          <p class="form-help">Te enviaremos un email para activar la cuenta. Si ya habías reservado con este email, esas reservas aparecerán en tu cuenta al activarla. No te enviaremos publicidad.</p>
         </form>
+        <div class="acc-pendiente" id="acc-pendiente" hidden>
+          <h2>Revisa tu email</h2>
+          <p>Te hemos enviado un enlace a <strong id="acc-pend-email"></strong> para activar tu cuenta. Caduca en 48 horas. Si no lo ves, mira en la carpeta de spam.</p>
+          <button class="btn btn-ghost btn-sm" type="button" id="acc-reenviar">Enviar el email otra vez</button>
+        </div>
       </div>
     </div>
   <?php else: $res = customer_reservations($c); ?>
     <div class="acc-head">
       <h1 class="title">Hola, <?= h(explode(' ', $c['name'])[0]) ?></h1>
+      <?php if (isset($_GET['activada'])): ?><p class="acc-aviso acc-ok">Cuenta activada. Ya puedes reservar sin escribir tus datos.</p><?php endif; ?>
       <button class="btn btn-rubor" type="button" data-book>Nueva reserva</button>
     </div>
 
@@ -91,6 +104,7 @@ site_header($c);
           <label>Teléfono <input name="phone" type="tel" value="<?= h($c['phone']) ?>" autocomplete="tel"></label>
         </div>
         <label>Email <input name="email" type="email" value="<?= h($c['email']) ?>" autocomplete="email" required></label>
+        <p class="form-help">Para cambiar el email, escribe también tu contraseña actual en «Cambiar contraseña».</p>
         <details class="acc-pass">
           <summary>Cambiar contraseña</summary>
           <div class="row2">
@@ -104,8 +118,9 @@ site_header($c);
     </section>
 
     <section class="acc-sec acc-danger" aria-labelledby="out-t">
-      <h2 id="out-t">Sesión</h2>
+      <h2 id="out-t">Tus datos y tu sesión</h2>
       <div class="acc-actions">
+        <a class="btn btn-ghost" href="api/?r=c_export" download="mis-datos.json">Descargar mis datos</a>
         <button class="btn btn-ghost" type="button" id="logout">Cerrar sesión</button>
         <details>
           <summary>Borrar mi cuenta</summary>

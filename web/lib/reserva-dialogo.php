@@ -54,7 +54,7 @@ $c = current_customer();
       <label class="hp" aria-hidden="true">No rellenar <input name="website" tabindex="-1" autocomplete="off"></label>
       <div class="bk-policy">
         <p>Cancelación gratis hasta <?= (int)$s['cancel_hours'] ?> h antes. Guardamos la mesa <?= (int)$s['late_minutes'] ?> minutos.</p>
-        <label class="check"><input type="checkbox" name="privacy" value="1"><span>Acepto las <a href="./#politicas" target="_blank">políticas de reserva</a> y la <a href="legal.php#privacidad" target="_blank">política de privacidad</a>.</span></label>
+        <label class="check"><input type="checkbox" name="privacy" value="1"><span>Acepto las <a href="./#politicas" target="_blank">políticas de reserva</a>, las <a href="legal.php#condiciones" target="_blank">condiciones de uso</a> y la <a href="legal.php#privacidad" target="_blank">política de privacidad</a>. Tu teléfono solo se usa para avisarte sobre esta reserva.</span></label>
       </div>
       <p class="bk-err" id="bk-err" role="alert"></p>
       <div class="bk-nav"><button class="btn btn-ghost" type="button" data-next="2">Atrás</button><button class="btn btn-rubor" type="button" id="bk-send">Confirmar reserva</button></div>

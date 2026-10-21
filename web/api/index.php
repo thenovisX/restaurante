@@ -57,6 +57,15 @@ try {
             only_post(); same_origin_only();
             customer_logout();
             out(true);
+        case 'c_resend':
+            only_post(); same_origin_only();
+            customer_resend($in);
+            out(true);
+        case 'c_export':
+            $data = customer_export(require_customer());
+            header('Content-Disposition: attachment; filename="mis-datos.json"');
+            echo json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            exit;
         case 'c_reservations':
             out(customer_reservations(require_customer()));
         case 'c_cancel':
