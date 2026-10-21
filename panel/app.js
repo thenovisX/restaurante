@@ -350,7 +350,7 @@
       actions.push(`<button class="btn btn-sm b-ok" data-status="confirmada" data-id="${r.id}">Confirmar</button>`);
       actions.push(`<button class="btn btn-sm b-no" data-status="rechazada" data-id="${r.id}">Rechazar</button>`);
     }
-    if (ACTIVE.includes(r.status)) actions.push(`<a class="btn btn-sm btn-quiet b-call" href="${esc(telHref(r.phone))}" aria-label="Llamar a ${esc(r.name)}">${ICON.phone}${r.status === 'pendiente' ? '' : '<span>Llamar</span>'}</a>`);
+    if (ACTIVE.includes(r.status) && r.phone) actions.push(`<a class="btn btn-sm btn-quiet b-call" href="${esc(telHref(r.phone))}" aria-label="Llamar a ${esc(r.name)}">${ICON.phone}${r.status === 'pendiente' ? '' : '<span>Llamar</span>'}</a>`);
     return `<article class="res st-${r.status}" data-open="${r.id}">
       <div class="res-time">${showDate ? `<small>${esc(fmtShort(r.date))}</small>` : ''}<b>${esc(r.time)}</b></div>
       <div class="res-main">
@@ -474,17 +474,17 @@
         <dt>Hora</dt><dd>${esc(r.time)}</dd>
         <dt>Personas</dt><dd>${r.people}</dd>
         <dt>Estado</dt><dd><span class="chip chip-${r.status}">${STATUS[r.status]}</span></dd>
-        <dt>Teléfono</dt><dd>${esc(r.phone)}</dd>
+        ${r.phone ? `<dt>Teléfono</dt><dd>${esc(r.phone)}</dd>` : '<dt>Datos</dt><dd>Borrados (pasaron 24 h)</dd>'}
         ${r.email ? `<dt>Email</dt><dd>${esc(r.email)}</dd>` : ''}
         ${r.notes ? `<dt>Notas</dt><dd>${esc(r.notes)}</dd>` : ''}
         <dt>Entró</dt><dd>${r.source === 'web' ? (r.customer ? 'Por la web, cliente con cuenta' : 'Por la web') : 'Apuntada a mano'}, ${esc(fmtShort(r.created_at.slice(0, 10)))} ${esc(r.created_at.slice(11, 16))}</dd>
       </dl>
       <div class="actions">
         <div class="actions-row">${btns.join('')}</div>
-        <div class="actions-row">
+        ${r.phone ? `<div class="actions-row">
           <a class="btn btn-line" href="${esc(telHref(r.phone))}">Llamar</a>
           <a class="btn btn-line" href="${esc(waHref(r.phone))}" target="_blank" rel="noopener">WhatsApp</a>
-        </div>
+        </div>` : ''}
         ${r.status === 'confirmada' && r.email === '' && r.source === 'web' ? '<p class="help">Este cliente no dejó email: avísale por teléfono o WhatsApp.</p>' : ''}
         <button class="btn btn-quiet" data-edit>Editar datos</button>
         <button class="btn btn-danger" data-del>Borrar reserva</button>

@@ -33,7 +33,14 @@ function current_customer(): ?array
     if ($c !== false) return $c;
     if (!customer_session(false) || empty($_SESSION['cid'])) return $c = null;
     $row = q('SELECT id, name, email, phone, created_at FROM customers WHERE id = ?', [(int)$_SESSION['cid']])->fetch();
-    return $c = ($row ?: null);
+    return $c = ($row ? customer_plain($row) : null);
+}
+
+/** Fila de cliente con los datos descifrados. */
+function customer_plain(array $row): array
+{
+    foreach (['name', 'email', 'phone'] as $k) if (isset($row[$k])) $row[$k] = dec($row[$k]);
+    return $row;
 }
 
 function customer_out(?array $c): ?array
@@ -81,17 +88,17 @@ function customer_register(array $in): array
     if (strlen($pass) < 8) throw new ValidationError('La contraseña necesita al menos 8 caracteres');
     if (empty($in['privacy'])) throw new ValidationError('Tienes que aceptar la política de privacidad');
     $ip = customer_attempts_guard();
-    if (q('SELECT id FROM customers WHERE email = ?', [$email])->fetch()) {
+    if (q('SELECT id FROM customers WHERE email_idx = ?', [email_idx($email)])->fetch()) {
         q('INSERT INTO login_attempts (ip, at) VALUES (?, ?)', [$ip, now()]);
         throw new ValidationError('Ya hay una cuenta con ese email. Entra con tu contraseña.');
     }
-    q('INSERT INTO customers (name, email, phone, pass_hash, created_at) VALUES (?, ?, ?, ?, ?)',
-        [$name, $email, $phone, password_hash($pass, PASSWORD_DEFAULT), now()]);
+    q('INSERT INTO customers (name, email, email_idx, phone, pass_hash, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+        [enc($name), enc($email), email_idx($email), enc($phone), password_hash($pass, PASSWORD_DEFAULT), now()]);
     $id = (int)db()->lastInsertId();
     customer_login_session($id);
     // Las reservas que hizo antes con ese email pasan a su cuenta
-    q('UPDATE reservations SET customer_id = ? WHERE customer_id = 0 AND email = ?', [$id, $email]);
-    return customer_out(q('SELECT * FROM customers WHERE id = ?', [$id])->fetch());
+    q('UPDATE reservations SET customer_id = ? WHERE customer_id = 0 AND email_idx = ?', [$id, email_idx($email)]);
+    return customer_out(customer_plain(q('SELECT * FROM customers WHERE id = ?', [$id])->fetch()));
 }
 
 function customer_login(array $in): array
@@ -99,14 +106,14 @@ function customer_login(array $in): array
     $email = mb_strtolower(str_in($in, 'email', 120, true, 'email'));
     $pass = (string)($in['password'] ?? '');
     $ip = customer_attempts_guard();
-    $c = q('SELECT * FROM customers WHERE email = ?', [$email])->fetch();
+    $c = q('SELECT * FROM customers WHERE email_idx = ?', [email_idx($email)])->fetch();
     if (!$c || !password_verify($pass, $c['pass_hash'])) {
         q('INSERT INTO login_attempts (ip, at) VALUES (?, ?)', [$ip, now()]);
         throw new ValidationError('Email o contraseña incorrectos');
     }
     q('DELETE FROM login_attempts WHERE ip = ?', [$ip]);
     customer_login_session((int)$c['id']);
-    return customer_out($c);
+    return customer_out(customer_plain($c));
 }
 
 function customer_logout(): void
@@ -131,7 +138,7 @@ function customer_update(array $c, array $in): array
     $email = mb_strtolower(str_in($in, 'email', 120, true, 'email'));
     $phone = str_in($in, 'phone', 30);
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) throw new ValidationError('El email no parece correcto');
-    if ($email !== $c['email'] && q('SELECT id FROM customers WHERE email = ? AND id <> ?', [$email, $c['id']])->fetch()) {
+    if ($email !== $c['email'] && q('SELECT id FROM customers WHERE email_idx = ? AND id <> ?', [email_idx($email), $c['id']])->fetch()) {
         throw new ValidationError('Ese email ya lo usa otra cuenta');
     }
     $new = (string)($in['new_password'] ?? '');
@@ -141,8 +148,8 @@ function customer_update(array $c, array $in): array
         if (strlen($new) < 8) throw new ValidationError('La nueva contraseña necesita al menos 8 caracteres');
         q('UPDATE customers SET pass_hash = ? WHERE id = ?', [password_hash($new, PASSWORD_DEFAULT), $c['id']]);
     }
-    q('UPDATE customers SET name = ?, email = ?, phone = ? WHERE id = ?', [$name, $email, $phone, $c['id']]);
-    return customer_out(q('SELECT * FROM customers WHERE id = ?', [$c['id']])->fetch());
+    q('UPDATE customers SET name = ?, email = ?, email_idx = ?, phone = ? WHERE id = ?', [enc($name), enc($email), email_idx($email), enc($phone), $c['id']]);
+    return customer_out(customer_plain(q('SELECT * FROM customers WHERE id = ?', [$c['id']])->fetch()));
 }
 
 function customer_delete(array $c, array $in): void

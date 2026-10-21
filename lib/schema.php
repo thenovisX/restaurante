@@ -14,15 +14,17 @@ function schema_sql(bool $sqlite): array
         "CREATE TABLE IF NOT EXISTS dishes (id $ai, category_id INT NOT NULL, name VARCHAR(120) NOT NULL, description TEXT NOT NULL,
             price DECIMAL(8,2) NOT NULL DEFAULT 0, allergens VARCHAR(255) NOT NULL DEFAULT '', photo VARCHAR(255) NOT NULL DEFAULT '',
             available TINYINT NOT NULL DEFAULT 1, featured TINYINT NOT NULL DEFAULT 0, position INT NOT NULL DEFAULT 0)$tail",
-        "CREATE TABLE IF NOT EXISTS reservations (id $ai, name VARCHAR(80) NOT NULL, phone VARCHAR(30) NOT NULL, email VARCHAR(120) NOT NULL DEFAULT '',
+        "CREATE TABLE IF NOT EXISTS reservations (id $ai, name VARCHAR(512) NOT NULL, phone VARCHAR(255) NOT NULL, email VARCHAR(512) NOT NULL DEFAULT '', email_idx VARCHAR(64) NOT NULL DEFAULT '',
             rdate DATE NOT NULL, rtime CHAR(5) NOT NULL, people INT NOT NULL, notes TEXT NOT NULL, status VARCHAR(20) NOT NULL DEFAULT 'pendiente',
             source VARCHAR(10) NOT NULL DEFAULT 'web', ip VARCHAR(64) NOT NULL DEFAULT '', created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL,
             customer_id INT NOT NULL DEFAULT 0)$tail",
-        "CREATE TABLE IF NOT EXISTS customers (id $ai, name VARCHAR(80) NOT NULL, email VARCHAR(120) NOT NULL UNIQUE, phone VARCHAR(30) NOT NULL DEFAULT '',
+        "CREATE TABLE IF NOT EXISTS customers (id $ai, name VARCHAR(512) NOT NULL, email VARCHAR(512) NOT NULL, email_idx VARCHAR(64) NOT NULL DEFAULT '', phone VARCHAR(255) NOT NULL DEFAULT '',
             pass_hash VARCHAR(255) NOT NULL, created_at DATETIME NOT NULL, last_login DATETIME NULL)$tail",
         'CREATE INDEX idx_res_date ON reservations (rdate)',
         'CREATE INDEX idx_dish_cat ON dishes (category_id)',
         'CREATE INDEX idx_res_customer ON reservations (customer_id)',
+        'CREATE INDEX idx_res_email ON reservations (email_idx)',
+        'CREATE INDEX idx_cus_email ON customers (email_idx)',
     ];
 }
 

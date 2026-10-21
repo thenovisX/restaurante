@@ -108,9 +108,9 @@ function create_public_reservation(array $in): array
 
     $s = settings();
     $status = $s['auto_confirm'] ? 'confirmada' : 'pendiente';
-    q('INSERT INTO reservations (name, phone, email, rdate, rtime, people, notes, status, source, ip, created_at, updated_at, customer_id)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)', [
-        $d['name'], $d['phone'], $d['email'], $d['rdate'], $d['rtime'], $d['people'], $d['notes'],
+    q('INSERT INTO reservations (name, phone, email, email_idx, rdate, rtime, people, notes, status, source, ip, created_at, updated_at, customer_id)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)', [
+        enc($d['name']), enc($d['phone']), enc($d['email']), email_idx($d['email']), $d['rdate'], $d['rtime'], $d['people'], enc($d['notes']),
         $status, 'web', $ip, now(), now(), $customer ? (int)$customer['id'] : 0,
     ]);
     $id = (int)$pdo->lastInsertId();
@@ -147,8 +147,8 @@ function get_reservation(int $id): array
 function res_out(array $r): array
 {
     return [
-        'id' => (int)$r['id'], 'name' => $r['name'], 'phone' => $r['phone'], 'email' => $r['email'],
-        'date' => $r['rdate'], 'time' => $r['rtime'], 'people' => (int)$r['people'], 'notes' => $r['notes'],
+        'id' => (int)$r['id'], 'name' => dec($r['name']), 'phone' => dec($r['phone']), 'email' => dec($r['email']),
+        'date' => $r['rdate'], 'time' => $r['rtime'], 'people' => (int)$r['people'], 'notes' => dec($r['notes']),
         'status' => $r['status'], 'source' => $r['source'], 'created_at' => $r['created_at'],
         'customer' => (int)($r['customer_id'] ?? 0) > 0,
     ];
@@ -211,14 +211,14 @@ function save_reservation(array $in): array
     $id = (int)($in['id'] ?? 0);
     if ($id) {
         get_reservation($id);
-        q('UPDATE reservations SET name=?, phone=?, email=?, rdate=?, rtime=?, people=?, notes=?, updated_at=? WHERE id=?', [
-            $d['name'], $d['phone'], $d['email'], $d['rdate'], $d['rtime'], $d['people'], $d['notes'], now(), $id,
+        q('UPDATE reservations SET name=?, phone=?, email=?, email_idx=?, rdate=?, rtime=?, people=?, notes=?, updated_at=? WHERE id=?', [
+            enc($d['name']), enc($d['phone']), enc($d['email']), email_idx($d['email']), $d['rdate'], $d['rtime'], $d['people'], enc($d['notes']), now(), $id,
         ]);
         return get_reservation($id);
     }
-    q('INSERT INTO reservations (name, phone, email, rdate, rtime, people, notes, status, source, ip, created_at, updated_at)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)', [
-        $d['name'], $d['phone'], $d['email'], $d['rdate'], $d['rtime'], $d['people'], $d['notes'],
+    q('INSERT INTO reservations (name, phone, email, email_idx, rdate, rtime, people, notes, status, source, ip, created_at, updated_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)', [
+        enc($d['name']), enc($d['phone']), enc($d['email']), email_idx($d['email']), $d['rdate'], $d['rtime'], $d['people'], enc($d['notes']),
         'confirmada', 'panel', '', now(), now(),
     ]);
     return get_reservation((int)db()->lastInsertId());

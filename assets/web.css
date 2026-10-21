@@ -689,3 +689,22 @@ html, body { max-width: 100%; }
   .libro.is-doble.is-cerrado .hoja.hoja-portada { left: 25%; border-radius: 4px; }
   .libro.is-cerrado .hojas::before, .libro.is-cerrado .hojas::after { left: 25%; right: 25%; }
 }
+
+/* Botones más grandes en el ordenador (el móvil no cambia) */
+@media (min-width: 961px) {
+  .btn { min-height: 56px; padding: 0 32px; font-size: 1.05rem; }
+  .btn-lg { min-height: 66px; padding: 0 44px; font-size: 1.15rem; }
+  .btn-sm { min-height: 46px; padding: 0 22px; font-size: .98rem; }
+  .hd-book { min-height: 50px; padding: 0 28px; font-size: 1.02rem; }
+  .hd-nav a, .hd-account { padding: 10px 2px; }
+  .hero-actions { gap: 14px; }
+  .libro-flecha { width: 66px; height: 66px; font-size: 2.4rem; }
+  .portada-abrir { min-height: 56px; padding: 0 34px; font-size: 1.05rem; }
+  .marcas a { font-size: 1rem; padding: 12px 18px 11px; }
+  .pol-list summary { font-size: 1.5rem; }
+  .bk-close { width: 48px; height: 48px; }
+  .day { padding: 12px 4px; }
+  .days { grid-auto-columns: 84px; }
+  .slot { min-height: 54px; font-size: 1.05rem; }
+  .chips span, .chip-more select { min-width: 54px; height: 54px; font-size: 1.05rem; }
+}

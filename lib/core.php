@@ -26,11 +26,31 @@ function installed(): bool
         return $ok = false;
     }
     ensure_schema();
+    purge_old_reservations();
     return $ok = true;
 }
 
+/**
+ * Borra los datos personales de las reservas 24 horas después de la hora reservada.
+ * Se queda el día, la hora, las personas y el estado (para el calendario), pero sin nombre,
+ * teléfono, email ni notas. Se ejecuta sola como mucho una vez cada 15 minutos.
+ */
+const PURGE_HOURS = 24;
+function purge_old_reservations(bool $force = false): int
+{
+    $last = (int)(q("SELECT v FROM settings WHERE k = '_purge'")->fetchColumn() ?: 0);
+    if (!$force && $last > time() - 900) return 0;
+    q("DELETE FROM settings WHERE k = '_purge'");
+    q("INSERT INTO settings (k, v) VALUES ('_purge', ?)", [(string)time()]);
+    $cut = time() - PURGE_HOURS * 3600;
+    $d = date('Y-m-d', $cut);
+    $t = date('H:i', $cut);
+    return q("UPDATE reservations SET name = 'Reserva pasada', phone = '', email = '', email_idx = '', notes = '', ip = ''
+              WHERE (rdate < ? OR (rdate = ? AND rtime <= ?)) AND (phone <> '' OR email <> '' OR notes <> '')", [$d, $d, $t])->rowCount();
+}
+
 /** Actualiza la base de datos de instalaciones anteriores sin perder datos. */
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 function ensure_schema(): void
 {
     $v = (int)(q("SELECT v FROM settings WHERE k = '_schema'")->fetchColumn() ?: 1);
@@ -41,6 +61,37 @@ function ensure_schema(): void
         try { db()->exec($sql); } catch (Throwable $e) { /* ya existe */ }
     }
     try { db()->exec('ALTER TABLE reservations ADD COLUMN customer_id INT NOT NULL DEFAULT 0'); } catch (Throwable $e) { /* ya existe */ }
+    if ($v < 3) {
+        // v3: datos personales cifrados + huella del email para buscar
+        require_once __DIR__ . '/cifrado.php';
+        foreach (['reservations', 'customers'] as $t) {
+            try { db()->exec("ALTER TABLE $t ADD COLUMN email_idx VARCHAR(64) NOT NULL DEFAULT ''"); } catch (Throwable $e) { /* ya existe */ }
+        }
+        if (!$sqlite) {
+            // Los textos cifrados ocupan más: se agrandan las columnas
+            foreach ([
+                "ALTER TABLE reservations MODIFY name VARCHAR(512) NOT NULL, MODIFY phone VARCHAR(255) NOT NULL, MODIFY email VARCHAR(512) NOT NULL DEFAULT ''",
+                "ALTER TABLE customers MODIFY name VARCHAR(512) NOT NULL, MODIFY phone VARCHAR(255) NOT NULL DEFAULT ''",
+                "ALTER TABLE customers DROP INDEX email",
+                "ALTER TABLE customers MODIFY email VARCHAR(512) NOT NULL",
+            ] as $sql) {
+                try { db()->exec($sql); } catch (Throwable $e) { /* ya aplicado */ }
+            }
+        }
+        foreach (['CREATE INDEX idx_res_email ON reservations (email_idx)', 'CREATE INDEX idx_cus_email ON customers (email_idx)'] as $sql) {
+            try { db()->exec($sql); } catch (Throwable $e) { /* ya existe */ }
+        }
+        if (crypto_ready()) {
+            foreach (q('SELECT id, name, phone, email, notes FROM reservations')->fetchAll() as $r) {
+                q('UPDATE reservations SET name = ?, phone = ?, email = ?, notes = ?, email_idx = ? WHERE id = ?',
+                    [enc($r['name']), enc($r['phone']), enc($r['email']), enc($r['notes']), email_idx(dec($r['email'])), $r['id']]);
+            }
+            foreach (q('SELECT id, name, phone, email FROM customers')->fetchAll() as $c) {
+                q('UPDATE customers SET name = ?, phone = ?, email = ?, email_idx = ? WHERE id = ?',
+                    [enc($c['name']), enc($c['phone']), enc($c['email']), email_idx(dec($c['email'])), $c['id']]);
+            }
+        }
+    }
     q("DELETE FROM settings WHERE k = '_schema'");
     q("INSERT INTO settings (k, v) VALUES ('_schema', ?)", [(string)SCHEMA_VERSION]);
 }
