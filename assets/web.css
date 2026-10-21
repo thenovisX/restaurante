@@ -106,7 +106,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 /* ---------- Cabecera ---------- */
 .hd {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 50; height: var(--hd-h);
+  position: fixed; top: 0; left: 0; right: 0; z-index: 50; height: calc(var(--hd-h) + env(safe-area-inset-top));
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
   padding: 0 var(--gutter); padding-top: env(safe-area-inset-top);
   background: rgba(0, 0, 0, .86); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
@@ -124,7 +124,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 .menu {
   position: fixed; inset: 0; z-index: 45; background: var(--noche);
-  padding: calc(var(--hd-h) + 32px) var(--gutter) 32px; display: flex; flex-direction: column; justify-content: space-between;
+  padding: calc(var(--hd-h) + env(safe-area-inset-top) + 32px) var(--gutter) calc(32px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; justify-content: space-between; overflow-y: auto;
 }
 .menu nav { display: grid; gap: 4px; }
 .menu nav a { font-family: var(--display); font-size: clamp(2.4rem, 11vw, 4rem); line-height: 1.15; text-decoration: none; }
@@ -134,7 +134,7 @@ body.menu-open { overflow: hidden; }
 /* ---------- Portada ---------- */
 .hero {
   position: relative; min-height: 100svh; display: grid; grid-template-rows: auto 1fr auto;
-  padding: calc(var(--hd-h) + 20px) var(--gutter) 0; overflow: hidden; isolation: isolate;
+  padding: calc(var(--hd-h) + env(safe-area-inset-top) + 20px) var(--gutter) 0; overflow: hidden; isolation: isolate;
 }
 .hero-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; }
 .hero::after {
@@ -252,7 +252,7 @@ body.menu-open { overflow: hidden; }
 
 /* ---------- Pie ---------- */
 .ft { border-top: 1px solid var(--linea); padding: clamp(64px, 10vw, 120px) 0 calc(32px + env(safe-area-inset-bottom)); }
-.ft-big { font-family: var(--display); font-size: clamp(3.4rem, 13vw, 11rem); line-height: 1.05; letter-spacing: -.03em; margin: 0 0 clamp(40px, 6vw, 80px); }
+.ft .ft-big { font-family: var(--display); font-size: clamp(3.4rem, 13vw, 11rem); line-height: 1.05; letter-spacing: -.03em; margin: 0 0 clamp(40px, 6vw, 80px); }
 .ft-cols { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 40px; }
 .ft h2 { font-size: .95rem; font-weight: 600; margin: 0 0 14px; color: var(--ceniza); }
 .ft p { margin: 0 0 12px; }
@@ -269,6 +269,9 @@ body.menu-open { overflow: hidden; }
 .wa-float:hover { color: var(--noche); background: #fff; }
 .home .wa-float { opacity: 0; pointer-events: none; transition: opacity .25s; }
 .home.is-scrolled .wa-float { opacity: 1; pointer-events: auto; }
+
+/* ---------- Barra inferior (solo móvil) ---------- */
+.mbar { display: none; }
 
 /* ---------- Ventana de reserva ---------- */
 .bk {
@@ -388,6 +391,10 @@ body.menu-open { overflow: hidden; }
 /* ---------- Toast ---------- */
 .toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 120; background: var(--hueso); color: var(--noche); padding: 12px 20px; border-radius: 999px; font-weight: 600; max-width: calc(100% - 32px); }
 
+/* Los hijos de las rejillas no pueden ensanchar la página */
+.about-grid > *, .carta-grid > *, .pol-grid > *, .book-grid > *, .app-grid > *, .acc-auth > *, .ft-cols > * { min-width: 0; }
+html, body { max-width: 100%; }
+
 /* ---------- Pantallas medianas y móvil ---------- */
 @media (max-width: 960px) {
   .hd-nav { display: none; }
@@ -420,4 +427,73 @@ body.menu-open { overflow: hidden; }
   .acc-res { flex-direction: column; align-items: flex-start; }
   .acc-nocancel { text-align: left; max-width: none; }
   .acc-box { padding: 18px; }
+}
+
+/* ---------- Móvil: ajustes finos ---------- */
+@media (max-width: 640px) {
+  body { font-size: 1rem; }
+  .hero { min-height: 100svh; padding-bottom: 18px; }
+  .hero-mid { padding-bottom: 20px; }
+  .hero-lead { font-size: 1.12rem; margin-bottom: 16px; }
+  .hero-actions .btn { flex: 1; padding: 0 16px; }
+  .hero-brand { margin: 0; font-size: min(var(--brand-size, 26vw), 24vw); }
+  .ribbon { padding: 12px 0; }
+  .about, .carta, .book, .policies, .app { padding: 56px 0; }
+  .about-text { font-size: 1.6rem; margin-bottom: 32px; }
+  .title { font-size: clamp(2.4rem, 12vw, 3.2rem); }
+
+  /* Carta: las secciones quedan fijas arriba mientras bajas */
+  .carta-side { display: contents; }
+  .carta-grid { display: block; }
+  .carta-grid > .carta-side > .title { margin-bottom: 16px; }
+  .cats {
+    position: sticky; top: calc(var(--hd-h) + env(safe-area-inset-top)); z-index: 20;
+    background: rgba(0, 0, 0, .94); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    padding: 10px var(--gutter); margin-bottom: 8px; border-bottom: 1px solid var(--linea);
+  }
+  .cats a.is-on { background: var(--hueso); color: var(--noche); border-color: var(--hueso); }
+  .carta-note { margin: 12px 0 24px; }
+  .cat { scroll-margin-top: calc(var(--hd-h) + 70px); }
+  .cat + .cat { margin-top: 40px; }
+  .cat h3 { font-size: 1.8rem; }
+  .dish { padding: 16px 0; gap: 12px; }
+  .dish img { width: 64px; height: 64px; }
+  .dish-line { align-items: flex-start; justify-content: space-between; }
+  .leader { display: none; }
+  .dish-name { font-size: 1.06rem; line-height: 1.35; }
+  .dish-price { font-weight: 600; padding-left: 8px; }
+
+  .gallery { grid-template-columns: repeat(3, 72vw); gap: 6px; padding: 0 var(--gutter); scroll-padding: 0 var(--gutter); }
+  .gallery img { aspect-ratio: 4 / 5; }
+  .book-lead { font-size: 1.05rem; }
+  .book .btn-lg { width: 100%; }
+  .book-facts div { padding: 14px 0; }
+  .pol-list summary { padding: 18px 0; font-size: 1.1rem; }
+  .pol-list summary::after { font-size: 1.8rem; }
+  .app-actions .btn { width: 100%; }
+  .ft { padding-top: 56px; }
+  .ft .ft-big { margin-bottom: 40px; }
+  .ft-hours li { font-size: .95rem; }
+
+  /* Barra inferior con Reservar, Llamar y WhatsApp */
+  .wa-float { display: none; }
+  .mbar {
+    display: flex; gap: 8px; position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+    padding: 10px var(--gutter) calc(10px + env(safe-area-inset-bottom));
+    background: rgba(0, 0, 0, .92); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    border-top: 1px solid var(--linea); transform: translateY(110%); transition: transform .25s ease;
+  }
+  .mbar .btn { flex: 1; min-height: 50px; }
+  .mbar-ic { flex: none; width: 50px; height: 50px; border-radius: 50%; border: 1px solid var(--linea-2); display: grid; place-items: center; color: var(--hueso); }
+  .mbar-ic svg { width: 22px; height: 22px; }
+  .is-scrolled .mbar, .page-account .mbar, .page-legal .mbar { transform: none; }
+  .is-scrolled .ft, .page-account .ft, .page-legal .ft { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+  @media (prefers-reduced-motion: reduce) { .mbar { transition: none; } }
+  .hd-book { display: none; }
+  .is-scrolled .hd-book, .page-account .hd-book, .page-legal .hd-book { display: none; }
+  .toast { bottom: calc(90px + env(safe-area-inset-bottom)); }
+}
+@media (max-width: 640px) and (min-height: 0) {
+  /* En la portada, el botón de reservar de la cabecera vuelve mientras no hay barra inferior */
+  .home:not(.is-scrolled) .hd-book { display: inline-flex; }
 }
