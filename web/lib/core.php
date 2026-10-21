@@ -45,6 +45,10 @@ function purge_old_reservations(bool $force = false): int
     $cut = time() - PURGE_HOURS * 3600;
     $d = date('Y-m-d', $cut);
     $t = date('H:i', $cut);
+    // Cuentas que nunca se activaron (el enlace caduca a las 48 h): fuera a los 7 días
+    q('DELETE FROM customers WHERE verified_at IS NULL AND created_at < ?', [date('Y-m-d H:i:s', time() - 7 * 86400)]);
+    // Registro de consentimientos: 3 años (plazo de prescripción de las infracciones de la LOPDGDD)
+    q('DELETE FROM audit_log WHERE at < ?', [date('Y-m-d H:i:s', time() - 3 * 365 * 86400)]);
     return q("UPDATE reservations SET name = 'Reserva pasada', phone = '', email = '', email_idx = '', notes = '', ip = ''
               WHERE (rdate < ? OR (rdate = ? AND rtime <= ?)) AND (phone <> '' OR email <> '' OR notes <> '')", [$d, $d, $t])->rowCount();
 }
@@ -52,7 +56,7 @@ function purge_old_reservations(bool $force = false): int
 /** Actualiza la base de datos de instalaciones anteriores sin perder datos. */
 const SCHEMA_VERSION = 5;
 /** Versión de las condiciones y la privacidad: se guarda con cada aceptación. Súbela si cambias los textos. */
-const LEGAL_VERSION = '2026-10-21';
+const LEGAL_VERSION = '2026-10-22';
 function ensure_schema(): void
 {
     $v = (int)(q("SELECT v FROM settings WHERE k = '_schema'")->fetchColumn() ?: 1);
@@ -204,6 +208,13 @@ const SETTINGS_DEFAULTS = [
     'notify_email'  => '',
     'owner_name'    => '',
     'owner_nif'     => '',
+    'owner_registry'=> '',     // datos del Registro Mercantil si el titular es una sociedad (LSSI art. 10)
+    // Envío de emails con una cuenta propia (Gmail u otro proveedor) en vez del correo del hosting
+    'smtp_on'       => false,
+    'smtp_host'     => 'smtp.gmail.com',
+    'smtp_port'     => 465,
+    'smtp_user'     => '',     // dirección de Gmail
+    'smtp_pass'     => '',     // contraseña de aplicación, guardada cifrada; nunca sale hacia la app
     // Horario: día ISO (1 = lunes … 7 = domingo) => lista de franjas [inicio, fin]
     'hours'         => [
         '1' => [],
@@ -247,6 +258,25 @@ function settings_save(array $values): array
         if (!array_key_exists($k, SETTINGS_DEFAULTS)) continue;
         $def = SETTINGS_DEFAULTS[$k];
         if ($k === 'photos') continue; // las fotos van por su propia ruta
+        if ($k === 'smtp_pass') {
+            // Vacío = dejar la que había. Google la muestra con espacios: se quitan.
+            $v = preg_replace('/\s+/', '', (string)$v);
+            if ($v === '') continue;
+            $clean[$k] = enc(mb_substr($v, 0, 200));
+            continue;
+        }
+        if ($k === 'smtp_user') {
+            $v = mb_strtolower(trim((string)$v));
+            if ($v !== '' && !filter_var($v, FILTER_VALIDATE_EMAIL)) throw new ValidationError('La dirección de Gmail no parece correcta');
+            $clean[$k] = $v;
+            continue;
+        }
+        if ($k === 'smtp_host') {
+            $v = strtolower(trim((string)$v));
+            if ($v !== '' && !preg_match('/^[a-z0-9.-]+$/', $v)) throw new ValidationError('El servidor de correo no es válido');
+            $clean[$k] = $v ?: 'smtp.gmail.com';
+            continue;
+        }
         if ($k === 'hours') {
             $v = clean_hours($v);
         } elseif ($k === 'closed_dates') {
@@ -273,6 +303,13 @@ function settings_save(array $values): array
     if (isset($clean['slot_minutes']) && $clean['slot_minutes'] < 5) $clean['slot_minutes'] = 15;
     if (isset($clean['capacity']) && $clean['capacity'] < 1) $clean['capacity'] = 1;
     if (isset($clean['max_people']) && $clean['max_people'] < 1) $clean['max_people'] = 1;
+    if (isset($clean['smtp_port']) && !in_array($clean['smtp_port'], [465, 587], true)) throw new ValidationError('El puerto tiene que ser 465 o 587');
+    if (!empty($clean['smtp_on'])) {
+        $cur = settings();
+        if (($clean['smtp_user'] ?? $cur['smtp_user']) === '' || (($clean['smtp_pass'] ?? $cur['smtp_pass']) === '')) {
+            throw new ValidationError('Para activarlo pon tu dirección de Gmail y la contraseña de aplicación');
+        }
+    }
 
     $pdo = db();
     $pdo->beginTransaction();
@@ -401,21 +438,134 @@ function h($v): string
 
 /* ---------- Correo ---------- */
 
-function send_mail(string $to, string $subject, string $body): void
+/** Ajustes para la app de gestión: sin la contraseña del correo. */
+function settings_admin(): array
 {
-    if (!filter_var($to, FILTER_VALIDATE_EMAIL)) return;
     $s = settings();
-    $host = preg_replace('/^www\./', '', $_SERVER['HTTP_HOST'] ?? 'localhost');
-    $from = 'reservas@' . $host;
-    $headers = [
-        'From: ' . mb_encode_mimeheader($s['name']) . " <$from>",
-        'Content-Type: text/plain; charset=UTF-8',
-    ];
-    if (filter_var($s['email'], FILTER_VALIDATE_EMAIL)) $headers[] = 'Reply-To: ' . $s['email'];
+    $s['smtp_pass_set'] = $s['smtp_pass'] !== '';
+    $s['smtp_pass'] = '';
+    $s['smtp_error'] = (string)(q("SELECT v FROM settings WHERE k = '_smtp_error'")->fetchColumn() ?: '');
+    return $s;
+}
+
+/** ¿Los emails salen por Gmail (Google trata los datos como proveedor de correo)? */
+function mail_via_google(): bool
+{
+    $s = settings();
+    return $s['smtp_on'] && (str_ends_with($s['smtp_host'], 'gmail.com') || preg_match('/@(gmail|googlemail)\.com$/', $s['smtp_user']));
+}
+
+function send_mail(string $to, string $subject, string $body, bool $throw = false): bool
+{
+    if (!filter_var($to, FILTER_VALIDATE_EMAIL)) return false;
+    $s = settings();
     // Identificación del remitente en todos los emails (LSSI-CE)
     $who = trim(($s['owner_name'] ?: $s['name']) . ($s['owner_nif'] ? ' · NIF ' . $s['owner_nif'] : ''));
     $addr = trim($s['address'] . ', ' . $s['city'], ', ');
     $body .= "\n\n--\n" . $who . ($addr ? "\n" . $addr : '') . "\nEste email es solo sobre tu reserva o tu cuenta: no enviamos publicidad.\n"
         . 'Privacidad: ' . base_url() . '/legal.php#privacidad';
-    @mail($to, mb_encode_mimeheader($subject), $body, implode("\r\n", $headers));
+    $replyTo = filter_var($s['email'], FILTER_VALIDATE_EMAIL) ? $s['email'] : '';
+
+    if ($s['smtp_on'] && $s['smtp_user'] !== '' && $s['smtp_pass'] !== '') {
+        try {
+            smtp_send($to, $subject, $body, $replyTo);
+            q("DELETE FROM settings WHERE k = '_smtp_error'");
+            return true;
+        } catch (Throwable $e) {
+            $msg = date('j/n H:i') . ' · ' . $e->getMessage();
+            q("DELETE FROM settings WHERE k = '_smtp_error'");
+            q("INSERT INTO settings (k, v) VALUES ('_smtp_error', ?)", [$msg]);
+            error_log('[restaurante] SMTP: ' . $e->getMessage());
+            if ($throw) throw new ValidationError($e->getMessage());
+            // Si Gmail falla, se intenta con el correo del hosting para que el email no se pierda
+        }
+    }
+    $host = preg_replace('/^www\./', '', $_SERVER['HTTP_HOST'] ?? 'localhost');
+    $from = 'reservas@' . $host;
+    $headers = [
+        'From: ' . mb_encode_mimeheader($s['name']) . " <$from>",
+        'MIME-Version: 1.0',
+        'Content-Type: text/plain; charset=UTF-8',
+        'Content-Transfer-Encoding: 8bit',
+    ];
+    if ($replyTo) $headers[] = 'Reply-To: ' . $replyTo;
+    return @mail($to, mb_encode_mimeheader($subject, 'UTF-8'), $body, implode("\r\n", $headers));
+}
+
+/**
+ * Envío por SMTP con usuario y contraseña (Gmail con contraseña de aplicación, Hostinger, Outlook…).
+ * Puerto 465: conexión cifrada desde el principio. Puerto 587: STARTTLS.
+ */
+function smtp_send(string $to, string $subject, string $body, string $replyTo = ''): void
+{
+    $s = settings();
+    $host = $s['smtp_host'] ?: 'smtp.gmail.com';
+    $port = (int)$s['smtp_port'] ?: 465;
+    $user = $s['smtp_user'];
+    $pass = dec($s['smtp_pass']);
+    if ($pass === '') throw new RuntimeException('Falta la contraseña de aplicación');
+
+    $ctx = stream_context_create(['ssl' => ['verify_peer' => true, 'verify_peer_name' => true, 'peer_name' => $host]]);
+    $remote = ($port === 465 ? 'ssl://' : 'tcp://') . $host . ':' . $port;
+    $fp = @stream_socket_client($remote, $errno, $errstr, 15, STREAM_CLIENT_CONNECT, $ctx);
+    if (!$fp) throw new RuntimeException("No se puede conectar con $host:$port ($errstr). Puede que el hosting bloquee ese puerto: prueba con el otro (465 o 587).");
+    stream_set_timeout($fp, 20);
+
+    $read = function () use ($fp): array {
+        $text = '';
+        while (($line = fgets($fp, 1024)) !== false) {
+            $text .= $line;
+            if (strlen($line) < 4 || $line[3] === ' ') break;
+        }
+        return [(int)substr($text, 0, 3), trim($text)];
+    };
+    $cmd = function (string $c, array $ok, string $label = '') use ($fp, $read): string {
+        fwrite($fp, $c . "\r\n");
+        [$code, $text] = $read();
+        if (!in_array($code, $ok, true)) throw new RuntimeException(($label ?: 'El servidor de correo') . " respondió: $text");
+        return $text;
+    };
+
+    try {
+        [$code, $text] = $read();
+        if ($code !== 220) throw new RuntimeException("El servidor de correo no responde bien: $text");
+        $me = preg_replace('/[^a-z0-9.-]/i', '', $_SERVER['HTTP_HOST'] ?? 'localhost') ?: 'localhost';
+        $cmd("EHLO $me", [250]);
+        if ($port !== 465) {
+            $cmd('STARTTLS', [220]);
+            if (!stream_socket_enable_crypto($fp, true, STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT | STREAM_CRYPTO_METHOD_TLSv1_3_CLIENT)) {
+                throw new RuntimeException('No se pudo cifrar la conexión con el servidor de correo');
+            }
+            $cmd("EHLO $me", [250]);
+        }
+        $cmd('AUTH LOGIN', [334]);
+        $cmd(base64_encode($user), [334]);
+        try {
+            $cmd(base64_encode($pass), [235]);
+        } catch (RuntimeException $e) {
+            throw new RuntimeException('Gmail no acepta el usuario o la contraseña. Usa una «contraseña de aplicación» de 16 letras, no la contraseña normal de tu cuenta de Google.');
+        }
+        $cmd("MAIL FROM:<$user>", [250]);
+        $cmd("RCPT TO:<$to>", [250, 251], 'La dirección de destino');
+        $cmd('DATA', [354]);
+
+        $name = settings()['name'];
+        $domain = substr(strrchr($user, '@') ?: '@localhost', 1);
+        $headers = [
+            'Date: ' . date('r'),
+            'From: ' . mb_encode_mimeheader($name, 'UTF-8') . " <$user>",
+            "To: <$to>",
+            'Subject: ' . mb_encode_mimeheader($subject, 'UTF-8'),
+            'Message-ID: <' . bin2hex(random_bytes(12)) . "@$domain>",
+            'MIME-Version: 1.0',
+            'Content-Type: text/plain; charset=UTF-8',
+            'Content-Transfer-Encoding: base64',
+        ];
+        if ($replyTo !== '' && strcasecmp($replyTo, $user) !== 0) $headers[] = "Reply-To: <$replyTo>";
+        $msg = implode("\r\n", $headers) . "\r\n\r\n" . rtrim(chunk_split(base64_encode($body), 76, "\r\n"));
+        $cmd($msg . "\r\n.", [250], 'Al enviar el email, el servidor');
+        fwrite($fp, "QUIT\r\n");
+    } finally {
+        fclose($fp);
+    }
 }

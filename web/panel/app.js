@@ -41,6 +41,7 @@
     refresh: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>',
     plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
     phone: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2Z"/></svg>',
+    search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
     plate: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/></svg>',
   };
 
@@ -58,6 +59,9 @@
     openSets: new Set(),
     calMonth: todayISO().slice(0, 7),
     calDay: todayISO(),
+    hoyDay: todayISO(),
+    hoyAll: [],
+    query: '',
     pending: 0,
   };
 
@@ -303,17 +307,55 @@
     });
     $('#view').addEventListener('click', onViewClick);
     $('#view').addEventListener('change', onViewChange);
+    $('#view').addEventListener('input', onViewInput);
+    pullToRefresh();
     go(S.tab);
     poll();
   }
 
+  function hasDirty() { return $$('form[data-dirty]', $('#view') || document).length > 0; }
   function go(tab) {
     if (!TABS.some((t) => t[0] === tab)) tab = 'hoy';
+    if (S.tab === 'ajustes' && tab !== 'ajustes' && hasDirty() && !confirm('Tienes cambios sin guardar en Ajustes. ¿Salir sin guardarlos?')) return;
+    if (tab === 'hoy' && S.tab !== 'hoy') { S.hoyDay = todayISO(); S.query = ''; }
     S.tab = tab;
     LS.set('tab', tab);
     $$('.tabs [data-tab]').forEach((b) => { if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
     window.scrollTo(0, 0);
     render();
+  }
+
+  /** Deslizar hacia abajo desde arriba del todo para actualizar (como en las apps del móvil). */
+  function pullToRefresh() {
+    const ind = document.createElement('div');
+    ind.className = 'ptr';
+    ind.innerHTML = ICON.refresh;
+    document.body.appendChild(ind);
+    let y0 = null, dy = 0;
+    window.addEventListener('touchstart', (e) => {
+      y0 = window.scrollY <= 0 && !$('.sheet-wrap') && e.touches.length === 1 ? e.touches[0].clientY : null;
+      dy = 0;
+    }, { passive: true });
+    window.addEventListener('touchmove', (e) => {
+      if (y0 === null) return;
+      dy = Math.max(0, e.touches[0].clientY - y0);
+      ind.style.transform = `translate(-50%, ${Math.min(dy, 110) - 50}px) rotate(${dy * 3}deg)`;
+      ind.classList.toggle('ready', dy > 80);
+      ind.classList.toggle('on', dy > 10);
+    }, { passive: true });
+    window.addEventListener('touchend', async () => {
+      if (y0 === null) return;
+      const go2 = dy > 80;
+      y0 = null;
+      ind.classList.remove('ready');
+      if (!go2) { ind.style.transform = ''; ind.classList.remove('on'); return; }
+      ind.classList.add('busy');
+      ind.style.transform = 'translate(-50%, 40px)';
+      S.settings = null;
+      await Promise.all([render(), poll()]);
+      ind.classList.remove('busy', 'on');
+      ind.style.transform = '';
+    });
   }
 
   function setTitle(t) { $('#title').textContent = t; }
@@ -329,7 +371,7 @@
     const view = $('#view');
     if (!view) return;
     const titles = { pet: 'Peticiones', hoy: 'Hoy', cal: 'Calendario', carta: 'Carta', ajustes: 'Ajustes' };
-    setTitle(titles[S.tab]);
+    setTitle(S.tab === 'hoy' && S.hoyDay !== todayISO() ? 'Reservas' : titles[S.tab]);
     setFab('', null);
     if (!view.dataset.tab || view.dataset.tab !== S.tab) view.innerHTML = '<div class="spin dark" aria-label="Cargando"></div>';
     view.dataset.tab = S.tab;
@@ -394,20 +436,54 @@
   /* ---------- HOY ---------- */
   async function viewHoy() {
     const t = todayISO();
-    const all = await api(`reservations&from=${t}&to=${iso(addDays(new Date(), 180))}`);
-    const today = all.filter((r) => r.date === t);
-    const newReq = all.filter((r) => r.status === 'pendiente').length;
-    setFab('Nueva reserva', () => editReservation(null, t));
-    let html = `<div class="day-head"><p class="day-date">${esc(fmtDay(t))}</p><p class="day-sum">${daySummary(today)}</p></div>`;
+    S.hoyAll = await api(`reservations&from=${t}&to=${iso(addDays(new Date(), 180))}`);
+    const newReq = S.hoyAll.filter((r) => r.status === 'pendiente').length;
+    setFab('Nueva reserva', () => editReservation(null, S.hoyDay));
+    let html = `<label class="search">${ICON.search}<input type="search" id="hoy-q" placeholder="Buscar reserva por nombre o teléfono" value="${esc(S.query)}" autocomplete="off" enterkeyhint="search"></label>`;
     if (newReq) {
       html += `<button type="button" class="alert alert-btn" data-goto-tab="pet">${newReq} ${newReq === 1 ? 'petición nueva' : 'peticiones nuevas'} de reserva. Toca para verlas ›</button>`;
     }
-    if (!today.length) {
-      html += `<div class="empty"><p>Hoy no hay reservas todavía.</p><button class="btn btn-line btn-sm" data-new="${t}">Apuntar una reserva</button></div>`;
-    } else {
-      html += servicesHTML(today);
-    }
+    html += '<div id="hoy-body"></div>';
     return html;
+  }
+  afterRender.hoy = (view) => renderHoyBody(view);
+
+  function dayStrip() {
+    const t = todayISO();
+    let out = '<div class="strip" role="tablist" aria-label="Próximos días">';
+    for (let i = 0; i < 14; i++) {
+      const d = iso(addDays(new Date(), i));
+      const act = S.hoyAll.filter((r) => r.date === d && ACTIVE.includes(r.status));
+      const ppl = act.reduce((a, r) => a + r.people, 0);
+      const pend = act.some((r) => r.status !== 'confirmada');
+      const dd = parseISO(d);
+      const name = i === 0 ? 'Hoy' : i === 1 ? 'Mañana' : DIAS_C[dd.getDay()];
+      out += `<button type="button" role="tab" class="strip-d${d === S.hoyDay ? ' sel' : ''}" data-hoy-day="${d}" aria-selected="${d === S.hoyDay}" aria-label="${esc(fmtDay(d))}: ${ppl} personas">
+        <span class="sd-n">${name}</span><b>${dd.getDate()}</b><span class="sd-p">${ppl ? ppl + 'p' : '·'}</span>${pend ? '<i class="pd"></i>' : ''}</button>`;
+    }
+    return out + '</div>';
+  }
+
+  function renderHoyBody(view) {
+    const box = $('#hoy-body', view);
+    if (!box) return;
+    const q = S.query.trim().toLowerCase();
+    if (q) {
+      const qd = q.replace(/\D/g, '');
+      const found = S.hoyAll.filter((r) => r.name.toLowerCase().includes(q) || (qd.length >= 3 && String(r.phone).replace(/\D/g, '').includes(qd)));
+      box.innerHTML = `<h2 class="sec">Resultados <span>${found.length}</span></h2>`
+        + (found.length ? found.map((r) => resCard(r, true)).join('') : '<div class="empty"><p>No hay ninguna reserva próxima con ese nombre o teléfono.</p></div>');
+      return;
+    }
+    const list = S.hoyAll.filter((r) => r.date === S.hoyDay);
+    const t = todayISO();
+    let html = dayStrip();
+    html += `<div class="day-head"><p class="day-date">${esc(fmtDay(S.hoyDay))}</p><p class="day-sum">${daySummary(list)}</p></div>`;
+    html += list.length ? servicesHTML(list)
+      : `<div class="empty"><p>${S.hoyDay === t ? 'Hoy no hay reservas todavía.' : 'Este día no hay reservas.'}</p><button class="btn btn-line btn-sm" data-new="${S.hoyDay}">Apuntar una reserva</button></div>`;
+    box.innerHTML = html;
+    const sel = $('.strip-d.sel', box);
+    if (sel && sel.scrollIntoView) sel.scrollIntoView({ block: 'nearest', inline: 'center' });
   }
 
   /* ---------- PETICIONES ---------- */
@@ -521,6 +597,8 @@
       </div>`, (body) => {
       $$('[data-wa-send]', body).forEach((a) => a.addEventListener('click', () => { markSent(r.id); closeSheet(); }));
       $$('[data-s]', body).forEach((b) => b.addEventListener('click', async () => {
+        const q2 = { rechazada: `¿Rechazar la reserva de ${r.name}?`, cancelada: `¿Cancelar la reserva de ${r.name}?` }[b.dataset.s];
+        if (q2 && !confirm(q2 + (r.email ? ' Le llegará un email avisándole.' : ''))) return;
         busy(b, true, '…');
         try { await setStatus(r.id, b.dataset.s); closeSheet(); } catch (err) { toast(err.message, 'err'); busy(b, false); }
       }));
@@ -610,14 +688,16 @@
     const names = Object.fromEntries(S.menu.allergens.map((a) => [a.key, a.name]));
     const off = cats.reduce((a, c) => a + c.dishes.filter((d) => !d.available).length, 0);
     let html = `<div class="toolbar"><button class="btn btn-quiet btn-sm" data-cat-new>Nueva sección</button>${S.base ? `<a class="btn btn-quiet btn-sm" href="${esc(S.base)}/#carta" target="_blank" rel="noopener">Ver en la web</a>` : ''}</div>`;
+    html += `<label class="search">${ICON.search}<input type="search" id="carta-q" placeholder="Buscar plato" autocomplete="off" enterkeyhint="search"></label>`;
+    if (cats.length > 1) html += `<nav class="jump" aria-label="Ir a una sección">${cats.map((c) => `<a href="#mcat-${c.id}" data-jump="${c.id}">${esc(c.name)} <span>${c.dishes.length}</span></a>`).join('')}</nav>`;
     if (off) html += `<p class="alert">${off} ${off === 1 ? 'plato está marcado' : 'platos están marcados'} como agotado y no ${off === 1 ? 'sale' : 'salen'} en la web.</p>`;
     html += '<p class="help" style="margin:4px 0 0;color:var(--granito)">El interruptor quita o pone un plato en la web al momento (por ejemplo, si se acaba).</p>';
     for (const c of cats) {
-      html += `<section class="mcat"><div class="mcat-head"><h2>${esc(c.name)}</h2><button class="link-btn" data-cat="${c.id}">Editar sección</button></div>`;
+      html += `<section class="mcat" id="mcat-${c.id}"><div class="mcat-head"><h2>${esc(c.name)}</h2><button class="link-btn" data-cat="${c.id}">Editar sección</button></div>`;
       if (!c.dishes.length) html += '<p class="help" style="color:var(--granito)">Sin platos todavía.</p>';
       for (const d of c.dishes) {
         const al = d.allergens.map((k) => names[k]).filter(Boolean);
-        html += `<div class="mdish${d.available ? '' : ' off'}">
+        html += `<div class="mdish${d.available ? '' : ' off'}" data-name="${esc((d.name + ' ' + d.description).toLowerCase())}">
           ${d.photo ? `<img class="md-img" src="${esc(d.photo)}" alt="" loading="lazy">` : `<div class="md-img">${ICON.plate}</div>`}
           <button class="md-body" type="button" data-dish="${d.id}">
             <p class="md-name">${esc(d.name)}</p>
@@ -887,7 +967,32 @@
         <form class="form" data-form="legal" novalidate>
           ${field('owner_name', 'Titular (nombre o empresa)')}
           ${field('owner_nif', 'NIF / CIF')}
+          ${field('owner_registry', 'Datos del Registro Mercantil (solo sociedades)', 'text', 'placeholder="Inscrita en el R. M. de Pontevedra, tomo…, folio…, hoja…"')}
+          <p class="help">Salen en el aviso legal y al pie de los emails. Para que el aviso legal esté completo hace falta también el email de contacto.</p>
           <button class="btn btn-main" type="submit">Guardar</button>
+        </form>`)}
+      ${sec('correo', 'Envío de emails', s.smtp_on ? `Activado con ${esc(s.smtp_user)}` : 'Conectar tu Gmail para enviar los emails', `
+        <form class="form" data-form="correo" novalidate>
+          <p class="help">Los emails a los clientes (activar la cuenta, confirmación de la reserva…) salen por defecto del correo del hosting y a veces acaban en spam. Con tu Gmail llegan mejor.</p>
+          <ol class="steps">
+            <li>Entra en <a href="https://myaccount.google.com/security" target="_blank" rel="noopener">myaccount.google.com/security</a> y activa la <b>verificación en 2 pasos</b>.</li>
+            <li>Abre <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">myaccount.google.com/apppasswords</a>, escribe un nombre (por ejemplo «Web restaurante») y pulsa <b>Crear</b>.</li>
+            <li>Copia la contraseña de 16 letras que te da Google y pégala aquí abajo.</li>
+          </ol>
+          ${field('smtp_user', 'Tu dirección de Gmail', 'email', 'placeholder="turestaurante@gmail.com" autocapitalize="off" autocomplete="off"')}
+          <label>Contraseña de aplicación <input name="smtp_pass" type="password" autocomplete="new-password" placeholder="${s.smtp_pass_set ? 'Guardada (escribe otra para cambiarla)' : 'abcd efgh ijkl mnop'}"><span class="help">No es la contraseña de tu cuenta de Google. Se guarda cifrada.</span></label>
+          <label class="switch-row">Enviar los emails con esta cuenta <span class="sw"><input type="checkbox" name="smtp_on" ${s.smtp_on ? 'checked' : ''}><span></span></span></label>
+          <details class="adv"><summary>Otro proveedor de correo</summary>
+            <div class="row">
+              ${field('smtp_host', 'Servidor', 'text', 'placeholder="smtp.gmail.com" autocapitalize="off"')}
+              <label>Puerto <select name="smtp_port"><option value="465" ${Number(s.smtp_port) === 465 ? 'selected' : ''}>465 (SSL)</option><option value="587" ${Number(s.smtp_port) === 587 ? 'selected' : ''}>587 (TLS)</option></select></label>
+            </div>
+            <p class="help">Para el correo de Hostinger: smtp.hostinger.com, puerto 465, con tu email y su contraseña.</p>
+          </details>
+          ${s.smtp_error ? `<p class="err-box">Último error al enviar: ${esc(s.smtp_error)}</p>` : ''}
+          <button class="btn btn-main" type="submit">Guardar</button>
+          <button class="btn btn-line" type="button" data-mail-test>Enviar un email de prueba</button>
+          <p class="help">La prueba llega a «${esc(s.notify_email || s.email || 'el email de avisos')}». Gmail permite unos 500 emails al día, de sobra para un restaurante.</p>
         </form>`)}
       ${sec('avisos', 'Avisos de reservas nuevas', 'Notificaciones en este móvil', `
         <p class="help">Con la app abierta (o en segundo plano) revisa cada 30 segundos si hay reservas nuevas. Además, cada reserva llega por email a «${esc(s.notify_email || s.email || 'el email de avisos')}».</p>
@@ -941,6 +1046,15 @@
       }
     }));
     $$('form[data-form]', view).forEach((f) => f.addEventListener('submit', (e) => saveSettingsForm(e, f)));
+    const mt = $('[data-mail-test]', view);
+    if (mt) mt.addEventListener('click', async () => {
+      const f = mt.closest('form');
+      if (f.dataset.dirty) { toast('Guarda primero los cambios', 'err'); return; }
+      busy(mt, true, 'Enviando…');
+      try { const r = await api('mail_test', { body: {} }); toast(`Email de prueba enviado a ${r.to}. Míralo (y la carpeta de spam).`); }
+      catch (err) { toast(err.message, 'err'); render(); }
+      busy(mt, false);
+    });
     $('[data-notif]', view).addEventListener('click', async () => {
       const ok = await askNotifications();
       toast(ok ? 'Avisos activados' : 'El móvil no ha dado permiso. Actívalo en Ajustes del móvil → Notificaciones.', ok ? '' : 'err');
@@ -982,13 +1096,17 @@
       }
       body = { hours };
     } else {
-      $$('input[name], textarea[name]', f).forEach((el) => { body[el.name] = el.type === 'checkbox' ? el.checked : el.value; });
+      $$('input[name], textarea[name], select[name]', f).forEach((el) => { body[el.name] = el.type === 'checkbox' ? el.checked : el.value; });
     }
     busy(btn, true);
     try {
       S.settings = await api('settings_save', { body });
       if (body.name) { S.restaurant = body.name; LS.set('restaurant', body.name); $('#bar-sub').textContent = body.name; }
-      toast('Guardado. Ya se ve en la web.');
+      delete f.dataset.dirty;
+      btn.classList.remove('is-dirty');
+      if (btn.dataset.orig) { btn.dataset.label = btn.dataset.orig; delete btn.dataset.orig; }
+      toast(kind === 'correo' ? 'Guardado' : 'Guardado. Ya se ve en la web.');
+      if (kind === 'correo') { const pw = $('[name=smtp_pass]', f); if (pw) { pw.value = ''; pw.placeholder = 'Guardada (escribe otra para cambiarla)'; } }
     } catch (err) { toast(err.message, 'err'); }
     busy(btn, false);
   }
@@ -999,11 +1117,17 @@
     if (t.closest('[data-retry]')) return render();
     const wa = t.closest('[data-wa-send]');
     if (wa) { e.stopPropagation(); markSent(Number(wa.dataset.waSend)); return; }
+    const hd = t.closest('[data-hoy-day]');
+    if (hd) { S.hoyDay = hd.dataset.hoyDay; setTitle(S.hoyDay === todayISO() ? 'Hoy' : 'Reservas'); setFab('Nueva reserva', () => editReservation(null, S.hoyDay)); return renderHoyBody($('#view')); }
+    const jp = t.closest('[data-jump]');
+    if (jp) { e.preventDefault(); const el = $('#mcat-' + jp.dataset.jump); if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - $('.bar').offsetHeight - 8, behavior: 'smooth' }); return; }
     const gt = t.closest('[data-goto-tab]');
     if (gt) return go(gt.dataset.gotoTab);
     const st = t.closest('[data-status]');
     if (st) {
       e.stopPropagation();
+      const rr = S.res[Number(st.dataset.id)];
+      if (st.dataset.status === 'rechazada' && !confirm(`¿Rechazar la reserva de ${rr ? rr.name : 'este cliente'}?${rr && rr.email ? ' Le llegará un email avisándole.' : ''}`)) return;
       busy(st, true, '…');
       setStatus(Number(st.dataset.id), st.dataset.status).catch((err) => { toast(err.message, 'err'); busy(st, false); });
       return;
@@ -1033,9 +1157,33 @@
     if (cat) return editCategory(S.menu.categories.find((c) => c.id === Number(cat.dataset.cat)));
   }
 
+  function onViewInput(e) {
+    const t = e.target;
+    if (t.id === 'hoy-q') { S.query = t.value; renderHoyBody($('#view')); return; }
+    if (t.id === 'carta-q') {
+      const q = t.value.trim().toLowerCase();
+      $$('.mcat', $('#view')).forEach((sec) => {
+        let n = 0;
+        $$('.mdish', sec).forEach((d) => { const on = !q || d.dataset.name.includes(q); d.hidden = !on; if (on) n++; });
+        sec.hidden = !!q && n === 0;
+      });
+      const j = $('.jump', $('#view'));
+      if (j) j.hidden = !!q;
+      return;
+    }
+    const f = t.closest('form[data-form]');
+    if (f && f.dataset.form !== 'password') {
+      if (!f.dataset.dirty) {
+        f.dataset.dirty = '1';
+        const b = $('button[type=submit]', f);
+        if (b) { b.classList.add('is-dirty'); b.dataset.orig = b.textContent; b.textContent = 'Guardar cambios'; }
+      }
+    }
+  }
+
   async function onViewChange(e) {
     const tg = e.target.closest('[data-toggle]');
-    if (!tg) return;
+    if (!tg) { if (e.target.closest('form[data-form]')) onViewInput(e); return; }
     const id = Number(tg.dataset.toggle);
     const on = tg.checked;
     tg.disabled = true;

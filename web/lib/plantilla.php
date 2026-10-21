@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/tema.php';
 
-const ASSET_V = '22';
+const ASSET_V = '23';
 
 function tel_href(string $t): string
 {
@@ -50,7 +50,7 @@ function page_start(string $title, string $description = '', string $bodyClass =
 <script src="assets/consent.js?v=<?= ASSET_V ?>" defer></script>
 <meta property="og:title" content="<?= h($s['name']) ?>">
 <meta property="og:description" content="<?= h($s['tagline']) ?>">
-<meta property="og:image" content="<?= h(photo('hero', 1200)) ?>">
+<meta property="og:image" content="<?= h((preg_match('#^https?://#', photo('hero', 1200)) ? '' : base_url() . '/') . photo('hero', 1200)) ?>">
 <meta name="theme-color" content="#000000">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -58,7 +58,6 @@ function page_start(string $title, string $description = '', string $bodyClass =
 <link rel="manifest" href="manifest.php">
 <link rel="icon" href="icon.php?s=192" type="image/png">
 <link rel="apple-touch-icon" href="icon.php?s=180">
-<link rel="preconnect" href="https://images.unsplash.com">
 <link rel="preload" href="assets/fonts/bodoni-moda-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="assets/web.css?v=<?= ASSET_V ?>">
 <script>

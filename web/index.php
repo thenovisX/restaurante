@@ -43,7 +43,7 @@ page_start($s['name'] . ' · ' . $s['tagline'], '', 'home');
 <script type="application/ld+json"><?= json_encode([
     '@context' => 'https://schema.org', '@type' => 'Restaurant', 'name' => $s['name'],
     'address' => trim($s['address'] . ', ' . $s['city'], ', '), 'telephone' => $s['phone'],
-    'acceptsReservations' => true, 'url' => base_url(), 'image' => photo('hero', 1200),
+    'acceptsReservations' => true, 'url' => base_url(), 'image' => (preg_match('#^https?://#', photo('hero', 1200)) ? '' : base_url() . '/') . photo('hero', 1200),
     'description' => $s['seo_description'] ?: $s['tagline'],
     'openingHoursSpecification' => array_merge(...array_map(fn($d) => array_map(fn($r) => [
         '@type' => 'OpeningHoursSpecification',

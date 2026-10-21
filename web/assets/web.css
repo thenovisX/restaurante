@@ -460,6 +460,9 @@ body.menu-open { overflow: hidden; }
 .bk-who strong { color: var(--hueso); font-weight: 600; }
 .bk-policy { border: 1px solid var(--linea); border-radius: 14px; padding: 14px 16px; display: grid; gap: 10px; }
 .bk-policy p { margin: 0; color: var(--ceniza); font-size: .92rem; }
+.bk-policy .bk-info { font-size: .8rem; line-height: 1.45; }
+.bk-policy .bk-info strong { color: var(--hueso); font-weight: 600; }
+.bk-help { margin: -4px 0 0; font-size: .85rem; color: var(--ceniza); line-height: 1.4; }
 .check { grid-template-columns: auto 1fr !important; align-items: start; font-weight: 400 !important; }
 .check input { width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--rubor); }
 .hp { position: absolute !important; left: -9999px; }

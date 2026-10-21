@@ -43,10 +43,11 @@ site_header($c);
           <label>Teléfono <span>para avisarte si hay algún cambio</span><input name="phone" type="tel" autocomplete="tel" maxlength="30"></label>
           <label>Contraseña <span>mínimo 8 caracteres</span><input name="password" type="password" autocomplete="new-password" minlength="8" required></label>
           <label class="hp" aria-hidden="true">No rellenar <input name="website" tabindex="-1" autocomplete="off"></label>
-          <label class="check"><input type="checkbox" name="privacy" value="1"><span>He leído y acepto las <a href="legal.php#condiciones" target="_blank">condiciones de uso</a> y la <a href="legal.php#privacidad" target="_blank">política de privacidad</a>.</span></label>
+          <label class="check"><input type="checkbox" name="privacy" value="1"><span>Acepto las <a href="legal.php#condiciones" target="_blank">condiciones de uso</a> y he leído la <a href="legal.php#privacidad" target="_blank">política de privacidad</a>.</span></label>
           <p class="form-err" role="alert"></p>
           <button class="btn btn-rubor" type="submit">Crear cuenta</button>
-          <p class="form-help">Te enviaremos un email para activar la cuenta. Si ya habías reservado con este email, esas reservas aparecerán en tu cuenta al activarla. No te enviaremos publicidad.</p>
+          <p class="form-help">Te enviaremos un email para activar la cuenta. Las reservas que hayas hecho con este mismo email aparecerán en tu cuenta al activarla; las que hiciste sin email o con otro no se pueden añadir. No te enviaremos publicidad.</p>
+          <p class="form-help small"><strong>Protección de datos.</strong> Responsable: <?= h($s['owner_name'] ?: $s['name']) ?>. Finalidad: gestionar tu cuenta y tus reservas. No cedemos tus datos a nadie. Puedes descargarlos o borrar la cuenta desde aquí mismo, y ejercer el resto de derechos escribiendo a <?= h($s['email'] ?: 'nuestro contacto') ?>. <a href="legal.php#privacidad" target="_blank">Más información</a>.</p>
         </form>
         <div class="acc-pendiente" id="acc-pendiente" hidden>
           <h2>Revisa tu email</h2>
@@ -86,6 +87,7 @@ site_header($c);
           </li>
         <?php endforeach; ?>
       </ul>
+      <p class="form-help">Aquí salen las reservas hechas con tu cuenta o con el email <?= h($c['email']) ?>. Las que hiciste sin email o con otro email no aparecen.</p>
     </section>
 
     <?php if ($res['past']): ?>

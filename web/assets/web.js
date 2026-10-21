@@ -337,8 +337,10 @@
         $('#bk-done-t').textContent = 'Petición realizada';
         $('#bk-done-msg').textContent = r.message;
         var more = $('#bk-done-more');
-        if (r.account) more.innerHTML = 'Esperando confirmación. La verás en <a href="cuenta.php">tu cuenta</a>, donde también podrás confirmarla o cancelarla.';
-        else more.innerHTML = 'Esperando confirmación. Mientras no toques el enlace del WhatsApp, la reserva queda pendiente.';
+        var wait = 'Esperando confirmación. Mientras no toques el enlace del WhatsApp, la reserva queda pendiente.';
+        if (r.linked) more.innerHTML = 'Esperando confirmación. La verás en <a href="cuenta.php">tu cuenta</a>, donde también podrás cancelarla.';
+        else if (r.email) more.innerHTML = wait + ' Si creas una cuenta con el mismo email, también la verás allí.';
+        else more.innerHTML = wait + ' Como no has puesto email, esta reserva no aparecerá en ninguna cuenta.';
         showPane(4);
       }).catch(function (e) {
         err.textContent = e.message;

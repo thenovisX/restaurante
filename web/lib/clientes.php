@@ -249,7 +249,7 @@ function customer_cancel(array $c, int $id): array
     send_mail(
         $s['notify_email'] ?: $s['email'],
         "Reserva cancelada por el cliente: {$r['name']}, " . fmt_date_es($r['date']) . " {$r['time']}",
-        "El cliente ha cancelado su reserva desde su cuenta.\n\nNombre: {$r['name']}\nTeléfono: {$r['phone']}\nDía: " . fmt_date_es($r['date']) . " a las {$r['time']}\nPersonas: {$r['people']}"
+        "El cliente ha cancelado su reserva desde su cuenta.\n\nNombre: {$r['name']}\nDía: " . fmt_date_es($r['date']) . " a las {$r['time']}\nPersonas: {$r['people']}"
     );
     notify_customer($r);
     return $r;

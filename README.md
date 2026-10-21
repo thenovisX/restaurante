@@ -11,7 +11,7 @@ Web pública (diseño nocturno, restaurante de ejemplo «Novia») con:
 - **Aviso de cookies** al entrar (Aceptar / Rechazar / Configurar). Google Analytics, Tag Manager y el píxel de Meta solo se cargan si el visitante acepta (modo de consentimiento v2 de Google).
 - **SEO**: descripción para Google, verificación de Search Console, `sitemap.xml`, `robots.txt` y datos estructurados de restaurante con horario y redes. Todo se configura en el panel → Ajustes → SEO y estadísticas.
 - Horario, contacto y textos legales.
-- Las fotos son de Unsplash (licencia gratuita, se muestran los autores en el pie). Para usar fotos propias, cambia las direcciones en `web/lib/tema.php`.
+- Las fotos de ejemplo son de Unsplash (licencia gratuita, se muestran los autores en el pie). La web las descarga una vez y las sirve desde el propio hosting (`foto.php` → `uploads/cache/`), así el navegador del visitante no se conecta a Unsplash. Las fotos propias se cambian desde la app.
 
 Más una **app de gestión** para el móvil con tres secciones:
 
@@ -21,6 +21,19 @@ Más una **app de gestión** para el móvil con tres secciones:
 - **Ajustes**, en secciones plegables: datos y presentación, contacto y ubicación, redes sociales (Instagram, Facebook, TikTok, TripAdvisor), fotos de la web, textos de la cinta y del pie, horario, reservas online, políticas, datos legales, avisos y contraseña. Todo se ve en la web al momento.
 
 Cuando entra una reserva, la app avisa con una notificación y llega también un email al restaurante. Si el cliente dejó su email, recibe la confirmación o el rechazo.
+
+En **Hoy** hay un buscador de reservas (nombre o teléfono) y una tira con los próximos 14 días. Se actualiza deslizando hacia abajo. En el ordenador o la tablet el menú pasa al lateral.
+
+### Enviar los emails desde Gmail
+
+Por defecto los emails salen del correo del hosting y a veces llegan a spam. Para enviarlos desde una cuenta de Gmail:
+
+1. En la cuenta de Google, activa la **verificación en 2 pasos** (myaccount.google.com/security).
+2. Entra en **myaccount.google.com/apppasswords**, escribe «Web restaurante» y pulsa **Crear**. Copia la contraseña de 16 letras.
+3. En la app: **Ajustes → Envío de emails**. Pon la dirección de Gmail y esa contraseña, activa el interruptor y pulsa **Guardar**.
+4. Pulsa **Enviar un email de prueba**.
+
+La contraseña se guarda cifrada y nunca vuelve a la app. Si Gmail falla, el email se envía con el correo del hosting y el error se muestra en esa sección. Sirve igual para otros proveedores (por ejemplo, el correo de Hostinger: smtp.hostinger.com, puerto 465).
 
 ```
 web/        → lo que se sube a Hostinger (PHP + MySQL)

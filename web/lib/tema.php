@@ -39,14 +39,26 @@ const PHOTOS = [
     ],
 ];
 
-/** URL de una foto a un ancho concreto (Unsplash las redimensiona al vuelo). */
+/** Anchos permitidos para las fotos de ejemplo (se guardan en caché en el servidor). */
+const PHOTO_WIDTHS = [480, 600, 640, 800, 900, 1000, 1024, 1200, 1300, 1600, 2200];
+
+function photo_cache_file(string $key, int $w): string
+{
+    return dirname(__DIR__) . '/uploads/cache/' . $key . '-' . $w . '.jpg';
+}
+
+/**
+ * URL de una foto a un ancho concreto. Las de Unsplash se sirven desde este servidor (foto.php las
+ * descarga una vez y las guarda): el navegador del visitante nunca se conecta a Unsplash.
+ */
 function photo(string $key, int $w = 1600): string
 {
     $own = settings()['photos'][$key] ?? '';
     if ($own !== '') return $own;
     $src = PHOTOS[$key]['src'];
     if (str_starts_with($src, 'https://images.unsplash.com/')) {
-        return $src . '?auto=format&fit=crop&q=70&w=' . $w;
+        if (!in_array($w, PHOTO_WIDTHS, true)) $w = 1600;
+        return is_file(photo_cache_file($key, $w)) ? "uploads/cache/$key-$w.jpg" : "foto.php?k=$key&w=$w";
     }
     return $src;
 }

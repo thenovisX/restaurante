@@ -116,21 +116,27 @@ function create_public_reservation(array $in): array
     $s = settings();
     $status = 'pendiente';
     $token = bin2hex(random_bytes(16));
+    // Si no ha entrado pero el email es de una cuenta ya activada, la reserva aparece en esa cuenta
+    $cid = $customer ? (int)$customer['id'] : 0;
+    if (!$cid && $d['email'] !== '') {
+        $cid = (int)(q('SELECT id FROM customers WHERE email_idx = ? AND verified_at IS NOT NULL', [email_idx($d['email'])])->fetchColumn() ?: 0);
+    }
     q('INSERT INTO reservations (name, phone, email, email_idx, rdate, rtime, people, notes, status, source, ip, created_at, updated_at, customer_id, verify_token, seq)
        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', [
         enc($d['name']), enc($d['phone']), enc($d['email']), email_idx($d['email']), $d['rdate'], $d['rtime'], $d['people'], enc($d['notes']),
-        $status, 'web', $ip, now(), now(), $customer ? (int)$customer['id'] : 0, enc($token), next_seq(),
+        $status, 'web', $ip, now(), now(), $cid, enc($token), next_seq(),
     ]);
     $id = (int)$pdo->lastInsertId();
     $pdo->commit();
-    audit('reserva', $customer ? (int)$customer['id'] : 0, "Reserva #$id: acepta políticas de reserva y privacidad, versión " . LEGAL_VERSION);
+    audit('reserva', $cid, "Reserva #$id: acepta políticas de reserva y privacidad, versión " . LEGAL_VERSION);
 
     $when = fmt_date_es($d['rdate']) . ' a las ' . $d['rtime'];
     send_mail(
         $s['notify_email'] ?: $s['email'],
         "Petición de reserva: {$d['name']}, {$d['people']} pers., $when",
-        "Nueva petición de reserva desde la web\n\nNombre: {$d['name']}\nTeléfono: {$d['phone']}\nEmail: {$d['email']}\n"
-        . "Día: $when\nPersonas: {$d['people']}\nNotas: {$d['notes']}\n\nConfírmala desde la pestaña Peticiones de la app: se abrirá WhatsApp con el mensaje para el cliente."
+        "Nueva petición de reserva desde la web\n\nNombre: {$d['name']}\nDía: $when\nPersonas: {$d['people']}\n\n"
+        . "Confírmala desde la pestaña Peticiones de la app: allí están el teléfono y las notas, y se abrirá WhatsApp con el mensaje para el cliente.\n"
+        . "(Por privacidad, el teléfono y el email del cliente no van en este aviso.)"
     );
 
     return [
@@ -139,6 +145,8 @@ function create_public_reservation(array $in): array
         'when' => $when,
         'people' => $d['people'],
         'account' => (bool)$customer,
+        'linked' => $cid > 0,
+        'email' => $d['email'] !== '',
         'message' => "Hemos recibido tu petición para el $when ($d[people] " . ($d['people'] === 1 ? 'persona' : 'personas') . "). "
             . 'El restaurante la revisará y te enviará un WhatsApp al ' . $d['phone'] . ' con un enlace para confirmarla.',
     ];
@@ -205,7 +213,7 @@ function confirm_by_customer(int $id, string $token): array
     $r = get_reservation($id);
     $s = settings();
     send_mail($s['notify_email'] ?: $s['email'], "Reserva confirmada por el cliente: {$r['name']}, " . fmt_date_es($r['date']) . " {$r['time']}",
-        "{$r['name']} ha confirmado su reserva desde el enlace del WhatsApp.\n\nDía: " . fmt_date_es($r['date']) . " a las {$r['time']}\nPersonas: {$r['people']}\nTeléfono: {$r['phone']}");
+        "{$r['name']} ha confirmado su reserva desde el enlace del WhatsApp.\n\nDía: " . fmt_date_es($r['date']) . " a las {$r['time']}\nPersonas: {$r['people']}");
     notify_customer($r);
     return ['confirmada', $r];
 }
