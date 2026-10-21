@@ -1,8 +1,8 @@
 name: Compilar app Android y web
 
+# Solo se ejecuta a mano (GitHub → Actions → «Compilar app Android y web» → Run workflow).
+# La web se sigue publicando sola en la rama hostinger con el otro workflow.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:

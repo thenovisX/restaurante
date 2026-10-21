@@ -70,7 +70,7 @@ Listo: la web ya funciona en `https://tudominio.com`.
 
 Las nuevas versiones se instalan encima de la anterior sin perder nada.
 
-> Cada vez que se sube un cambio a la rama `main`, GitHub compila automáticamente el APK y la web (pestaña **Actions**) y los publica en **Releases**.
+> El APK ya no se compila solo: se genera a mano desde GitHub → **Actions** → «Compilar app Android y web» → **Run workflow**, y se publica en **Releases**. La web sí se publica sola en la rama `hostinger`.
 
 ## 3. iPhone
 
