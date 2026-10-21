@@ -8,3 +8,4 @@ web/uploads/*
 !web/uploads/.gitkeep
 *.apk
 web-restaurante.zip
+web/data/sesiones/
