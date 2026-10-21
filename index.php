@@ -117,7 +117,7 @@ page_start($s['name'] . ' · ' . $s['tagline'], '', 'home');
     <div class="wrap book-grid">
       <div>
         <h2 id="book-t" class="title">Reserva tu mesa</h2>
-        <p class="book-lead">Elige día, hora y cuántos venís. <?= $s['auto_confirm'] ? 'Queda confirmada al momento.' : 'Te la confirmamos por email en cuanto la revisemos.' ?></p>
+        <p class="book-lead">Elige día, hora y cuántos venís. Te enviaremos un WhatsApp con un enlace para confirmar la reserva.</p>
         <button class="btn btn-rubor btn-lg" type="button" data-book>Reservar mesa</button>
         <p class="book-alt">
           <?php if ($customer): ?>
@@ -130,7 +130,7 @@ page_start($s['name'] . ' · ' . $s['tagline'], '', 'home');
       </div>
       <dl class="book-facts">
         <div><dt>Hoy</dt><dd><?= $todayRanges ? h(ranges_text($todayRanges)) : 'Cerrado' ?></dd></div>
-        <div><dt>Cancelación</dt><dd>Gratis hasta <?= (int)$s['cancel_hours'] ?> h antes</dd></div>
+        <div><dt>Cancelación</dt><dd>Siempre gratis</dd></div>
         <div><dt>Retrasos</dt><dd>Guardamos la mesa <?= (int)$s['late_minutes'] ?> min</dd></div>
       </dl>
     </div>
@@ -161,7 +161,7 @@ page_start($s['name'] . ' · ' . $s['tagline'], '', 'home');
       <div class="pol-list">
         <details open>
           <summary>Reservas y cancelaciones</summary>
-          <p>Puedes cancelar o cambiar tu reserva sin coste hasta <?= (int)$s['cancel_hours'] ?> horas antes. Si tienes cuenta, hazlo desde <a href="cuenta.php">Mi cuenta</a>; si no, llámanos<?= $s['phone'] ? ' al <a href="' . h(tel_href($s['phone'])) . '">' . h($s['phone']) . '</a>' : '' ?> o responde al email de confirmación.</p>
+          <p>Al reservar envías una petición. El restaurante la revisa y te manda un WhatsApp con un enlace: al tocarlo, la reserva queda confirmada. Cancelar es siempre gratis. Si tienes cuenta, hazlo desde <a href="cuenta.php">Mi cuenta</a>; si no, avísanos por WhatsApp o llámanos<?= $s['phone'] ? ' al <a href="' . h(tel_href($s['phone'])) . '">' . h($s['phone']) . '</a>' : '' ?>.</p>
         </details>
         <details>
           <summary>Si llegas tarde</summary>

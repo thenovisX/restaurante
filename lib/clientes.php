@@ -216,7 +216,7 @@ function can_cancel(array $r): bool
 {
     if (!in_array($r['status'], RES_ACTIVE, true)) return false;
     $start = strtotime($r['date'] . ' ' . $r['time']);
-    return $start - (int)settings()['cancel_hours'] * 3600 > time();
+    return $start > time();
 }
 
 function customer_reservations(array $c): array
@@ -231,7 +231,7 @@ function customer_reservations(array $c): array
         if ($r['date'] . ' ' . $r['time'] >= $now && in_array($r['status'], RES_ACTIVE, true)) array_unshift($up, $r);
         else $past[] = $r;
     }
-    return ['upcoming' => $up, 'past' => $past, 'cancel_hours' => (int)settings()['cancel_hours']];
+    return ['upcoming' => $up, 'past' => $past];
 }
 
 function customer_cancel(array $c, int $id): array
@@ -241,7 +241,7 @@ function customer_cancel(array $c, int $id): array
     $r = res_out($row);
     if (!can_cancel($r)) {
         $s = settings();
-        throw new ValidationError("Las reservas se pueden cancelar online hasta {$s['cancel_hours']} horas antes. Llámanos" . ($s['phone'] ? " al {$s['phone']}" : '') . '.');
+        throw new ValidationError('Esta reserva ya no se puede cancelar desde la web. Llámanos' . ($s['phone'] ? " al {$s['phone']}" : '') . '.');
     }
     q("UPDATE reservations SET status = 'cancelada', updated_at = ? WHERE id = ?", [now(), $id]);
     $r = get_reservation($id);
@@ -272,4 +272,14 @@ function customer_export(array $c): array
         'reservas' => $res,
         'registro_de_actividad' => $log,
     ];
+}
+
+/** El cliente con sesión confirma su reserva desde «Mi cuenta» (igual que con el enlace del WhatsApp). */
+function customer_confirm(array $c, int $id): array
+{
+    $row = q('SELECT * FROM reservations WHERE id = ? AND customer_id = ?', [$id, $c['id']])->fetch();
+    if (!$row || $row['status'] !== 'esperando') throw new ValidationError('Esta reserva no está pendiente de tu confirmación');
+    [$state] = confirm_by_customer($id, dec($row['verify_token']));
+    if ($state !== 'confirmada') throw new ValidationError('No se pudo confirmar la reserva');
+    return get_reservation($id);
 }

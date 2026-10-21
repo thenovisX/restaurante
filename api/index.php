@@ -68,6 +68,9 @@ try {
             exit;
         case 'c_reservations':
             out(customer_reservations(require_customer()));
+        case 'c_confirm':
+            only_post(); same_origin_only();
+            out(customer_confirm(require_customer(), $id));
         case 'c_cancel':
             only_post(); same_origin_only();
             out(customer_cancel(require_customer(), $id));
@@ -92,6 +95,8 @@ try {
         case 'reservations':
             $from = (string)($_GET['from'] ?? today());
             out(list_reservations($from, (string)($_GET['to'] ?? $from)));
+        case 'requests':
+            out(list_requests());
         case 'month':
             out(month_summary((string)($_GET['month'] ?? date('Y-m'))));
         case 'changes':
@@ -164,6 +169,6 @@ try {
 function public_info(): array
 {
     $s = settings();
-    $keys = ['name', 'tagline', 'description', 'address', 'city', 'phone', 'whatsapp', 'email', 'instagram', 'hours', 'closed_dates', 'max_people', 'days_ahead', 'cancel_hours', 'late_minutes', 'policies', 'auto_confirm'];
+    $keys = ['name', 'tagline', 'description', 'address', 'city', 'phone', 'whatsapp', 'email', 'instagram', 'hours', 'closed_dates', 'max_people', 'days_ahead', 'late_minutes', 'policies'];
     return array_intersect_key($s, array_flip($keys)) + ['today' => today()];
 }

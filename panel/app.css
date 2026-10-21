@@ -69,7 +69,7 @@ a { color: inherit; }
 
 .tabs {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; background: var(--papel);
-  border-top: 1px solid var(--linea); display: grid; grid-template-columns: repeat(4, 1fr);
+  border-top: 1px solid var(--linea); display: grid; grid-template-columns: repeat(5, 1fr);
   padding-bottom: var(--safe-bottom); height: calc(var(--tabs-h) + var(--safe-bottom));
 }
 .tabs button { border: 0; background: none; display: grid; justify-items: center; align-content: center; gap: 2px; font-size: .78rem; font-weight: 600; color: var(--granito); position: relative; }
@@ -245,3 +245,13 @@ a { color: inherit; }
 .wph p small { display: block; font-weight: 400; color: var(--granito); font-size: .78rem; }
 .wph-btns { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 .wph.is-busy { opacity: .5; pointer-events: none; }
+
+/* Peticiones y WhatsApp */
+.b-wa { background: #1F8F4E; color: #fff; gap: 6px; }
+.b-wa svg { width: 18px; height: 18px; flex: none; }
+.chip-esperando { background: #E4EEF8; color: #22558A; }
+.res.st-esperando { border-left-color: #4A86C5; }
+.pet-intro { margin: 0 0 4px; color: var(--granito); font-size: .95rem; }
+.alert-btn { display: block; width: 100%; text-align: left; border: 0; cursor: pointer; font: inherit; font-weight: 600; }
+.tabs button span { font-size: .72rem; }
+@media (max-width: 360px) { .tabs button span { font-size: .66rem; } }

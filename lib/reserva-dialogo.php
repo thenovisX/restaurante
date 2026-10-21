@@ -47,17 +47,17 @@ $c = current_customer();
       <?php endif; ?>
       <div class="bk-fields" id="bk-fields" <?= $c ? 'hidden' : '' ?>>
         <label>Nombre <input name="name" maxlength="80" autocomplete="name" value="<?= h($c['name'] ?? '') ?>"></label>
-        <label>Teléfono <input name="phone" type="tel" maxlength="30" autocomplete="tel" value="<?= h($c['phone'] ?? '') ?>"></label>
-        <label>Email <span>para recibir la confirmación</span><input name="email" type="email" maxlength="120" autocomplete="email" value="<?= h($c['email'] ?? '') ?>"></label>
+        <label>Teléfono móvil <span>obligatorio: te enviaremos un WhatsApp para confirmar</span><input name="phone" type="tel" maxlength="30" autocomplete="tel" required value="<?= h($c['phone'] ?? '') ?>"></label>
+        <label>Email <span>opcional</span><input name="email" type="email" maxlength="120" autocomplete="email" value="<?= h($c['email'] ?? '') ?>"></label>
       </div>
       <label>Algo que debamos saber <span>opcional</span><textarea name="notes" rows="2" maxlength="500" placeholder="Alergias, celebración, trona…"></textarea></label>
       <label class="hp" aria-hidden="true">No rellenar <input name="website" tabindex="-1" autocomplete="off"></label>
       <div class="bk-policy">
-        <p>Cancelación gratis hasta <?= (int)$s['cancel_hours'] ?> h antes. Guardamos la mesa <?= (int)$s['late_minutes'] ?> minutos.</p>
-        <label class="check"><input type="checkbox" name="privacy" value="1"><span>Acepto las <a href="./#politicas" target="_blank">políticas de reserva</a>, las <a href="legal.php#condiciones" target="_blank">condiciones de uso</a> y la <a href="legal.php#privacidad" target="_blank">política de privacidad</a>. Tu teléfono solo se usa para avisarte sobre esta reserva.</span></label>
+        <p>Cancelar es siempre gratis. Guardamos la mesa <?= (int)$s['late_minutes'] ?> minutos.</p>
+        <label class="check"><input type="checkbox" name="privacy" value="1"><span>Acepto las <a href="./#politicas" target="_blank">políticas de reserva</a>, las <a href="legal.php#condiciones" target="_blank">condiciones de uso</a> y la <a href="legal.php#privacidad" target="_blank">política de privacidad</a>. Tu teléfono solo se usa para enviarte el WhatsApp de esta reserva.</span></label>
       </div>
       <p class="bk-err" id="bk-err" role="alert"></p>
-      <div class="bk-nav"><button class="btn btn-ghost" type="button" data-next="2">Atrás</button><button class="btn btn-rubor" type="button" id="bk-send">Confirmar reserva</button></div>
+      <div class="bk-nav"><button class="btn btn-ghost" type="button" data-next="2">Atrás</button><button class="btn btn-rubor" type="button" id="bk-send">Enviar petición</button></div>
     </section>
 
     <section class="bk-pane bk-done" data-pane="4" hidden>

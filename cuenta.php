@@ -23,7 +23,7 @@ site_header($c);
       <div>
         <h1 class="title">Tu cuenta</h1>
         <?php if (isset($_GET['enlace'])): ?><p class="acc-aviso">El enlace de activación no es válido o ha caducado. Vuelve a crear la cuenta o pide otro enlace.</p><?php endif; ?>
-        <p class="acc-lead">Reserva sin escribir tus datos cada vez, mira tus próximas reservas y cancélalas tú mismo hasta <?= (int)$s['cancel_hours'] ?> horas antes.</p>
+        <p class="acc-lead">Reserva sin escribir tus datos cada vez, mira tus próximas reservas, confírmalas y cancélalas tú mismo cuando quieras, sin coste.</p>
       </div>
       <div class="acc-box">
         <div class="tabs" role="tablist">
@@ -72,14 +72,17 @@ site_header($c);
           <li class="acc-res">
             <div>
               <p class="acc-when"><?= h(ucfirst($r['when'])) ?></p>
-              <p class="acc-meta"><?= $r['people'] ?> <?= $r['people'] === 1 ? 'persona' : 'personas' ?> · <span class="st st-<?= $r['status'] ?>"><?= $r['status'] === 'pendiente' ? 'Pendiente de confirmar' : 'Confirmada' ?></span></p>
+              <p class="acc-meta"><?= $r['people'] ?> <?= $r['people'] === 1 ? 'persona' : 'personas' ?> · <span class="st st-<?= $r['status'] ?>"><?= ['pendiente' => 'Petición enviada: esperando al restaurante', 'esperando' => 'Falta que la confirmes', 'confirmada' => 'Confirmada'][$r['status']] ?? $r['status'] ?></span></p>
               <?php if ($r['notes']): ?><p class="acc-notes"><?= h($r['notes']) ?></p><?php endif; ?>
             </div>
-            <?php if ($r['can_cancel']): ?>
-              <button class="btn btn-ghost btn-sm" type="button" data-cancel="<?= $r['id'] ?>" data-when="<?= h($r['when']) ?>">Cancelar</button>
-            <?php else: ?>
-              <p class="acc-nocancel">Faltan menos de <?= $res['cancel_hours'] ?> h: para cancelar, llámanos<?= $s['phone'] ? ' al <a href="' . h(tel_href($s['phone'])) . '">' . h($s['phone']) . '</a>' : '' ?>.</p>
-            <?php endif; ?>
+            <div class="acc-res-btns">
+              <?php if ($r['status'] === 'esperando'): ?>
+                <button class="btn btn-rubor btn-sm" type="button" data-confirm-res="<?= $r['id'] ?>">Confirmar</button>
+              <?php endif; ?>
+              <?php if ($r['can_cancel']): ?>
+                <button class="btn btn-ghost btn-sm" type="button" data-cancel="<?= $r['id'] ?>" data-when="<?= h($r['when']) ?>">Cancelar</button>
+              <?php endif; ?>
+            </div>
           </li>
         <?php endforeach; ?>
       </ul>
