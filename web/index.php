@@ -58,7 +58,7 @@ page_start($s['name'] . ' · ' . $s['tagline'], '', 'home');
 
 <main id="main">
   <section class="hero" aria-labelledby="hero-t">
-    <img class="hero-img" src="<?= h(photo('hero', 1600)) ?>" srcset="<?= h(photo_srcset('hero')) ?>" sizes="100vw" alt="<?= h(PHOTOS['hero']['alt']) ?>" fetchpriority="high">
+    <div class="hero-media" id="hero-media"><img class="hero-img" src="<?= h(photo('hero', 1600)) ?>" srcset="<?= h(photo_srcset('hero')) ?>" sizes="100vw" alt="<?= h(PHOTOS['hero']['alt']) ?>" fetchpriority="high"></div>
     <div class="hero-top">
       <p><?= h($s['city'] ?: 'Vigo') ?></p>
       <p class="hero-status"><span class="dot<?= $todayRanges ? ' is-open' : '' ?>" aria-hidden="true"></span><?= $todayRanges ? 'Hoy abrimos ' . h(ranges_text($todayRanges)) : 'Hoy descansamos' ?></p>
@@ -70,26 +70,35 @@ page_start($s['name'] . ' · ' . $s['tagline'], '', 'home');
         <a class="btn btn-line" href="#carta">Ver la carta</a>
       </div>
     </div>
-    <h1 class="hero-brand<?= mb_strlen($brand) > 9 ? ' is-long' : '' ?>" id="hero-t" style="--brand-size: <?= $brandSize ?>vw"><?= h($brand) ?></h1>
+    <h1 class="hero-brand<?= mb_strlen($brand) > 9 ? ' is-long' : '' ?>" id="hero-t" style="--brand-size: <?= $brandSize ?>vw" aria-label="<?= h($s['name']) ?>"><?php
+      // Cada letra va en su caja para la animación de entrada (las palabras no se parten)
+      $li = 0;
+      foreach (preg_split('/(\s+)/u', $brand, -1, PREG_SPLIT_DELIM_CAPTURE) as $part) {
+          if (trim($part) === '') { echo ' '; continue; }
+          echo '<span class="w" aria-hidden="true">';
+          foreach (mb_str_split($part) as $ch) echo '<span class="l" style="--i:' . $li++ . '">' . h($ch) . '</span>';
+          echo '</span>';
+      }
+    ?></h1>
   </section>
 
-  <div class="ribbon" aria-hidden="true">
+  <div class="ribbon" aria-hidden="true"><div class="ribbon-skew">
     <div class="ribbon-track">
       <?php for ($k = 0; $k < 2; $k++): ?>
         <span><?php foreach ($ribbon as $r): ?><?= h($r) ?><i>✦</i><?php endforeach; ?><?php foreach ($ribbon as $r): ?><?= h($r) ?><i>✦</i><?php endforeach; ?></span>
       <?php endfor; ?>
     </div>
-  </div>
+  </div></div>
 
   <section class="about" id="nosotros" aria-labelledby="about-t">
     <div class="wrap about-grid">
       <h2 id="about-t" class="sr">Nosotros</h2>
       <p class="about-text"><?= nl2br(h($description)) ?></p>
-      <figure class="about-a">
+      <figure class="about-a rv-img">
         <img src="<?= h(photo('sala', 1000)) ?>" srcset="<?= h(photo_srcset('sala', [480, 800, 1200])) ?>" sizes="(max-width: 760px) 90vw, 40vw" alt="<?= h(PHOTOS['sala']['alt']) ?>" loading="lazy">
         <figcaption>La sala</figcaption>
       </figure>
-      <figure class="about-b">
+      <figure class="about-b rv-img" data-speed="-0.08">
         <img src="<?= h(photo('cocina', 900)) ?>" srcset="<?= h(photo_srcset('cocina', [480, 800, 1200])) ?>" sizes="(max-width: 760px) 70vw, 28vw" alt="<?= h(PHOTOS['cocina']['alt']) ?>" loading="lazy">
         <figcaption>La cocina</figcaption>
       </figure>
@@ -99,8 +108,8 @@ page_start($s['name'] . ' · ' . $s['tagline'], '', 'home');
   <?php include __DIR__ . '/lib/carta-libro.php'; ?>
 
   <section class="gallery" aria-label="Fotos">
-    <?php foreach (['barra', 'plato', 'coctel'] as $g): ?>
-      <figure><img src="<?= h(photo($g, 900)) ?>" srcset="<?= h(photo_srcset($g, [480, 900, 1300])) ?>" sizes="(max-width: 760px) 80vw, 33vw" alt="<?= h(PHOTOS[$g]['alt']) ?>" loading="lazy"></figure>
+    <?php foreach (['barra', 'plato', 'coctel'] as $gi => $g): ?>
+      <figure class="rv-img" data-speed="<?= [0.08, -0.06, 0.12][$gi] ?>"><img src="<?= h(photo($g, 900)) ?>" srcset="<?= h(photo_srcset($g, [480, 900, 1300])) ?>" sizes="(max-width: 760px) 80vw, 33vw" alt="<?= h(PHOTOS[$g]['alt']) ?>" loading="lazy"></figure>
     <?php endforeach; ?>
   </section>
 

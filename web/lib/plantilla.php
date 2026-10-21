@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/tema.php';
 
-const ASSET_V = '19';
+const ASSET_V = '20';
 
 function tel_href(string $t): string
 {
@@ -61,6 +61,14 @@ function page_start(string $title, string $description = '', string $bodyClass =
 <link rel="preconnect" href="https://images.unsplash.com">
 <link rel="preload" href="assets/fonts/bodoni-moda-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="assets/web.css?v=<?= ASSET_V ?>">
+<script>
+  // Animaciones: se preparan antes de pintar; si el JavaScript no llegara a cargar, todo se muestra igual
+  (function (d) {
+    try { if (matchMedia('(prefers-reduced-motion: reduce)').matches) return; } catch (e) { return; }
+    d.classList.add('js-motion');
+    setTimeout(function () { if (!window.__motionOK) d.classList.remove('js-motion'); }, 2500);
+  })(document.documentElement);
+</script>
 </head>
 <body class="<?= h($bodyClass) ?>">
 <a class="skip" href="#main">Saltar al contenido</a>
