@@ -1,11 +1,20 @@
 # Web y app de reservas para restaurante
 
-Web pública con **carta**, **reservas online** y horario, más una **app de gestión** para el móvil con tres secciones:
+Web pública (diseño nocturno, restaurante de ejemplo «Novia») con:
+
+- **Reserva en 3 pasos**: personas y día, hora libre, datos. Al final hay que aceptar las políticas.
+- **Cuentas de clientes**: registro y acceso. El cliente ve sus reservas, las cancela él mismo hasta X horas antes, edita sus datos y puede borrar su cuenta.
+- **Políticas de reserva**: plazo de cancelación, minutos de cortesía y normas propias (grupos, alergias, niños, mascotas…), editables desde la app.
+- **Instalable como app desde el navegador** (PWA): botón «Instalar la app» en Android y escritorio, e instrucciones para iPhone. El icono se genera solo con la inicial del restaurante.
+- **Carta** con alérgenos, horario, contacto y textos legales.
+- Las fotos son de Unsplash (licencia gratuita, se muestran los autores en el pie). Para usar fotos propias, cambia las direcciones en `web/lib/tema.php`.
+
+Más una **app de gestión** para el móvil con tres secciones:
 
 - **Hoy**: las reservas del día separadas en comida y cena, con botones para confirmar, rechazar o llamar. Arriba salen las reservas de otros días que faltan por confirmar.
 - **Calendario**: el mes entero con las personas reservadas cada día. Al tocar un día ves sus reservas. Desde aquí también se cierran días sueltos (festivos o vacaciones).
 - **Carta**: platos, precios, fotos y alérgenos. Un interruptor marca un plato como agotado y lo quita de la web al momento.
-- **Ajustes**: datos del restaurante, horario, aforo, confirmación automática y contraseña.
+- **Ajustes**: datos del restaurante, horario, aforo, confirmación automática, políticas de reserva y contraseña.
 
 Cuando entra una reserva, la app avisa con una notificación y llega también un email al restaurante. Si el cliente dejó su email, recibe la confirmación o el rechazo.
 

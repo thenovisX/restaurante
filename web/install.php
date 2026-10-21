@@ -58,6 +58,7 @@ if (!$already && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         $initial['email'] = $f('email');
         $initial['notify_email'] = $f('email');
         foreach ($initial as $k => $v) $set->execute([$k, json_encode($v, JSON_UNESCAPED_UNICODE)]);
+        $set->execute(['_schema', (string)SCHEMA_VERSION]);
 
         if (!empty($_POST['sample']) && !(int)$pdo->query('SELECT COUNT(*) FROM categories')->fetchColumn()) {
             $ci = $pdo->prepare('INSERT INTO categories (name, position) VALUES (?, ?)');
@@ -122,15 +123,15 @@ if (!$already && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
   <p><a href="./">Ver la web</a> · <a href="panel/">Abrir el panel</a></p>
 <?php else: ?>
   <h1>Instalar la web del restaurante</h1>
-  <p class="hint">Crea antes una base de datos MySQL en hPanel → Bases de datos → Bases de datos MySQL, y copia aquí sus datos.</p>
+  <p class="hint">Con SQLite no tienes que crear nada: los datos se guardan en un archivo protegido dentro de la web. Si prefieres MySQL, créala antes en hPanel → Bases de datos y copia aquí sus datos.</p>
   <?php if ($error): ?><p class="err"><?= h($error) ?></p><?php endif; ?>
   <form method="post">
     <fieldset>
       <legend>Base de datos</legend>
       <label>Tipo
         <select name="db_driver">
-          <option value="mysql">MySQL (Hostinger)</option>
-          <option value="sqlite" <?= ($_POST['db_driver'] ?? '') === 'sqlite' ? 'selected' : '' ?>>SQLite (solo para pruebas en tu ordenador)</option>
+          <option value="sqlite">SQLite: sin configurar nada (recomendado)</option>
+          <option value="mysql" <?= ($_POST['db_driver'] ?? '') === 'mysql' ? 'selected' : '' ?>>MySQL (base de datos creada en hPanel)</option>
         </select>
       </label>
       <label>Servidor <input name="db_host" value="<?= h($_POST['db_host'] ?? 'localhost') ?>"></label>
@@ -140,7 +141,7 @@ if (!$already && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     </fieldset>
     <fieldset>
       <legend>Restaurante</legend>
-      <label>Nombre <input name="name" required value="<?= h($_POST['name'] ?? '') ?>"></label>
+      <label>Nombre <input name="name" required placeholder="Novia" value="<?= h($_POST['name'] ?? '') ?>"></label>
       <label>Email donde avisar de las reservas <input name="email" type="email" value="<?= h($_POST['email'] ?? '') ?>"></label>
       <label><input type="checkbox" name="sample" value="1" checked>Cargar una carta de ejemplo (se edita luego desde la app)</label>
     </fieldset>

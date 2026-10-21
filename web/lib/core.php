@@ -17,13 +17,32 @@ function cfg(): array
 
 function installed(): bool
 {
-    if (!cfg()) return false;
+    static $ok = null;
+    if ($ok !== null) return $ok;
+    if (!cfg()) return $ok = false;
     try {
         q('SELECT 1 FROM settings LIMIT 1');
-        return true;
     } catch (Throwable $e) {
-        return false;
+        return $ok = false;
     }
+    ensure_schema();
+    return $ok = true;
+}
+
+/** Actualiza la base de datos de instalaciones anteriores sin perder datos. */
+const SCHEMA_VERSION = 2;
+function ensure_schema(): void
+{
+    $v = (int)(q("SELECT v FROM settings WHERE k = '_schema'")->fetchColumn() ?: 1);
+    if ($v >= SCHEMA_VERSION) return;
+    require_once __DIR__ . '/schema.php';
+    $sqlite = (cfg()['db_driver'] ?? 'mysql') === 'sqlite';
+    foreach (schema_sql($sqlite) as $sql) {
+        try { db()->exec($sql); } catch (Throwable $e) { /* ya existe */ }
+    }
+    try { db()->exec('ALTER TABLE reservations ADD COLUMN customer_id INT NOT NULL DEFAULT 0'); } catch (Throwable $e) { /* ya existe */ }
+    q("DELETE FROM settings WHERE k = '_schema'");
+    q("INSERT INTO settings (k, v) VALUES ('_schema', ?)", [(string)SCHEMA_VERSION]);
 }
 
 function db(): PDO
@@ -68,8 +87,8 @@ function today(): string
 /* ---------- Ajustes del restaurante ---------- */
 
 const SETTINGS_DEFAULTS = [
-    'name'          => 'Mi restaurante',
-    'tagline'       => 'Cocina de mercado',
+    'name'          => 'Novia',
+    'tagline'       => 'Cocina de fuego, cócteles y noches largas',
     'description'   => '',
     'address'       => '',
     'city'          => '',
@@ -98,6 +117,10 @@ const SETTINGS_DEFAULTS = [
     'last_before'   => 60,     // última reserva X minutos antes del cierre
     'days_ahead'    => 60,     // hasta cuántos días se puede reservar
     'auto_confirm'  => false,  // confirmar sin revisar
+    // Políticas de reserva (se muestran en la web y hay que aceptarlas al reservar)
+    'cancel_hours'  => 4,      // horas antes para cancelar desde la cuenta del cliente
+    'late_minutes'  => 15,     // minutos que se guarda la mesa si llegan tarde
+    'policies'      => "Grupos: para más de 10 personas, escríbenos o llámanos y te preparamos un menú cerrado.\nAlergias: dínoslo al reservar; la cocina adapta los platos siempre que sea posible.\nNiños: son bienvenidos. Tenemos tronas, pídela en las notas de la reserva.\nMascotas: perros pequeños en la terraza.",
 ];
 
 function settings(bool $fresh = false): array
@@ -128,7 +151,7 @@ function settings_save(array $values): array
         } elseif (is_int($def)) {
             $v = max(0, (int)$v);
         } else {
-            $v = mb_substr(trim((string)$v), 0, $k === 'description' ? 1000 : 200);
+            $v = mb_substr(trim((string)$v), 0, ['description' => 1000, 'policies' => 3000][$k] ?? 200);
         }
         $clean[$k] = $v;
     }

@@ -353,7 +353,7 @@
       <div class="res-time">${showDate ? `<small>${esc(fmtShort(r.date))}</small>` : ''}<b>${esc(r.time)}</b></div>
       <div class="res-main">
         <p class="res-name">${esc(r.name)}</p>
-        <p class="res-meta"><span>${r.people} ${r.people === 1 ? 'persona' : 'personas'}</span><span class="chip chip-${r.status}">${STATUS[r.status]}</span>${r.source === 'panel' ? '<span class="by-hand">a mano</span>' : ''}</p>
+        <p class="res-meta"><span>${r.people} ${r.people === 1 ? 'persona' : 'personas'}</span><span class="chip chip-${r.status}">${STATUS[r.status]}</span>${r.source === 'panel' ? '<span class="by-hand">a mano</span>' : ''}${r.customer ? '<span class="by-hand">con cuenta</span>' : ''}</p>
         ${r.notes ? `<p class="res-notes">${esc(r.notes)}</p>` : ''}
         ${actions.length ? `<div class="res-actions">${actions.join('')}</div>` : ''}
       </div></article>`;
@@ -475,7 +475,7 @@
         <dt>Teléfono</dt><dd>${esc(r.phone)}</dd>
         ${r.email ? `<dt>Email</dt><dd>${esc(r.email)}</dd>` : ''}
         ${r.notes ? `<dt>Notas</dt><dd>${esc(r.notes)}</dd>` : ''}
-        <dt>Entró</dt><dd>${r.source === 'web' ? 'Por la web' : 'Apuntada a mano'}, ${esc(fmtShort(r.created_at.slice(0, 10)))} ${esc(r.created_at.slice(11, 16))}</dd>
+        <dt>Entró</dt><dd>${r.source === 'web' ? (r.customer ? 'Por la web, cliente con cuenta' : 'Por la web') : 'Apuntada a mano'}, ${esc(fmtShort(r.created_at.slice(0, 10)))} ${esc(r.created_at.slice(11, 16))}</dd>
       </dl>
       <div class="actions">
         <div class="actions-row">${btns.join('')}</div>
@@ -764,6 +764,17 @@
           ${num('last_before', 'Última reserva antes del cierre (min)', '')}
         </div>
         <button class="btn btn-main" type="submit">Guardar</button>
+      </form>
+
+      <form class="card form" data-form="politicas" novalidate>
+        <h2>Políticas de reserva</h2>
+        <p>Salen en la web y el cliente tiene que aceptarlas al reservar.</p>
+        <div class="row">
+          ${num('cancel_hours', 'Cancelación gratis hasta (horas antes)', 'Con cuenta, el cliente cancela solo hasta entonces')}
+          ${num('late_minutes', 'Mesa guardada si llegan tarde (min)', '')}
+        </div>
+        <label>Otras normas <textarea name="policies" rows="5">${esc(s.policies)}</textarea><span class="help">Una por línea, con el formato «Título: texto». Ej.: «Mascotas: perros pequeños en la terraza».</span></label>
+        <button class="btn btn-main" type="submit">Guardar políticas</button>
       </form>
 
       <form class="card form" data-form="horario" novalidate>

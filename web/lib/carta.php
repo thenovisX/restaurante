@@ -32,7 +32,7 @@ function dish_out(array $d): array
         'id' => (int)$d['id'], 'category_id' => (int)$d['category_id'], 'name' => $d['name'],
         'description' => $d['description'], 'price' => (float)$d['price'],
         'allergens' => $d['allergens'] === '' ? [] : explode(',', $d['allergens']),
-        'photo' => $d['photo'] ? base_url() . '/' . $d['photo'] : '',
+        'photo' => $d['photo'] === '' ? '' : (preg_match('#^https?://#', $d['photo']) ? $d['photo'] : base_url() . '/' . $d['photo']),
         'available' => (bool)$d['available'], 'featured' => (bool)$d['featured'], 'position' => (int)$d['position'],
     ];
 }

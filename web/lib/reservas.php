@@ -80,8 +80,13 @@ function reservation_fields(array $in, bool $fromPanel): array
 function create_public_reservation(array $in): array
 {
     if (!empty($in['website'])) throw new ValidationError('No se pudo enviar'); // trampa anti-bots
-    if (empty($in['privacy'])) throw new ValidationError('Tienes que aceptar la política de privacidad');
+    if (empty($in['privacy'])) throw new ValidationError('Tienes que aceptar las políticas de reserva y de privacidad');
 
+    $customer = current_customer();
+    if ($customer) {
+        // Con cuenta, los datos de contacto salen de la cuenta si no se escriben otros
+        foreach (['name', 'email', 'phone'] as $k) if (trim((string)($in[$k] ?? '')) === '') $in[$k] = $customer[$k];
+    }
     $d = reservation_fields($in, false);
     $ip = client_ip();
     $recent = (int)q('SELECT COUNT(*) FROM reservations WHERE ip = ? AND created_at > ?', [$ip, date('Y-m-d H:i:s', time() - 3600)])->fetchColumn();
@@ -103,10 +108,10 @@ function create_public_reservation(array $in): array
 
     $s = settings();
     $status = $s['auto_confirm'] ? 'confirmada' : 'pendiente';
-    q('INSERT INTO reservations (name, phone, email, rdate, rtime, people, notes, status, source, ip, created_at, updated_at)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)', [
+    q('INSERT INTO reservations (name, phone, email, rdate, rtime, people, notes, status, source, ip, created_at, updated_at, customer_id)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)', [
         $d['name'], $d['phone'], $d['email'], $d['rdate'], $d['rtime'], $d['people'], $d['notes'],
-        $status, 'web', $ip, now(), now(),
+        $status, 'web', $ip, now(), now(), $customer ? (int)$customer['id'] : 0,
     ]);
     $id = (int)$pdo->lastInsertId();
     $pdo->commit();
@@ -123,6 +128,9 @@ function create_public_reservation(array $in): array
     return [
         'id' => $id,
         'status' => $status,
+        'when' => $when,
+        'people' => $d['people'],
+        'account' => (bool)$customer,
         'message' => $status === 'confirmada'
             ? "Reserva confirmada para el $when. ¡Te esperamos!"
             : "Hemos recibido tu reserva para el $when. Te confirmaremos lo antes posible.",
@@ -142,6 +150,7 @@ function res_out(array $r): array
         'id' => (int)$r['id'], 'name' => $r['name'], 'phone' => $r['phone'], 'email' => $r['email'],
         'date' => $r['rdate'], 'time' => $r['rtime'], 'people' => (int)$r['people'], 'notes' => $r['notes'],
         'status' => $r['status'], 'source' => $r['source'], 'created_at' => $r['created_at'],
+        'customer' => (int)($r['customer_id'] ?? 0) > 0,
     ];
 }
 
