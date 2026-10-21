@@ -318,6 +318,7 @@ body.menu-open { overflow: hidden; }
 .libro.is-book .hojas { transition: height .35s ease; }
 .libro.is-book .hoja { position: absolute; inset: 0 0 auto 0; margin: 0; visibility: hidden; }
 .libro.is-book .hoja.is-on { visibility: visible; z-index: 2; }
+.libro.is-book .hoja.queda { visibility: visible; z-index: 1; }
 .libro.is-book .hoja.pasa-ida { visibility: visible; z-index: 3; animation: pasa-ida .6s cubic-bezier(.45, .05, .35, 1) forwards; }
 .libro.is-book .hoja.pasa-vuelta { visibility: visible; z-index: 3; animation: pasa-vuelta .6s cubic-bezier(.45, .05, .35, 1) forwards; }
 @keyframes pasa-ida {
@@ -634,3 +635,69 @@ html, body { max-width: 100%; }
 .plato-alg { max-width: 100%; }
 .hero-brand.is-long { white-space: normal; line-height: .92; text-align: left; margin: 0; letter-spacing: -.02em; padding-bottom: .1em; }
 .portada-name { line-height: 1.05; }
+
+/* =========================================================
+   ORDENADOR: todo un poco más grande y la carta a doble página.
+   Nada de esto afecta al móvil.
+   ========================================================= */
+@media (min-width: 1280px) { html { font-size: 17px; } }
+@media (min-width: 1680px) { html { font-size: 18px; } :root { --wrap: 1440px; } }
+
+@media (min-width: 961px) {
+  :root { --hd-h: 76px; }
+  .hd-brand { font-size: 1.7rem; }
+  .hd-nav { gap: 34px; }
+  .hd-nav a, .hd-account { font-size: 1rem; }
+  .hd-book { min-height: 44px; padding: 0 24px; }
+
+  /* La portada cabe entera en la pantalla aunque sea ancha y baja */
+  .hero { min-height: 100vh; height: 100vh; max-height: 1100px; }
+  .hero-brand { font-size: min(var(--brand-size, 26vw), 44vh); }
+  .hero-brand.is-long { font-size: min(var(--brand-size, 18vw), 15vh); }
+  .hero-top { font-size: 1rem; }
+  .hero-lead { font-size: 1.5rem; max-width: 26ch; }
+  .hero-mid { max-width: 600px; }
+  .dot { width: 9px; height: 9px; }
+
+  .about-text { font-size: clamp(2rem, 3.2vw, 3.2rem); }
+  .ribbon-track span { font-size: clamp(2rem, 3.4vw, 3.2rem); }
+
+  /* Iconos más grandes y nítidos */
+  .plato-alg { gap: 6px; }
+  .plato-alg .al-ic { width: 26px; height: 26px; }
+  .mini-alg .al-ic { width: 38px; height: 38px; }
+  .wa-float { width: 58px; height: 58px; right: 24px; bottom: 24px; }
+  .wa-float svg { width: 28px; height: 28px; }
+  .libro-flecha { width: 58px; height: 58px; font-size: 2.1rem; }
+  .marcas a { font-size: .92rem; padding: 10px 16px 9px; }
+
+  .book-facts div { padding: 20px 0; font-size: 1.05rem; }
+  .pol-list summary { padding: 26px 0; }
+  .ft-cols { gap: 56px; }
+}
+
+/* Carta a doble página (libro abierto) */
+@media (min-width: 1100px) {
+  .libro.is-doble { --ancho: min(1240px, calc(100vw - 2 * var(--gutter) - 180px)); }
+  .libro.is-doble .marcas a:first-child { margin-left: auto; }
+  .libro.is-doble .marcas a:last-child { margin-right: auto; }
+  .libro.is-doble .hoja { width: 50%; inset: 0 auto auto 0; border-radius: 0; }
+  .libro.is-doble .hoja.lado-der { left: 50%; border-radius: 0 4px 4px 0; }
+  .libro.is-doble .hoja.lado-izq { border-radius: 4px 0 0 4px; transform-origin: right center; }
+  /* Sombra del lomo en el centro */
+  .libro.is-doble .hoja.lado-izq { background-image: linear-gradient(to left, rgba(70, 50, 25, .22), rgba(70, 50, 25, 0) 7%), var(--grano), radial-gradient(120% 90% at 50% 40%, transparent 55%, rgba(120, 95, 60, .16) 100%); }
+  .libro.is-doble .hoja.lado-der:not(.hoja-portada) { background-image: linear-gradient(to right, rgba(70, 50, 25, .22), rgba(70, 50, 25, 0) 7%), var(--grano), radial-gradient(120% 90% at 50% 40%, transparent 55%, rgba(120, 95, 60, .16) 100%); }
+  .libro.is-doble .hoja.lado-izq .esquina { display: none; }
+  .libro.is-doble .hoja-portada { min-height: 0; }
+  /* Libro cerrado: solo la portada, a la derecha del lomo; la pila de hojas va detrás de ella */
+  .libro.is-cerrado .hojas::before, .libro.is-cerrado .hojas::after { left: 50%; }
+  .libro.is-doble .hoja { padding: 56px 52px 32px; }
+  .libro.is-doble .plato-nombre, .libro.is-doble .plato-precio { font-size: 1.3rem; }
+  .libro.is-doble .hoja-titulo { font-size: 3rem; }
+  .libro.is-doble .mini-alg { grid-template-columns: 1fr; }
+}
+@media (min-width: 1100px) {
+  .libro.is-doble .hoja-portada { min-height: 700px; }
+  .libro.is-doble.is-cerrado .hoja.hoja-portada { left: 25%; border-radius: 4px; }
+  .libro.is-cerrado .hojas::before, .libro.is-cerrado .hojas::after { left: 25%; right: 25%; }
+}

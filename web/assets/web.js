@@ -337,50 +337,88 @@
     var pagina = $('#libro-pagina');
     var cur = 0, turning = false;
     libro.classList.add('is-book');
+    // En el ordenador la carta se abre a doble página; en el móvil, de una en una
+    var mq = window.matchMedia ? matchMedia('(min-width: 1100px)') : { matches: false };
+    var spread = mq.matches;
 
-    var fitHeight = function () { stage.style.height = hojas[cur].offsetHeight + 'px'; };
+    // Hojas que se ven a la vez a partir de la hoja i (portada sola; luego parejas 1-2, 3-4…)
+    var visible = function (i) {
+      if (!spread || i === 0) return [i];
+      var l = i % 2 === 1 ? i : i - 1;
+      return l + 1 < hojas.length ? [l, l + 1] : [l];
+    };
+    var start = function (i) { return visible(i)[0]; };
+    var next = function () { return spread ? (cur === 0 ? 1 : cur + 2) : cur + 1; };
+    var prev = function () { return spread ? (cur <= 1 ? 0 : cur - 2) : cur - 1; };
+
+    var layout = function () {
+      var vis = visible(cur);
+      hojas.forEach(function (h, k) {
+        h.classList.toggle('is-on', vis.indexOf(k) !== -1);
+        h.classList.remove('lado-izq', 'lado-der');
+        h.style.minHeight = '';
+        if (spread) h.classList.add(k === 0 || k % 2 === 0 ? 'lado-der' : 'lado-izq');
+      });
+      libro.classList.toggle('is-doble', spread);
+      libro.classList.toggle('is-cerrado', spread && cur === 0);
+    };
+    var fitHeight = function () {
+      var vis = visible(cur);
+      vis.forEach(function (k) { hojas[k].style.minHeight = ''; });
+      var hgt = Math.max.apply(null, vis.map(function (k) { return hojas[k].offsetHeight; }));
+      if (spread) vis.forEach(function (k) { hojas[k].style.minHeight = hgt + 'px'; });
+      stage.style.height = hgt + 'px';
+    };
     var update = function () {
-      var last = hojas.length - 1;
+      var vis = visible(cur);
       var nums = hojas.filter(function (h) { return h.dataset.num; }).length;
-      var num = hojas[cur].dataset.num;
-      pagina.textContent = num ? hojas[cur].dataset.label + ' · página ' + num + ' de ' + nums : hojas[cur].dataset.label;
+      var txt = vis.map(function (k) {
+        var hj = hojas[k];
+        return hj.dataset.num && !spread ? hj.dataset.label + ' · página ' + hj.dataset.num + ' de ' + nums : hj.dataset.label;
+      });
+      pagina.textContent = txt.join(' y ');
       flechas[0].disabled = cur === 0;
-      flechas[1].disabled = cur === last;
-      marcas.forEach(function (m) { m.classList.toggle('is-on', +m.dataset.goto === cur); });
+      flechas[1].disabled = vis[vis.length - 1] === hojas.length - 1;
+      marcas.forEach(function (m) { m.classList.toggle('is-on', vis.indexOf(+m.dataset.goto) !== -1); });
       var on = marcas.filter(function (m) { return m.classList.contains('is-on'); })[0];
       if (on) on.scrollIntoView({ block: 'nearest', inline: 'center', behavior: reduce ? 'auto' : 'smooth' });
     };
     var go = function (i) {
-      if (i < 0 || i >= hojas.length || i === cur || turning) return;
-      var forward = i > cur, from = hojas[cur], to = hojas[i];
-      to.classList.add('is-on');
+      if (i < 0 || i >= hojas.length || turning) return;
+      i = start(i);
+      if (i === cur) return;
+      var forward = i > cur;
+      var oldVis = visible(cur), newVis = visible(i);
+      // La hoja que gira: al avanzar, la de la derecha que se va; al volver, la que llega
+      var moving = forward ? hojas[oldVis[oldVis.length - 1]] : hojas[spread ? newVis[newVis.length - 1] : newVis[0]];
+      // Al volver, las hojas de antes se quedan debajo mientras gira la nueva
+      var stay = forward || reduce ? [] : oldVis.filter(function (k) { return newVis.indexOf(k) === -1; }).map(function (k) { return hojas[k]; });
       cur = i;
+      layout();
+      stay.forEach(function (h) { h.classList.add('queda'); });
       fitHeight();
       update();
-      // Si la carta queda por encima de la pantalla, vuelve al principio de la hoja
       var top = libro.getBoundingClientRect().top;
       if (top < 0) window.scrollTo({ top: window.scrollY + top - 90, behavior: reduce ? 'auto' : 'smooth' });
-      if (reduce) { from.classList.remove('is-on'); return; }
+      if (reduce) return;
       turning = true;
-      var moving = forward ? from : to;
-      if (forward) from.classList.remove('is-on');
       moving.classList.add(forward ? 'pasa-ida' : 'pasa-vuelta');
       setTimeout(function () {
         moving.classList.remove('pasa-ida', 'pasa-vuelta');
-        if (!forward) from.classList.remove('is-on');
+        stay.forEach(function (h) { h.classList.remove('queda'); });
         turning = false;
       }, 620);
     };
 
     libro.addEventListener('click', function (e) {
       var d = e.target.closest('[data-dir]');
-      if (d) { go(cur + (+d.dataset.dir)); return; }
+      if (d) { go(+d.dataset.dir > 0 ? next() : prev()); return; }
       var m = e.target.closest('[data-goto]');
       if (m) { e.preventDefault(); go(+m.dataset.goto); }
     });
     stage.addEventListener('keydown', function (e) {
-      if (e.key === 'ArrowRight') { e.preventDefault(); go(cur + 1); }
-      if (e.key === 'ArrowLeft') { e.preventDefault(); go(cur - 1); }
+      if (e.key === 'ArrowRight') { e.preventDefault(); go(next()); }
+      if (e.key === 'ArrowLeft') { e.preventDefault(); go(prev()); }
     });
     // Deslizar con el dedo
     var x0 = null, y0 = 0;
@@ -389,10 +427,17 @@
       if (x0 === null) return;
       var dx = e.clientX - x0, dy = e.clientY - y0;
       x0 = null;
-      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.4) go(cur + (dx < 0 ? 1 : -1));
+      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.4) go(dx < 0 ? next() : prev());
     });
     stage.addEventListener('pointercancel', function () { x0 = null; });
 
+    var onMode = function () {
+      spread = mq.matches;
+      cur = start(cur);
+      layout(); fitHeight(); update();
+    };
+    if (mq.addEventListener) mq.addEventListener('change', onMode);
+    layout();
     window.addEventListener('resize', fitHeight);
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitHeight);
     $$('img', stage).forEach(function (img) { img.addEventListener('load', fitHeight); });
