@@ -18,6 +18,7 @@ Más una **app de gestión** para el móvil con tres secciones:
 - **Hoy**: las reservas del día separadas en comida y cena, con botones para confirmar, rechazar o llamar. Arriba salen las reservas de otros días que faltan por confirmar.
 - **Calendario**: el mes entero con las personas reservadas cada día. Al tocar un día ves sus reservas. Desde aquí también se cierran días sueltos (festivos o vacaciones).
 - **Carta**: platos, precios, fotos y alérgenos. Un interruptor marca un plato como agotado y lo quita de la web al momento.
+- **Aforo con tiempo de mesa**: en Ajustes → Reservas online se indica cuántas personas caben a la vez y cuánto dura una comida (por defecto 90 minutos). Una reserva a las 14:00 ocupa sitio hasta las 15:30, y las horas libres se calculan con todas las reservas que se solapan.
 - **Ajustes**, en secciones plegables: datos y presentación, contacto y ubicación, redes sociales (Instagram, Facebook, TikTok, TripAdvisor), fotos de la web, textos de la cinta y del pie, horario, reservas online, políticas, datos legales, avisos y contraseña. Todo se ve en la web al momento.
 
 Cuando entra una reserva, la app avisa con una notificación y llega también un email al restaurante. Si el cliente dejó su email, recibe la confirmación o el rechazo.

@@ -227,7 +227,8 @@ const SETTINGS_DEFAULTS = [
     ],
     'closed_dates'  => [],     // ['2026-12-25', …]
     'slot_minutes'  => 30,     // cada cuánto se puede reservar
-    'capacity'      => 20,     // comensales máximos por franja
+    'capacity'      => 20,     // comensales máximos sentados a la vez
+    'table_minutes' => 90,     // lo que dura una comida: una reserva ocupa sitio desde su hora hasta pasado este tiempo
     'max_people'    => 10,     // máximo por reserva online
     'min_notice'    => 60,     // minutos de antelación mínima
     'last_before'   => 60,     // última reserva X minutos antes del cierre

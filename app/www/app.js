@@ -942,7 +942,10 @@
         <form class="form" data-form="reservas" novalidate>
           <p class="help">Cada reserva llega a Peticiones y la confirmas enviando un WhatsApp al cliente.</p>
           <div class="row">
-            ${num('capacity', 'Comensales por franja', 'Máximo de personas a la misma hora', 1)}
+            ${num('capacity', 'Comensales a la vez', 'Máximo de personas sentadas al mismo tiempo', 1)}
+            ${num('table_minutes', 'Tiempo de mesa (min)', 'Lo que dura una comida. Con 90, quien reserva a las 14:00 ocupa sitio hasta las 15:30', 0)}
+          </div>
+          <div class="row">
             ${num('slot_minutes', 'Cada cuántos minutos', 'Ej.: 30 → 13:00, 13:30…', 5)}
           </div>
           <div class="row">
