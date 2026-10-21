@@ -90,20 +90,6 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .btn-sm { min-height: 40px; padding: 0 18px; font-size: .9rem; }
 .link { background: none; border: 0; padding: 0; color: var(--rubor); text-decoration: underline; text-underline-offset: .2em; cursor: pointer; }
 
-/* ---------- Carga inicial (contador 0 → 100) ---------- */
-.loader {
-  position: fixed; inset: 0; z-index: 200; background: var(--noche);
-  display: flex; align-items: flex-end; justify-content: flex-start; gap: 10px; padding: var(--gutter);
-  transition: opacity .5s ease, visibility .5s;
-}
-.loader-n { font-family: var(--display); font-size: clamp(5rem, 22vw, 16rem); line-height: .8; font-variant-numeric: tabular-nums; }
-.loader-of { color: var(--ceniza); padding-bottom: .6em; }
-.loader.is-done { opacity: 0; visibility: hidden; }
-/* Por si el JavaScript no carga, el contador desaparece solo */
-.loader { animation: loader-off .5s ease 2.4s forwards; }
-@keyframes loader-off { to { opacity: 0; visibility: hidden; } }
-.no-loader .loader { display: none; }
-
 /* ---------- Cabecera ---------- */
 .hd {
   position: fixed; top: 0; left: 0; right: 0; z-index: 50; height: calc(var(--hd-h) + env(safe-area-inset-top));
@@ -299,6 +285,8 @@ body.menu-open { overflow: hidden; }
 }
 .hoja-portada::before { border-color: rgba(196, 162, 109, .55); }
 .hoja-portada::after { border-color: rgba(196, 162, 109, .3); }
+.hoja-portada { cursor: pointer; }
+.hoja-portada:hover .portada-abrir { background: var(--oro); color: #17120F; }
 .portada-marco { display: grid; place-content: center; justify-items: center; text-align: center; gap: 6px; }
 .portada-orn { margin: 0 0 10px; font-size: 1.2rem; }
 .portada-name { margin: 0; font-family: var(--display); font-size: clamp(3.6rem, 13vw, 6.2rem); line-height: 1; letter-spacing: .08em; padding-left: .08em; }

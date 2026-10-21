@@ -46,8 +46,6 @@ page_start($s['name'] . ' · ' . $s['tagline'], '', 'home');
     'acceptsReservations' => true, 'url' => base_url(), 'image' => photo('hero', 1200),
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG) ?></script>
 
-<div class="loader" id="loader" aria-hidden="true"><span class="loader-n" id="loader-n">0</span><span class="loader-of">/ 100</span></div>
-
 <?php site_header($customer, true); ?>
 
 <main id="main">
