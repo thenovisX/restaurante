@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/tema.php';
 
-const ASSET_V = '15';
+const ASSET_V = '16';
 
 function tel_href(string $t): string
 {
@@ -28,6 +28,8 @@ function wa_number(string $t): string
 function page_start(string $title, string $description = '', string $bodyClass = ''): void
 {
     $s = settings();
+    // Las páginas siempre se piden de nuevo, así los cambios del panel se ven al momento
+    if (!headers_sent()) header('Cache-Control: no-cache, must-revalidate, max-age=0');
     ?>
 <!doctype html>
 <html lang="es">
@@ -49,7 +51,6 @@ function page_start(string $title, string $description = '', string $bodyClass =
 <link rel="preconnect" href="https://images.unsplash.com">
 <link rel="preload" href="assets/fonts/bodoni-moda-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="assets/web.css?v=<?= ASSET_V ?>">
-<script>try{if(sessionStorage.getItem('visto')||matchMedia('(prefers-reduced-motion: reduce)').matches)document.documentElement.classList.add('no-loader')}catch(e){}</script>
 </head>
 <body class="<?= h($bodyClass) ?>">
 <a class="skip" href="#main">Saltar al contenido</a>

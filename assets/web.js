@@ -13,7 +13,6 @@
   function parse(s) { var p = s.split('-'); return new Date(+p[0], +p[1] - 1, +p[2], 12); }
   function addDays(s, n) { var d = parse(s); d.setDate(d.getDate() + n); return iso(d); }
   function longDay(s) { var d = parse(s); return DIAS_L[d.getDay()] + ' ' + d.getDate() + ' de ' + MESES[d.getMonth()]; }
-  function store(k, v) { try { if (v === undefined) return sessionStorage.getItem(k); sessionStorage.setItem(k, v); } catch (e) { return null; } }
 
   function api(route, body) {
     var opts = { credentials: 'same-origin', headers: {} };
@@ -39,24 +38,6 @@
     t.textContent = msg;
     document.body.appendChild(t);
     setTimeout(function () { t.remove(); }, 3200);
-  }
-
-  /* ---------- Contador de carga (una vez por visita) ---------- */
-  var loader = $('#loader');
-  if (loader) {
-    if (reduce || store('visto')) {
-      loader.classList.add('is-done');
-    } else {
-      var n = $('#loader-n'), t0 = performance.now(), dur = 900;
-      var step = function (t) {
-        var p = Math.min(1, (t - t0) / dur);
-        n.textContent = Math.round(100 * (1 - Math.pow(1 - p, 3)));
-        if (p < 1) requestAnimationFrame(step);
-        else setTimeout(function () { loader.classList.add('is-done'); }, 120);
-      };
-      requestAnimationFrame(step);
-      store('visto', '1');
-    }
   }
 
   /* ---------- Cabecera y menú ---------- */
@@ -411,6 +392,8 @@
     };
 
     libro.addEventListener('click', function (e) {
+      // Tocar en cualquier parte de la portada abre la carta
+      if (cur === 0 && e.target.closest('.hoja-portada')) { go(next()); return; }
       var d = e.target.closest('[data-dir]');
       if (d) { go(+d.dataset.dir > 0 ? next() : prev()); return; }
       var m = e.target.closest('[data-goto]');
