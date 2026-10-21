@@ -7,7 +7,8 @@ function schema_sql(bool $sqlite): array
     $tail = $sqlite ? '' : ' ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci';
     return [
         "CREATE TABLE IF NOT EXISTS settings (k VARCHAR(64) PRIMARY KEY, v TEXT NOT NULL)$tail",
-        "CREATE TABLE IF NOT EXISTS users (id $ai, username VARCHAR(60) NOT NULL UNIQUE, pass_hash VARCHAR(255) NOT NULL, created_at DATETIME NOT NULL)$tail",
+        "CREATE TABLE IF NOT EXISTS users (id $ai, username VARCHAR(60) NOT NULL UNIQUE, pass_hash VARCHAR(255) NOT NULL, created_at DATETIME NOT NULL,
+            name VARCHAR(80) NOT NULL DEFAULT '', role VARCHAR(10) NOT NULL DEFAULT 'admin', perms VARCHAR(255) NOT NULL DEFAULT '', active TINYINT NOT NULL DEFAULT 1)$tail",
         "CREATE TABLE IF NOT EXISTS tokens (token CHAR(64) PRIMARY KEY, user_id INT NOT NULL, created_at DATETIME NOT NULL, last_used DATETIME NOT NULL)$tail",
         "CREATE TABLE IF NOT EXISTS login_attempts (id $ai, ip VARCHAR(64) NOT NULL, at DATETIME NOT NULL)$tail",
         "CREATE TABLE IF NOT EXISTS categories (id $ai, name VARCHAR(80) NOT NULL, position INT NOT NULL DEFAULT 0)$tail",
@@ -17,7 +18,8 @@ function schema_sql(bool $sqlite): array
         "CREATE TABLE IF NOT EXISTS reservations (id $ai, name VARCHAR(512) NOT NULL, phone VARCHAR(255) NOT NULL, email VARCHAR(512) NOT NULL DEFAULT '', email_idx VARCHAR(64) NOT NULL DEFAULT '',
             rdate DATE NOT NULL, rtime CHAR(5) NOT NULL, people INT NOT NULL, notes TEXT NOT NULL, status VARCHAR(20) NOT NULL DEFAULT 'pendiente',
             source VARCHAR(10) NOT NULL DEFAULT 'web', ip VARCHAR(64) NOT NULL DEFAULT '', created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL,
-            customer_id INT NOT NULL DEFAULT 0, verify_token VARCHAR(255) NOT NULL DEFAULT '', seq INT NOT NULL DEFAULT 0)$tail",
+            customer_id INT NOT NULL DEFAULT 0, verify_token VARCHAR(255) NOT NULL DEFAULT '', seq INT NOT NULL DEFAULT 0,
+            cancel_by VARCHAR(12) NOT NULL DEFAULT '', deleted TINYINT NOT NULL DEFAULT 0)$tail",
         "CREATE TABLE IF NOT EXISTS customers (id $ai, name VARCHAR(512) NOT NULL, email VARCHAR(512) NOT NULL, email_idx VARCHAR(64) NOT NULL DEFAULT '', phone VARCHAR(255) NOT NULL DEFAULT '',
             pass_hash VARCHAR(255) NOT NULL, created_at DATETIME NOT NULL, last_login DATETIME NULL,
             verified_at DATETIME NULL, verify_hash VARCHAR(64) NOT NULL DEFAULT '', verify_expires DATETIME NULL)$tail",

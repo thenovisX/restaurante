@@ -18,6 +18,10 @@ Más una **app de gestión** para el móvil con tres secciones:
 - **Hoy**: las reservas del día separadas en comida y cena, con botones para confirmar, rechazar o llamar. Arriba salen las reservas de otros días que faltan por confirmar.
 - **Calendario**: el mes entero con las personas reservadas cada día. Al tocar un día ves sus reservas. Desde aquí también se cierran días sueltos (festivos o vacaciones).
 - **Carta**: platos, precios, fotos y alérgenos. Un interruptor marca un plato como agotado y lo quita de la web al momento.
+- **Usuarios**: en Ajustes → Usuarios el administrador crea usuarios para el personal. Todos ven las reservas y la carta; a cada uno se le activa o no gestionar reservas (aceptar, rechazar, apuntar y borrar), cambiar la carta y cambiar los ajustes. También se pueden desactivar o borrar.
+- **Horario de cocina** (Ajustes → Horario de cocina): si se activa, las reservas solo se ofrecen con la cocina abierta y la web lo muestra debajo del horario.
+- **Buscador en Ajustes** para encontrar cualquier opción.
+- **Enlace de confirmación**: el cliente ve sus datos y pulsa «Confirmar mi reserva» (abrir el enlace no confirma, porque WhatsApp lo abre solo para la vista previa). Desde el mismo enlace puede cancelarla. Si el restaurante la cancela o la borra, el enlace dice «Reserva cancelada».
 - **Aforo con tiempo de mesa**: en Ajustes → Reservas online se indica cuántas personas caben a la vez y cuánto dura una comida (por defecto 90 minutos). Una reserva a las 14:00 ocupa sitio hasta las 15:30, y las horas libres se calculan con todas las reservas que se solapan.
 - **Ajustes**, en secciones plegables: datos y presentación, contacto y ubicación, redes sociales (Instagram, Facebook, TikTok, TripAdvisor), fotos de la web, textos de la cinta y del pie, horario, reservas online, políticas, datos legales, avisos y contraseña. Todo se ve en la web al momento.
 

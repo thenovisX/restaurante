@@ -829,6 +829,9 @@ html, body { max-width: 100%; }
 .cf-btns { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
 .cf-btns .btn { flex: 1 1 auto; }
 .cf-btns .cf-confirm { min-height: 58px; font-size: 1.08rem; }
+.ft-cocina { display: block; font-size: .8rem; color: var(--ceniza); text-align: right; }
+.cf-cancel { margin: 28px 0 0; padding-top: 18px; border-top: 1px solid var(--linea); color: var(--ceniza); font-size: .95rem; }
+.cf-cancel button { background: none; border: 0; padding: 0; color: var(--hueso); font: inherit; text-decoration: underline; cursor: pointer; }
 .cf-help { margin: 22px 0 0; color: var(--ceniza); font-size: .95rem; }
 .cf-help a { color: var(--hueso); }
 /* En esta página sobra la barra de «Reservar mesa» */

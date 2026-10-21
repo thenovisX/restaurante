@@ -73,11 +73,18 @@
     openSets: new Set(),
     calMonth: todayISO().slice(0, 7),
     calDay: todayISO(),
+    me: (() => { try { return JSON.parse(LS.get('me') || 'null'); } catch (e) { return null; } })(),
     hoyDay: todayISO(),
     hoyAll: [],
     query: '',
     pending: 0,
   };
+
+  /* ---------- Permisos del usuario ---------- */
+  // Sin datos (servidor antiguo) se comporta como administrador
+  const isAdmin = () => !S.me || S.me.role === 'admin';
+  const can = (perm) => isAdmin() || (S.me.perms || []).includes(perm);
+  const norm = (t) => String(t).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
   /* ---------- API ---------- */
   async function api(route, { body = null, form = null } = {}) {
@@ -134,13 +141,14 @@
   }
 
   async function notifyNew(list) {
-    const lines = list.map((r) => (r.status === 'confirmada' ? 'Confirmada por el cliente: ' : 'Petición nueva: ') + `${r.name} · ${r.people} pers. · ${fmtShort(r.date)} ${r.time}`);
+    const label = { confirmada: 'Confirmada por el cliente: ', cancelada: 'Cancelada por el cliente: ' };
+    const lines = list.map((r) => (label[r.status] || 'Petición nueva: ') + `${r.name} · ${r.people} pers. · ${fmtShort(r.date)} ${r.time}`);
     toast(list.length > 1 ? `${list.length} novedades. ${lines[0]}` : lines[0], 'new');
     if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
     try {
       if (LocalNotif) {
         await LocalNotif.schedule({
-          notifications: list.map((r, i) => ({ id: r.id, title: r.status === 'confirmada' ? 'Reserva confirmada' : 'Petición de reserva', body: lines[i] })),
+          notifications: list.map((r, i) => ({ id: r.id, title: { confirmada: 'Reserva confirmada', cancelada: 'Reserva cancelada' }[r.status] || 'Petición de reserva', body: lines[i] })),
         });
       } else if ('Notification' in window && Notification.permission === 'granted' && navigator.serviceWorker) {
         const reg = await navigator.serviceWorker.ready;
@@ -270,6 +278,8 @@
         S.restaurant = r.restaurant;
         LS.set('token', r.token);
         LS.set('user', r.user);
+        S.me = r.me || null;
+        LS.set('me', JSON.stringify(S.me));
         LS.set('restaurant', r.restaurant);
         startApp();
         askNotifications();
@@ -325,6 +335,13 @@
     pullToRefresh();
     go(S.tab);
     poll();
+    // Permisos al día (por si el administrador los ha cambiado)
+    api('me').then((d) => {
+      if (!d.me || JSON.stringify(d.me) === JSON.stringify(S.me)) return;
+      S.me = d.me;
+      LS.set('me', JSON.stringify(S.me));
+      render();
+    }).catch(() => {});
   }
 
   function hasDirty() { return $$('form[data-dirty]', $('#view') || document).length > 0; }
@@ -405,7 +422,9 @@
   function resCard(r, showDate) {
     S.res[r.id] = r;
     const actions = [];
-    if (r.status === 'pendiente') {
+    if (!can('reservas')) {
+      // Solo ver: sin aceptar ni rechazar
+    } else if (r.status === 'pendiente') {
       actions.push(waButton(r, 'Confirmar por WhatsApp'));
       actions.push(`<button class="btn btn-sm b-no" data-status="rechazada" data-id="${r.id}">Rechazar</button>`);
     } else if (r.status === 'esperando') {
@@ -452,7 +471,7 @@
     const t = todayISO();
     [S.hoyAll] = await Promise.all([api(`reservations&from=${t}&to=${iso(addDays(new Date(), 180))}`), loadSettings()]);
     const newReq = S.hoyAll.filter((r) => r.status === 'pendiente').length;
-    setFab('Nueva reserva', () => editReservation(null, S.hoyDay));
+    if (can('reservas')) setFab('Nueva reserva', () => editReservation(null, S.hoyDay));
     let html = `<label class="search">${ICON.search}<input type="search" id="hoy-q" placeholder="Buscar reserva por nombre o teléfono" value="${esc(S.query)}" autocomplete="off" enterkeyhint="search"></label>`;
     if (newReq) {
       html += `<button type="button" class="alert alert-btn" data-goto-tab="pet">${newReq} ${newReq === 1 ? 'petición nueva' : 'peticiones nuevas'} de reserva. Toca para verlas ›</button>`;
@@ -506,7 +525,7 @@
     }
     html += `<div class="day-head"><p class="day-date">${esc(fmtDay(S.hoyDay))}</p><p class="day-sum">${daySummary(list)}</p></div>`;
     html += list.length ? servicesHTML(list)
-      : `<div class="empty"><p>${S.hoyDay === t ? 'Hoy no hay reservas todavía.' : 'Este día no hay reservas.'}</p><button class="btn btn-line btn-sm" data-new="${S.hoyDay}">Apuntar una reserva</button></div>`;
+      : `<div class="empty"><p>${S.hoyDay === t ? 'Hoy no hay reservas todavía.' : 'Este día no hay reservas.'}</p>${can('reservas') ? `<button class="btn btn-line btn-sm" data-new="${S.hoyDay}">Apuntar una reserva</button>` : ''}</div>`;
     box.innerHTML = html;
     const sel = $('.strip-d.sel', box);
     if (sel && sel.scrollIntoView) sel.scrollIntoView({ block: 'nearest', inline: 'center' });
@@ -515,8 +534,8 @@
   /* ---------- PETICIONES ---------- */
   async function viewPet() {
     const [d] = await Promise.all([api('requests'), loadSettings()]);
-    setFab('Nueva reserva', () => editReservation(null, todayISO()));
-    let html = `<p class="pet-intro">Al pulsar <b>Confirmar por WhatsApp</b> se abre WhatsApp con un mensaje para el cliente y un enlace. Dale a enviar: cuando el cliente toque el enlace, la reserva quedará confirmada.</p>`;
+    if (can('reservas')) setFab('Nueva reserva', () => editReservation(null, todayISO()));
+    let html = !can('reservas') ? '<p class="pet-intro">Puedes ver las peticiones, pero tu usuario no puede aceptarlas ni rechazarlas.</p>' : `<p class="pet-intro">Al pulsar <b>Confirmar por WhatsApp</b> se abre WhatsApp con un mensaje para el cliente y un enlace. Dale a enviar: cuando el cliente toque el enlace, la reserva quedará confirmada.</p>`;
     html += `<h2 class="sec">Nuevas <span>${d.nuevas.length}</span></h2>`;
     html += d.nuevas.length ? d.nuevas.map((r) => resCard(r, true)).join('')
       : '<div class="empty"><p>No hay peticiones nuevas.</p></div>';
@@ -554,7 +573,7 @@
 
     const dayClosed = closedDates.includes(S.calDay);
     const weekClosed = !(settings.hours[String(((parseISO(S.calDay).getDay() + 6) % 7) + 1)] || []).length;
-    setFab('Nueva reserva', () => editReservation(null, S.calDay));
+    if (can('reservas')) setFab('Nueva reserva', () => editReservation(null, S.calDay));
 
     return `<section class="cal">
         <div class="cal-head">
@@ -568,7 +587,7 @@
       <div class="day-head" style="margin-top:20px"><p class="day-date">${esc(fmtDay(S.calDay))}</p><p class="day-sum">${weekClosed ? 'Día de cierre semanal' : dayClosed ? 'Cerrado este día' : daySummary(dayList)}</p></div>
       <div class="day-tools">
         ${S.calDay !== t ? '<button class="btn btn-quiet btn-sm" data-goto-today>Ir a hoy</button>' : ''}
-        ${!weekClosed && S.calDay >= t ? `<button class="btn btn-line btn-sm" data-close-day="${dayClosed ? 'open' : 'close'}">${dayClosed ? 'Abrir este día' : 'Cerrar este día (festivo, vacaciones…)'}</button>` : ''}
+        ${can('reservas') && !weekClosed && S.calDay >= t ? `<button class="btn btn-line btn-sm" data-close-day="${dayClosed ? 'open' : 'close'}">${dayClosed ? 'Abrir este día' : 'Cerrar este día (festivo, vacaciones…)'}</button>` : ''}
       </div>
       ${dayList.length ? servicesHTML(dayList) : '<div class="empty"><p>No hay reservas este día.</p></div>'}`;
   }
@@ -591,7 +610,10 @@
     const r = S.res[id];
     if (!r) return;
     const btns = [];
-    if (r.status === 'pendiente') {
+    const edit = can('reservas');
+    if (!edit) {
+      // Solo ver
+    } else if (r.status === 'pendiente') {
       btns.push(waButton(r, 'Confirmar por WhatsApp', true), `<button class="btn btn-quiet" data-s="rechazada">Rechazar</button>`);
     } else if (r.status === 'esperando') {
       btns.push(waButton(r, 'Reenviar WhatsApp', true), `<button class="btn btn-quiet" data-s="confirmada">Ya ha confirmado</button>`);
@@ -612,14 +634,13 @@
         <dt>Entró</dt><dd>${r.source === 'web' ? (r.customer ? 'Por la web, cliente con cuenta' : 'Por la web') : 'Apuntada a mano'}, ${esc(fmtShort(r.created_at.slice(0, 10)))} ${esc(r.created_at.slice(11, 16))}</dd>
       </dl>
       <div class="actions">
-        <div class="actions-row">${btns.join('')}</div>
+        ${btns.length ? `<div class="actions-row">${btns.join('')}</div>` : ''}
         ${r.phone ? `<div class="actions-row">
           <a class="btn btn-line" href="${esc(telHref(r.phone))}">Llamar</a>
           <a class="btn btn-line" href="${esc(waHref(r.phone))}" target="_blank" rel="noopener">WhatsApp</a>
         </div>` : ''}
         ${r.status === 'confirmada' && r.email === '' && r.source === 'web' ? '<p class="help">Este cliente no dejó email: avísale por teléfono o WhatsApp.</p>' : ''}
-        <button class="btn btn-quiet" data-edit>Editar datos</button>
-        <button class="btn btn-danger" data-del>Borrar reserva</button>
+        ${edit ? '<button class="btn btn-quiet" data-edit>Editar datos</button><button class="btn btn-danger" data-del>Borrar reserva</button>' : '<p class="help">Tu usuario puede ver las reservas, pero no cambiarlas.</p>'}
       </div>`, (body) => {
       $$('[data-wa-send]', body).forEach((a) => a.addEventListener('click', () => { markSent(r.id); closeSheet(); }));
       $$('[data-s]', body).forEach((b) => b.addEventListener('click', async () => {
@@ -628,9 +649,10 @@
         busy(b, true, '…');
         try { await setStatus(r.id, b.dataset.s); closeSheet(); } catch (err) { toast(err.message, 'err'); busy(b, false); }
       }));
+      if (!edit) return;
       $('[data-edit]', body).addEventListener('click', () => editReservation(r));
       $('[data-del]', body).addEventListener('click', async () => {
-        if (!confirm('¿Borrar esta reserva para siempre? Si solo no vienen, mejor «Cancelar».')) return;
+        if (!confirm('¿Borrar esta reserva? Desaparece de la app y, si el cliente abre su enlace, verá «Reserva cancelada».')) return;
         try { await api('reservation_delete', { body: { id: r.id } }); closeSheet(); toast('Reserva borrada'); render(); }
         catch (err) { toast(err.message, 'err'); }
       });
@@ -706,20 +728,22 @@
   /* ---------- CARTA ---------- */
   async function viewCarta() {
     S.menu = await api('admin_menu');
-    setFab('Nuevo plato', () => editDish(null));
+    const editMenu = can('carta');
+    if (editMenu) setFab('Nuevo plato', () => editDish(null));
     const cats = S.menu.categories;
     if (!cats.length) {
-      return `<div class="empty"><p>La carta está vacía. Empieza creando una sección, por ejemplo «Entrantes».</p><button class="btn btn-main btn-sm" data-cat-new>Crear sección</button></div>`;
+      return editMenu ? `<div class="empty"><p>La carta está vacía. Empieza creando una sección, por ejemplo «Entrantes».</p><button class="btn btn-main btn-sm" data-cat-new>Crear sección</button></div>` : '<div class="empty"><p>La carta está vacía.</p></div>';
     }
     const names = Object.fromEntries(S.menu.allergens.map((a) => [a.key, a.name]));
     const off = cats.reduce((a, c) => a + c.dishes.filter((d) => !d.available).length, 0);
-    let html = `<div class="toolbar"><button class="btn btn-quiet btn-sm" data-cat-new>Nueva sección</button>${S.base ? `<a class="btn btn-quiet btn-sm" href="${esc(S.base)}/#carta" target="_blank" rel="noopener">Ver en la web</a>` : ''}</div>`;
+    let html = !editMenu ? '<p class="help" style="color:var(--granito);margin:0 0 8px">Solo lectura: tu usuario no puede cambiar la carta.</p>' : '';
+    html += `<div class="toolbar">${editMenu ? '<button class="btn btn-quiet btn-sm" data-cat-new>Nueva sección</button>' : ''}${S.base ? `<a class="btn btn-quiet btn-sm" href="${esc(S.base)}/#carta" target="_blank" rel="noopener">Ver en la web</a>` : ''}</div>`;
     html += `<label class="search">${ICON.search}<input type="search" id="carta-q" placeholder="Buscar plato" autocomplete="off" enterkeyhint="search"></label>`;
     if (cats.length > 1) html += `<nav class="jump" aria-label="Ir a una sección">${cats.map((c) => `<a href="#mcat-${c.id}" data-jump="${c.id}">${esc(c.name)} <span>${c.dishes.length}</span></a>`).join('')}</nav>`;
     if (off) html += `<p class="alert">${off} ${off === 1 ? 'plato está marcado' : 'platos están marcados'} como agotado y no ${off === 1 ? 'sale' : 'salen'} en la web.</p>`;
     html += '<p class="help" style="margin:4px 0 0;color:var(--granito)">El interruptor quita o pone un plato en la web al momento (por ejemplo, si se acaba).</p>';
     for (const c of cats) {
-      html += `<section class="mcat" id="mcat-${c.id}"><div class="mcat-head"><h2>${esc(c.name)}</h2><button class="link-btn" data-cat="${c.id}">Editar sección</button></div>`;
+      html += `<section class="mcat" id="mcat-${c.id}"><div class="mcat-head"><h2>${esc(c.name)}</h2>${editMenu ? `<button class="link-btn" data-cat="${c.id}">Editar sección</button>` : ''}</div>`;
       if (!c.dishes.length) html += '<p class="help" style="color:var(--granito)">Sin platos todavía.</p>';
       for (const d of c.dishes) {
         const al = d.allergens.map((k) => names[k]).filter(Boolean);
@@ -730,7 +754,7 @@
             <p class="md-meta">${euro(d.price)}${d.featured ? ' · recomendado' : ''}${d.available ? '' : ' · <span class="md-off">agotado</span>'}</p>
             ${d.allergens.length ? `<p class="md-alg" aria-label="Alérgenos: ${esc(al.join(', '))}">${d.allergens.map((k) => alIcon(k, 20)).join('')}</p>` : ''}
           </button>
-          <label class="sw" title="Disponible"><input type="checkbox" data-toggle="${d.id}" ${d.available ? 'checked' : ''} aria-label="${esc(d.name)} disponible"><span></span></label>
+          <label class="sw" title="Disponible"><input type="checkbox" data-toggle="${d.id}" ${d.available ? 'checked' : ''} ${editMenu ? '' : 'disabled'} aria-label="${esc(d.name)} disponible"><span></span></label>
         </div>`;
       }
       html += '</section>';
@@ -889,14 +913,17 @@
       `<label>${label}<input name="${k}" type="${type}" value="${esc(s[k])}" ${extra}></label>`;
     const num = (k, label, help, min = 0) =>
       `<label>${label}<input name="${k}" type="number" inputmode="numeric" min="${min}" value="${esc(s[k])}">${help ? `<span class="help">${help}</span>` : ''}</label>`;
-    const hoursRows = Object.keys(WEEK).map((d) => {
-      const r = s.hours[d] || [];
-      const rng = (i) => `<div class="range"><input type="time" data-h="${d}-${i}-0" value="${esc(r[i] ? r[i][0] : '')}" aria-label="${WEEK[d]} franja ${i + 1} desde"> a <input type="time" data-h="${d}-${i}-1" value="${esc(r[i] ? r[i][1] : '')}" aria-label="${WEEK[d]} franja ${i + 1} hasta"></div>`;
+    // Editor de horario por días. pre = '' (apertura) o 'k' (cocina)
+    const hoursEditor = (pre, src, openLabel) => Object.keys(WEEK).map((d) => {
+      const r = (src || {})[d] || [];
+      const id = pre + d;
+      const rng = (i) => `<div class="range"><input type="time" data-h="${id}-${i}-0" value="${esc(r[i] ? r[i][0] : '')}" aria-label="${WEEK[d]} franja ${i + 1} desde"> a <input type="time" data-h="${id}-${i}-1" value="${esc(r[i] ? r[i][1] : '')}" aria-label="${WEEK[d]} franja ${i + 1} hasta"></div>`;
       return `<div class="hours-row"><span>${WEEK[d]}</span><div class="hours-day">
-        <label class="switch-row" style="padding:6px 10px">Abre <span class="sw"><input type="checkbox" data-open="${d}" ${r.length ? 'checked' : ''}><span></span></span></label>
-        <div data-ranges="${d}" ${r.length ? '' : 'hidden'}>${rng(0)}${rng(1)}<p class="help">Deja vacía la segunda franja si solo abres a una hora.</p></div>
+        <label class="switch-row" style="padding:6px 10px">${openLabel} <span class="sw"><input type="checkbox" data-open="${id}" ${r.length ? 'checked' : ''}><span></span></span></label>
+        <div data-ranges="${id}" ${r.length ? '' : 'hidden'}>${rng(0)}${rng(1)}<p class="help">Deja vacía la segunda franja si solo hay un turno.</p></div>
       </div></div>`;
     }).join('');
+    const hoursRows = hoursEditor('', s.hours, 'Abre');
 
     const sec = (id, title, desc, inner) => `<details class="card set" data-set="${id}" ${S.openSets.has(id) ? 'open' : ''}>
         <summary><span>${title}<small>${desc}</small></span></summary>
@@ -910,6 +937,9 @@
         </div></div>`).join('');
 
     return `
+      <label class="search">${ICON.search}<input type="search" id="set-q" placeholder="Buscar en ajustes (horario, Gmail, fotos…)" autocomplete="off" enterkeyhint="search"></label>
+      <p class="set-none" hidden>No hay ningún ajuste con esa palabra.</p>
+      ${can('ajustes') ? `
       <p class="set-intro">Todo lo que cambies aquí se ve en la web al momento.</p>
       ${sec('datos', 'Datos del restaurante', 'Nombre, frase corta y presentación', `
         <form class="form" data-form="datos" novalidate>
@@ -963,6 +993,14 @@
           <p class="help">Es el horario de la web y en el que se puede reservar. Para cerrar un día suelto (festivo, vacaciones), hazlo desde el Calendario.</p>
           ${hoursRows}
           <button class="btn btn-main" type="submit">Guardar horario</button>
+        </form>`)}
+      ${sec('cocina', 'Horario de cocina', s.kitchen_on ? 'Activado: las reservas siguen este horario' : 'Si la cocina abre menos horas que el local', `
+        <form class="form" data-form="cocina" novalidate>
+          <p class="help">Por ejemplo, si el local abre hasta la 1:00 pero la cocina cierra a las 23:00. Con el horario de cocina activado, las reservas solo se ofrecen mientras la cocina está abierta, y en la web sale debajo del horario normal.</p>
+          <label class="switch-row">Usar horario de cocina <span class="sw"><input type="checkbox" name="kitchen_on" ${s.kitchen_on ? 'checked' : ''}><span></span></span></label>
+          ${hoursEditor('k', s.kitchen_hours, 'Cocina abierta')}
+          <p class="help">«Última reserva antes del cierre» (en Reservas online) se cuenta desde el cierre de la cocina.</p>
+          <button class="btn btn-main" type="submit">Guardar horario de cocina</button>
         </form>`)}
       ${sec('reservas', 'Reservas online', 'Aforo, horas y confirmación', `
         <form class="form" data-form="reservas" novalidate>
@@ -1023,6 +1061,11 @@
           <button class="btn btn-line" type="button" data-mail-test>Enviar un email de prueba</button>
           <p class="help">La prueba llega a «${esc(s.notify_email || s.email || 'el email de avisos')}». Gmail permite unos 500 emails al día, de sobra para un restaurante.</p>
         </form>`)}
+      ` : '<p class="set-intro">Tu usuario no puede cambiar los ajustes de la web. Aquí tienes los avisos y tu contraseña.</p>'}
+      ${isAdmin() ? sec('usuarios', 'Usuarios', 'Quién entra en la app y qué puede hacer', `
+        <p class="help">Todos los usuarios pueden ver las reservas y la carta. Tú decides quién puede cambiar cada cosa.</p>
+        <div id="users-box"><p class="help">Cargando…</p></div>
+        <button class="btn btn-line btn-sm" type="button" data-user-new>Nuevo usuario</button>`) : ''}
       ${sec('avisos', 'Avisos de reservas nuevas', 'Notificaciones en este móvil', `
         <p class="help">Con la app abierta (o en segundo plano) revisa cada 30 segundos si hay reservas nuevas. Además, cada reserva llega por email a «${esc(s.notify_email || s.email || 'el email de avisos')}».</p>
         <button class="btn btn-line btn-sm" type="button" data-notif>Activar avisos en este móvil</button>`)}
@@ -1035,7 +1078,7 @@
 
       <section class="card">
         <h2>Sesión</h2>
-        <p>Conectado a ${esc(S.base.replace(/^https?:\/\//, ''))} como ${esc(LS.get('user') || '')}.</p>
+        <p>Conectado a ${esc(S.base.replace(/^https?:\/\//, ''))} como ${esc(LS.get('user') || '')}${S.me ? (S.me.role === 'admin' ? ' (administrador)' : ' (empleado)') : ''}.</p>
         <div class="actions-row">
           <a class="btn btn-quiet btn-sm" href="${esc(S.base)}/" target="_blank" rel="noopener">Ver la web</a>
           <button class="btn btn-danger btn-sm" type="button" data-logout>Cerrar sesión</button>
@@ -1045,6 +1088,9 @@
 
   afterRender.ajustes = (view) => {
     $$('details[data-set]', view).forEach((d) => d.addEventListener('toggle', () => {
+      // Lo que abre el buscador no se recuerda: al borrar la búsqueda vuelve como estaba
+      const sq = $('#set-q', view);
+      if (sq && sq.value.trim()) return;
       if (d.open) S.openSets.add(d.dataset.set); else S.openSets.delete(d.dataset.set);
     }));
     $$('[data-wph]', view).forEach((inp) => inp.addEventListener('change', async () => {
@@ -1075,6 +1121,9 @@
       }
     }));
     $$('form[data-form]', view).forEach((f) => f.addEventListener('submit', (e) => saveSettingsForm(e, f)));
+    if ($('#users-box', view)) loadUsers();
+    const un = $('[data-user-new]', view);
+    if (un) un.addEventListener('click', () => editUser(null));
     const mt = $('[data-mail-test]', view);
     if (mt) mt.addEventListener('click', async () => {
       const f = mt.closest('form');
@@ -1095,6 +1144,75 @@
     });
   };
 
+  /* ---------- Usuarios (solo administradores) ---------- */
+  const PERM_LABEL = { reservas: 'Reservas', carta: 'Carta', ajustes: 'Ajustes' };
+  async function loadUsers() {
+    const box = $('#users-box');
+    try {
+      const d = await api('users');
+      S.users = d.users;
+      S.permInfo = d.perms;
+      box.innerHTML = d.users.map((u) => `<button type="button" class="user-row${u.active ? '' : ' off'}" data-user="${u.id}">
+          <span class="user-main"><b>${esc(u.name || u.username)}</b><small>${esc(u.username)}${u.active ? '' : ' · desactivado'}</small></span>
+          <span class="user-tags">${u.role === 'admin' ? '<i class="tag tag-admin">Administrador</i>' : (u.perms.length ? u.perms.map((p) => `<i class="tag">${PERM_LABEL[p] || p}</i>`).join('') : '<i class="tag tag-ver">Solo ver</i>')}</span>
+        </button>`).join('');
+      $$('[data-user]', box).forEach((b) => b.addEventListener('click', () => editUser(S.users.find((u) => u.id === Number(b.dataset.user)))));
+    } catch (err) { box.innerHTML = `<p class="err-box">${esc(err.message)}</p>`; }
+  }
+
+  function editUser(u) {
+    const isNew = !u;
+    u = u || { username: '', name: '', role: 'staff', perms: [], active: true };
+    const info = S.permInfo || { reservas: 'Gestionar reservas', carta: 'Cambiar la carta', ajustes: 'Cambiar los ajustes' };
+    const self = S.me && u.id === S.me.id;
+    openSheet(isNew ? 'Nuevo usuario' : 'Editar usuario', `
+      <form class="form" id="user-edit" novalidate>
+        <div class="row">
+          <label>Usuario <input name="username" value="${esc(u.username)}" autocapitalize="off" autocomplete="off" required placeholder="camarero1"></label>
+          <label>Nombre <input name="name" value="${esc(u.name)}" placeholder="Laura"></label>
+        </div>
+        <label>${isNew ? 'Contraseña' : 'Nueva contraseña'} <input name="password" type="password" autocomplete="new-password" minlength="8" placeholder="${isNew ? 'Mínimo 8 caracteres' : 'Déjala vacía para no cambiarla'}"></label>
+        <div class="field">Tipo de usuario
+          <div class="chips">
+            <label><input type="radio" name="role" value="staff" ${u.role !== 'admin' ? 'checked' : ''}><span>Empleado</span></label>
+            <label><input type="radio" name="role" value="admin" ${u.role === 'admin' ? 'checked' : ''}><span>Administrador</span></label>
+          </div>
+          <span class="help">El administrador puede hacerlo todo, también crear y cambiar usuarios.</span>
+        </div>
+        <div class="field" id="perm-box" ${u.role === 'admin' ? 'hidden' : ''}>Qué puede hacer (ver las reservas y la carta pueden todos)
+          ${Object.entries(info).map(([k, label]) => `<label class="switch-row">${esc(label)} <span class="sw"><input type="checkbox" name="perms" value="${k}" ${u.perms.includes(k) ? 'checked' : ''}><span></span></span></label>`).join('')}
+        </div>
+        <label class="switch-row">Usuario activo (puede entrar) <span class="sw"><input type="checkbox" name="active" ${u.active ? 'checked' : ''} ${self ? 'disabled' : ''}><span></span></span></label>
+        <div class="actions">
+          <button class="btn btn-main" type="submit">${isNew ? 'Crear usuario' : 'Guardar cambios'}</button>
+          ${!isNew && !self ? '<button type="button" class="btn btn-danger" data-del>Borrar usuario</button>' : ''}
+        </div>
+      </form>`, (body) => {
+      const f = $('#user-edit', body);
+      $$('[name=role]', f).forEach((r) => r.addEventListener('change', () => { $('#perm-box', f).hidden = f.role.value === 'admin'; }));
+      f.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = $('button[type=submit]', f);
+        const data = { id: u.id || 0, username: f.username.value, name: f.name.value, password: f.password.value, role: f.role.value,
+          perms: $$('[name=perms]:checked', f).map((x) => x.value), active: self ? true : f.active.checked };
+        busy(btn, true);
+        try {
+          const saved = await api('user_save', { body: data });
+          if (self) { S.me = saved; LS.set('me', JSON.stringify(saved)); }
+          closeSheet();
+          toast(isNew ? 'Usuario creado. Ya puede entrar en la app con su usuario y contraseña.' : 'Usuario guardado');
+          loadUsers();
+        } catch (err) { toast(err.message, 'err'); busy(btn, false); }
+      });
+      const del = $('[data-del]', f);
+      if (del) del.addEventListener('click', async () => {
+        if (!confirm(`¿Borrar el usuario «${u.username}»? Dejará de poder entrar en la app.`)) return;
+        try { await api('user_delete', { body: { id: u.id } }); closeSheet(); toast('Usuario borrado'); loadUsers(); }
+        catch (err) { toast(err.message, 'err'); }
+      });
+    });
+  }
+
   async function saveSettingsForm(e, f) {
     e.preventDefault();
     const btn = $('button[type=submit]', f);
@@ -1110,20 +1228,22 @@
       busy(btn, false);
       return;
     }
-    if (kind === 'horario') {
+    if (kind === 'horario' || kind === 'cocina') {
+      const pre = kind === 'cocina' ? 'k' : '';
       const hours = {};
       for (let d = 1; d <= 7; d++) {
         hours[d] = [];
-        if (!$(`[data-open="${d}"]`, f).checked) continue;
+        if (!$(`[data-open="${pre}${d}"]`, f).checked) continue;
         for (let i = 0; i < 2; i++) {
-          const a = $(`[data-h="${d}-${i}-0"]`, f).value;
-          const b = $(`[data-h="${d}-${i}-1"]`, f).value;
+          const a = $(`[data-h="${pre}${d}-${i}-0"]`, f).value;
+          const b = $(`[data-h="${pre}${d}-${i}-1"]`, f).value;
           if (!a && !b) continue;
           if (!a || !b || b <= a) { toast(`Revisa el horario del ${WEEK[d].toLowerCase()}: la hora de cierre tiene que ser posterior a la de apertura.`, 'err'); return; }
           hours[d].push([a, b]);
         }
       }
-      body = { hours };
+      body = kind === 'cocina' ? { kitchen_hours: hours, kitchen_on: $('[name=kitchen_on]', f).checked } : { hours };
+      if (kind === 'cocina' && body.kitchen_on && !Object.values(hours).some((x) => x.length)) { toast('Marca al menos un día con la cocina abierta', 'err'); return; }
     } else {
       $$('input[name], textarea[name], select[name]', f).forEach((el) => { body[el.name] = el.type === 'checkbox' ? el.checked : el.value; });
     }
@@ -1147,7 +1267,7 @@
     const wa = t.closest('[data-wa-send]');
     if (wa) { e.stopPropagation(); markSent(Number(wa.dataset.waSend)); return; }
     const hd = t.closest('[data-hoy-day]');
-    if (hd) { S.hoyDay = hd.dataset.hoyDay; setTitle(S.hoyDay === todayISO() ? 'Hoy' : 'Reservas'); setFab('Nueva reserva', () => editReservation(null, S.hoyDay)); return renderHoyBody($('#view')); }
+    if (hd) { S.hoyDay = hd.dataset.hoyDay; setTitle(S.hoyDay === todayISO() ? 'Hoy' : 'Reservas'); if (can('reservas')) setFab('Nueva reserva', () => editReservation(null, S.hoyDay)); return renderHoyBody($('#view')); }
     const jp = t.closest('[data-jump]');
     if (jp) { e.preventDefault(); const el = $('#mcat-' + jp.dataset.jump); if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - $('.bar').offsetHeight - 8, behavior: 'smooth' }); return; }
     const gt = t.closest('[data-goto-tab]');
@@ -1180,7 +1300,7 @@
     const cd = t.closest('[data-close-day]');
     if (cd) return toggleClosedDay(cd.dataset.closeDay).catch((err) => toast(err.message, 'err'));
     const dish = t.closest('[data-dish]');
-    if (dish) return editDish(findDish(Number(dish.dataset.dish)));
+    if (dish) return can('carta') ? editDish(findDish(Number(dish.dataset.dish))) : null;
     if (t.closest('[data-cat-new]')) return editCategory(null);
     const cat = t.closest('[data-cat]');
     if (cat) return editCategory(S.menu.categories.find((c) => c.id === Number(cat.dataset.cat)));
@@ -1189,6 +1309,23 @@
   function onViewInput(e) {
     const t = e.target;
     if (t.id === 'hoy-q') { S.query = t.value; renderHoyBody($('#view')); return; }
+    if (t.id === 'set-q') {
+      const q = norm(t.value.trim());
+      let n = 0;
+      const sets = $$('details.set', $('#view'));
+      // Primero por el título de la sección; si ninguna coincide, por todo lo que hay dentro
+      const byTitle = sets.some((d) => norm($('summary', d).textContent).includes(q));
+      sets.forEach((d) => {
+        const txt = byTitle ? $('summary', d).textContent : d.textContent + ' ' + $$('input[placeholder]', d).map((i) => i.placeholder).join(' ');
+        const hit = !q || norm(txt).includes(q);
+        d.hidden = !hit;
+        if (hit) n++;
+        d.open = q ? hit : S.openSets.has(d.dataset.set);
+      });
+      $$('.set-intro', $('#view')).forEach((p) => { p.hidden = !!q; });
+      $('.set-none', $('#view')).hidden = !q || n > 0;
+      return;
+    }
     if (t.id === 'carta-q') {
       const q = t.value.trim().toLowerCase();
       $$('.mcat', $('#view')).forEach((sec) => {

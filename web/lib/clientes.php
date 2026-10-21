@@ -243,7 +243,7 @@ function customer_cancel(array $c, int $id): array
         $s = settings();
         throw new ValidationError('Esta reserva ya no se puede cancelar desde la web. Llámanos' . ($s['phone'] ? " al {$s['phone']}" : '') . '.');
     }
-    q("UPDATE reservations SET status = 'cancelada', updated_at = ? WHERE id = ?", [now(), $id]);
+    q("UPDATE reservations SET status = 'cancelada', cancel_by = 'cliente', updated_at = ?, seq = ? WHERE id = ?", [now(), next_seq(), $id]);
     $r = get_reservation($id);
     $s = settings();
     send_mail(

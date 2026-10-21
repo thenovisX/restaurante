@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/tema.php';
 
-const ASSET_V = '24';
+const ASSET_V = '25';
 
 function tel_href(string $t): string
 {
@@ -121,7 +121,8 @@ function site_footer(): void
         <h2>Horario</h2>
         <ul class="ft-hours">
           <?php foreach (WEEKDAYS as $n => $day): ?>
-            <li<?= (string)$n === $todayN ? ' class="is-today"' : '' ?>><span><?= $day ?></span><span><?= h(ranges_text($s['hours'][$n] ?? [])) ?></span></li>
+            <?php $kit = $s['kitchen_on'] && ($s['hours'][$n] ?? []) && ($s['kitchen_hours'][$n] ?? []) != ($s['hours'][$n] ?? []) ? ranges_text($s['kitchen_hours'][$n] ?? []) : ''; ?>
+            <li<?= (string)$n === $todayN ? ' class="is-today"' : '' ?>><span><?= $day ?></span><span><?= h(ranges_text($s['hours'][$n] ?? [])) ?><?php if ($kit !== ''): ?><small class="ft-cocina">Cocina: <?= h($kit === 'Cerrado' ? 'cerrada' : $kit) ?></small><?php endif; ?></span></li>
           <?php endforeach; ?>
         </ul>
       </div>
