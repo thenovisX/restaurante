@@ -41,8 +41,18 @@ if (isset($_GET['ics'])) {
 
 header('Cache-Control: no-store');
 header('X-Robots-Tag: noindex');
-[$state, $r] = confirm_by_customer($id, $token);
+// Solo se confirma al pulsar el botón (POST). Abrir el enlace no cambia nada: WhatsApp lo abre solo para la vista previa.
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+    $id = (int)($_POST['r'] ?? 0);
+    $token = (string)($_POST['t'] ?? '');
+    confirm_by_customer($id, $token);
+    header('Location: confirmar.php?r=' . $id . '&t=' . rawurlencode($token) . '&hecho=1', true, 303);
+    exit;
+}
+[$state, $r] = peek_by_customer($id, $token);
+if ($state === 'ya' && isset($_GET['hecho'])) $state = 'confirmada';
 $ok = in_array($state, ['confirmada', 'ya'], true);
+$pend = $state === 'pendiente';
 
 $errors = [
     'cancelada' => ['Esta reserva está cancelada', 'Si quieres venir, haz una reserva nueva: tardas un minuto.'],
@@ -51,20 +61,20 @@ $errors = [
     'invalido'  => ['Este enlace no funciona', 'Puede que se haya copiado incompleto. Ábrelo otra vez desde el WhatsApp o haz una reserva nueva.'],
 ];
 
-page_start(($ok ? 'Reserva confirmada' : 'Reserva') . ' · ' . $s['name'], '', 'page-confirmar');
+page_start(($ok ? 'Reserva confirmada' : ($pend ? 'Confirma tu reserva' : 'Reserva')) . ' · ' . $s['name'], '', 'page-confirmar');
 site_header(current_customer());
 ?>
 <main id="main" class="confirmar">
   <div class="wrap">
-  <?php if ($ok):
+  <?php if ($ok || $pend):
       $ts = strtotime($r['date'] . ' ' . $r['time']);
       $dias = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
       $meses = ['', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
       $first = explode(' ', trim($r['name']))[0];
   ?>
     <p class="cf-mark" aria-hidden="true">✦</p>
-    <h1 class="cf-title"><?= $state === 'ya' ? 'Ya está confirmada' : '¡Reserva confirmada!' ?></h1>
-    <p class="cf-lead">Te esperamos, <?= h($first) ?>.</p>
+    <h1 class="cf-title"><?= $pend ? 'Confirma tu reserva' : ($state === 'ya' ? 'Ya está confirmada' : '¡Reserva confirmada!') ?></h1>
+    <p class="cf-lead"><?= $pend ? 'Hola, ' . h($first) . '. Revisa los datos y pulsa el botón para confirmarla.' : 'Te esperamos, ' . h($first) . '.' ?></p>
 
     <section class="ticket" aria-label="Datos de la reserva">
       <p class="ticket-brand"><?= h(mb_strtoupper($s['name'])) ?></p>
@@ -83,6 +93,14 @@ site_header(current_customer());
       <?php endif; ?>
       <p class="ticket-nota">Guardamos la mesa <?= (int)$s['late_minutes'] ?> minutos. Si no puedes venir, cancelarla es gratis.</p>
     </section>
+    <?php if ($pend): ?>
+    <form class="cf-btns" method="post" action="confirmar.php">
+      <input type="hidden" name="r" value="<?= (int)$r['id'] ?>">
+      <input type="hidden" name="t" value="<?= h($token) ?>">
+      <button class="btn btn-rubor cf-confirm" type="submit">Confirmar mi reserva</button>
+    </form>
+    <p class="cf-help">¿Algún dato está mal? No la confirmes: <a href="./#reservar" data-book>haz una reserva nueva</a> con los datos correctos.</p>
+    <?php else: ?>
 
     <div class="cf-btns">
       <a class="btn btn-rubor" href="confirmar.php?ics=1&amp;r=<?= (int)$r['id'] ?>&amp;t=<?= h($token) ?>">Añadir al calendario</a>
@@ -93,6 +111,7 @@ site_header(current_customer());
       <?php if ($s['phone']): ?>¿Algún cambio? Llámanos al <a href="<?= h(tel_href($s['phone'])) ?>"><?= h($s['phone']) ?></a><?= $s['whatsapp'] ? ' o escríbenos por <a href="https://wa.me/' . h(wa_number($s['whatsapp'])) . '" target="_blank" rel="noopener">WhatsApp</a>' : '' ?>.<?php endif; ?>
       <?php if (current_customer()): ?><br>También la tienes en <a href="cuenta.php">tus reservas</a>.<?php endif; ?>
     </p>
+    <?php endif; ?>
   <?php else: [$title, $text] = $errors[$state]; ?>
     <p class="cf-mark is-off" aria-hidden="true">—</p>
     <h1 class="cf-title"><?= h($title) ?></h1>
