@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/tema.php';
 
-const ASSET_V = '12';
+const ASSET_V = '13';
 
 function tel_href(string $t): string
 {
@@ -65,7 +65,7 @@ function site_header(?array $customer, bool $overHero = false): void
   <div class="hd-end">
     <a class="hd-account" href="cuenta.php"><?= $customer ? h($first) : 'Entrar' ?></a>
     <a class="btn btn-rubor hd-book" href="./#reservar" data-book>Reservar</a>
-    <button class="hd-toggle" type="button" aria-expanded="false" aria-controls="menu" data-menu>Menú</button>
+    <button class="hd-toggle" type="button" aria-expanded="false" aria-controls="menu" aria-label="Abrir el menú" data-menu><span></span><span></span><span></span></button>
   </div>
 </header>
 <div class="menu" id="menu" hidden>

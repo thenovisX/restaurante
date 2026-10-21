@@ -120,7 +120,21 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .hd-end { display: flex; align-items: center; gap: 14px; }
 .hd-account { font-size: .95rem; text-decoration: none; }
 .hd-book { min-height: 40px; padding: 0 20px; }
-.hd-toggle { display: none; background: none; border: 1px solid var(--linea-2); border-radius: 999px; min-height: 40px; padding: 0 16px; cursor: pointer; font-size: .92rem; }
+.hd-toggle {
+  display: none; position: relative; width: 44px; height: 44px; padding: 0; border: 0; background: none; cursor: pointer;
+}
+/* Tres rayas que se convierten en una X al abrir */
+.hd-toggle span {
+  position: absolute; left: 10px; right: 10px; height: 1.5px; background: var(--hueso); border-radius: 2px;
+  transition: transform .25s ease, opacity .2s ease, top .25s ease;
+}
+.hd-toggle span:nth-child(1) { top: 15px; }
+.hd-toggle span:nth-child(2) { top: 21.5px; }
+.hd-toggle span:nth-child(3) { top: 28px; }
+.hd-toggle[aria-expanded="true"] span:nth-child(1) { top: 21.5px; transform: rotate(45deg); }
+.hd-toggle[aria-expanded="true"] span:nth-child(2) { opacity: 0; }
+.hd-toggle[aria-expanded="true"] span:nth-child(3) { top: 21.5px; transform: rotate(-45deg); }
+@media (prefers-reduced-motion: reduce) { .hd-toggle span { transition: none; } }
 
 .menu {
   position: fixed; inset: 0; z-index: 45; background: var(--noche);
@@ -255,6 +269,17 @@ body.menu-open { overflow: hidden; }
 .hoja-pie span { font-family: var(--display); font-size: 1rem; }
 .hoja-pie span::before, .hoja-pie span::after { content: "—"; padding: 0 .5em; opacity: .5; }
 .hoja-pie small { font-size: .74rem; }
+
+/* Índice */
+.indice { list-style: none; margin: 8px 0 0; padding: 0; counter-reset: none; }
+.indice li + li { border-top: 1px solid rgba(34, 29, 23, .1); }
+.indice a { display: flex; align-items: baseline; gap: 10px; padding: 16px 4px; text-decoration: none; color: var(--tinta); border-radius: 4px; }
+.indice a:hover, .indice a:focus-visible { background: rgba(158, 74, 64, .07); color: var(--tinta); }
+.indice-nombre { font-family: var(--display); font-size: clamp(1.35rem, 3.6vw, 1.6rem); line-height: 1.2; }
+.indice-nombre small { display: block; font-family: var(--sans); font-size: .8rem; color: var(--tinta-2); margin-top: 2px; }
+.indice .puntos { align-self: center; transform: none; margin-top: -1.1em; }
+.indice-pag { font-family: var(--display); font-size: 1.3rem; font-weight: 640; color: var(--lacre); min-width: 1.4em; text-align: right; }
+.indice-alg .indice-nombre { font-size: clamp(1.15rem, 3vw, 1.3rem); }
 
 /* Esquina doblada: se toca para pasar página */
 .esquina {
@@ -511,7 +536,7 @@ html, body { max-width: 100%; }
 /* ---------- Pantallas medianas y móvil ---------- */
 @media (max-width: 960px) {
   .hd-nav { display: none; }
-  .hd-toggle { display: inline-flex; align-items: center; }
+  .hd-toggle { display: block; margin-right: -8px; }
   .pol-grid, .book-grid, .app-grid, .acc-auth, .carta-head { grid-template-columns: 1fr; }
   .ft-cols { grid-template-columns: 1fr 1fr; }
   .ft-cols > div:first-child { grid-column: 1 / -1; }
@@ -563,6 +588,7 @@ html, body { max-width: 100%; }
   .plato-linea { align-items: flex-start; }
   .puntos { display: none; }
   .plato-nombre { flex: 1; }
+  .indice .puntos { display: block; }
   .plato-precio { padding-left: 10px; }
   .plato img { width: 56px; height: 56px; }
   .mini-alg { grid-template-columns: 1fr; gap: 8px; }

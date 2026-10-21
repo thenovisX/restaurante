@@ -75,7 +75,7 @@
     if (!menu) return;
     menu.hidden = !open;
     toggle.setAttribute('aria-expanded', String(open));
-    toggle.textContent = open ? 'Cerrar' : 'Menú';
+    toggle.setAttribute('aria-label', open ? 'Cerrar el menú' : 'Abrir el menú');
     document.body.classList.toggle('menu-open', open);
     if (hd) hd.classList.toggle('is-solid', open || window.scrollY > window.innerHeight * 0.6);
   }
@@ -341,7 +341,9 @@
     var fitHeight = function () { stage.style.height = hojas[cur].offsetHeight + 'px'; };
     var update = function () {
       var last = hojas.length - 1;
-      pagina.textContent = cur === 0 ? 'Portada' : hojas[cur].dataset.label + ' · página ' + cur + ' de ' + last;
+      var nums = hojas.filter(function (h) { return h.dataset.num; }).length;
+      var num = hojas[cur].dataset.num;
+      pagina.textContent = num ? hojas[cur].dataset.label + ' · página ' + num + ' de ' + nums : hojas[cur].dataset.label;
       flechas[0].disabled = cur === 0;
       flechas[1].disabled = cur === last;
       marcas.forEach(function (m) { m.classList.toggle('is-on', +m.dataset.goto === cur); });

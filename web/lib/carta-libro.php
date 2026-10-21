@@ -27,10 +27,11 @@ $total = count($cats) + 1; // páginas después de la portada
   <?php else: ?>
   <div class="libro" id="libro">
     <nav class="marcas" aria-label="Secciones de la carta">
+      <a href="#indice" data-goto="1">Índice</a>
       <?php foreach ($cats as $i => $c): ?>
-        <a href="#cat-<?= $c['id'] ?>" data-goto="<?= $i + 1 ?>"><?= h($c['name']) ?></a>
+        <a href="#cat-<?= $c['id'] ?>" data-goto="<?= $i + 2 ?>"><?= h($c['name']) ?></a>
       <?php endforeach; ?>
-      <a href="#pag-alergenos" data-goto="<?= $total ?>">Alérgenos</a>
+      <a href="#pag-alergenos" data-goto="<?= $total + 1 ?>">Alérgenos</a>
     </nav>
 
     <div class="libro-stage">
@@ -47,8 +48,34 @@ $total = count($cats) + 1; // páginas después de la portada
           </div>
         </article>
 
+        <article class="hoja hoja-indice" id="indice" data-label="Índice" aria-label="Índice de la carta">
+          <p class="hoja-marca" aria-hidden="true"><?= h(mb_strtoupper($s['name'])) ?></p>
+          <h3 class="hoja-titulo">Índice</h3>
+          <p class="hoja-orn" aria-hidden="true">— ✦ —</p>
+          <ol class="indice">
+            <?php foreach ($cats as $i => $c): $n = count($c['dishes']); ?>
+              <li>
+                <a href="#cat-<?= $c['id'] ?>" data-goto="<?= $i + 2 ?>">
+                  <span class="indice-nombre"><?= h($c['name']) ?><small><?= $n ?> <?= $n === 1 ? 'plato' : 'platos' ?></small></span>
+                  <span class="puntos" aria-hidden="true"></span>
+                  <span class="indice-pag"><?= $i + 1 ?></span>
+                </a>
+              </li>
+            <?php endforeach; ?>
+            <li class="indice-alg">
+              <a href="#pag-alergenos" data-goto="<?= $total + 1 ?>">
+                <span class="indice-nombre">Alérgenos<small>qué lleva cada plato</small></span>
+                <span class="puntos" aria-hidden="true"></span>
+                <span class="indice-pag"><?= $total ?></span>
+              </a>
+            </li>
+          </ol>
+          <p class="hoja-nota">Toca una sección para ir a su página.</p>
+          <button class="esquina" type="button" data-dir="1" aria-label="Pasar página"></button>
+        </article>
+
         <?php foreach ($cats as $i => $c): ?>
-          <article class="hoja" id="cat-<?= $c['id'] ?>" data-label="<?= h($c['name']) ?>" aria-label="<?= h($c['name']) ?>">
+          <article class="hoja" data-num="<?= $i + 1 ?>" id="cat-<?= $c['id'] ?>" data-label="<?= h($c['name']) ?>" aria-label="<?= h($c['name']) ?>">
             <p class="hoja-marca" aria-hidden="true"><?= h(mb_strtoupper($s['name'])) ?></p>
             <h3 class="hoja-titulo"><?= h($c['name']) ?></h3>
             <p class="hoja-orn" aria-hidden="true">— ✦ —</p>
@@ -81,7 +108,7 @@ $total = count($cats) + 1; // páginas después de la portada
           </article>
         <?php endforeach; ?>
 
-        <article class="hoja hoja-alergenos" id="pag-alergenos" data-label="Alérgenos" aria-label="Alérgenos">
+        <article class="hoja hoja-alergenos" data-num="<?= $total ?>" id="pag-alergenos" data-label="Alérgenos" aria-label="Alérgenos">
           <p class="hoja-marca" aria-hidden="true"><?= h(mb_strtoupper($s['name'])) ?></p>
           <h3 class="hoja-titulo">Alérgenos</h3>
           <p class="hoja-orn" aria-hidden="true">— ✦ —</p>
