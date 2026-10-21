@@ -187,7 +187,7 @@ function whatsapp_text(array $r, string $url): string
     $s = settings();
     $first = explode(' ', trim($r['name']))[0];
     return "Hola $first, confirma tu reserva en {$s['name']} para el " . fmt_date_es($r['date']) . " a las {$r['time']} ("
-        . $r['people'] . ($r['people'] === 1 ? ' persona' : ' personas') . ") pulsando en este enlace:\n$url\n\n"
+        . $r['people'] . ($r['people'] === 1 ? ' persona' : ' personas') . "). Abre este enlace y pulsa «Confirmar mi reserva»:\n$url\n\n"
         . 'Si te has equivocado en algún dato, vuelve a hacer la reserva en la web: ' . base_url() . '/#reservar';
 }
 
@@ -213,7 +213,13 @@ function get_reservation_admin(int $id): array
 }
 
 /** El cliente toca el enlace del WhatsApp. Devuelve [estado, reserva]. */
-function confirm_by_customer(int $id, string $token): array
+/**
+ * Mira el estado de la reserva del enlace SIN cambiar nada. Devuelve [estado, reserva]:
+ * 'pendiente' (falta que el cliente pulse «Confirmar»), 'ya', 'cancelada', 'rechazada', 'pasada' o 'invalido'.
+ * Abrir el enlace nunca confirma: WhatsApp, Telegram o los antivirus del correo abren los enlaces
+ * solos para hacer la vista previa, y confirmarían reservas sin que nadie las viera.
+ */
+function peek_by_customer(int $id, string $token): array
 {
     $row = q('SELECT * FROM reservations WHERE id = ?', [$id])->fetch();
     if (!$row || !preg_match('/^[a-f0-9]{32}$/', $token) || !hash_equals(dec($row['verify_token']), $token)) return ['invalido', null];
@@ -221,6 +227,15 @@ function confirm_by_customer(int $id, string $token): array
     if ($r['status'] === 'confirmada') return ['ya', $r];
     if (in_array($r['status'], ['rechazada', 'cancelada'], true)) return [$r['status'], $r];
     if (strtotime($r['date'] . ' ' . $r['time']) < time()) return ['pasada', $r];
+    return ['pendiente', $r];
+}
+
+/** El cliente pulsa «Confirmar mi reserva» (solo por POST). Devuelve [estado, reserva]. */
+function confirm_by_customer(int $id, string $token): array
+{
+    [$state, $r] = peek_by_customer($id, $token);
+    if ($state !== 'pendiente') return [$state, $r];
+    $row = q('SELECT customer_id FROM reservations WHERE id = ?', [$id])->fetch();
     q("UPDATE reservations SET status = 'confirmada', updated_at = ?, seq = ? WHERE id = ?", [now(), next_seq(), $id]);
     audit('reserva_confirmada_cliente', (int)$row['customer_id'], "Reserva #$id confirmada desde el enlace");
     $r = get_reservation($id);
@@ -346,7 +361,7 @@ function notify_customer(array $r): void
     $when = fmt_date_es($r['date']) . ' a las ' . $r['time'];
     $tel = $s['phone'] ? "\nSi necesitas cambiar algo, llámanos al {$s['phone']}." : '';
     $msgs = [
-        'esperando'  => ["Confirma tu reserva en {$s['name']}", "Hola {$r['name']}:\n\nTenemos mesa para {$r['people']} personas el $when. Para confirmar la reserva, abre este enlace:\n\n" . confirm_url(q('SELECT * FROM reservations WHERE id = ?', [$r['id']])->fetch()) . "\n\nTambién te lo hemos enviado por WhatsApp. Si te has equivocado en algún dato, vuelve a hacer la reserva en la web.\n\n{$s['name']}"],
+        'esperando'  => ["Confirma tu reserva en {$s['name']}", "Hola {$r['name']}:\n\nTenemos mesa para {$r['people']} personas el $when. Para confirmarla, abre este enlace y pulsa «Confirmar mi reserva»:\n\n" . confirm_url(q('SELECT * FROM reservations WHERE id = ?', [$r['id']])->fetch()) . "\n\nTambién te lo hemos enviado por WhatsApp. Si te has equivocado en algún dato, vuelve a hacer la reserva en la web.\n\n{$s['name']}"],
         'confirmada' => ["Reserva confirmada en {$s['name']}", "Hola {$r['name']}:\n\nTu reserva para {$r['people']} personas el $when está confirmada. ¡Te esperamos!$tel\n\n{$s['name']}\n{$s['address']}"],
         'rechazada'  => ["No podemos atender tu reserva en {$s['name']}", "Hola {$r['name']}:\n\nLo sentimos, no tenemos mesa para {$r['people']} personas el $when.$tel\n\n{$s['name']}"],
         'cancelada'  => ["Reserva cancelada en {$s['name']}", "Hola {$r['name']}:\n\nTu reserva del $when ha quedado cancelada.$tel\n\n{$s['name']}"],
