@@ -1,6 +1,6 @@
 /* Service worker de la web pública: permite instalarla como app y abrirla sin conexión. */
-const CACHE = 'web-v21';
-const SHELL = ['./', 'assets/web.css?v=21', 'assets/web.js?v=21', 'icon.php?s=192', 'manifest.php',
+const CACHE = 'web-v22';
+const SHELL = ['./', 'assets/web.css?v=22', 'assets/web.js?v=22', 'icon.php?s=192', 'manifest.php',
   'assets/fonts/bodoni-moda-latin-opsz-normal.woff2', 'assets/fonts/hanken-grotesk-latin-wght-normal.woff2'];
 
 self.addEventListener('install', (e) => {
