@@ -799,6 +799,16 @@
           ${field('footer_title', 'Título grande del pie', 'text', 'placeholder="¿Cenamos?" maxlength="40"')}
           <button class="btn btn-main" type="submit">Guardar</button>
         </form>`)}
+      ${sec('seo', 'SEO y estadísticas', 'Google, Analytics y píxeles', `
+        <form class="form" data-form="seo" novalidate>
+          <label>Descripción para Google <textarea name="seo_description" rows="3" maxlength="300" placeholder="Restaurante de cocina de fuego y coctelería en Vigo. Reserva mesa online.">${esc(s.seo_description)}</textarea><span class="help">Es el texto que sale en Google debajo del nombre. Unas 150 letras, con el tipo de cocina y la ciudad.</span></label>
+          ${field('gsc_verify', 'Código de Google Search Console', 'text', 'placeholder="Pega aquí el código o la etiqueta meta" autocapitalize="off"')}
+          ${field('ga_id', 'Google Analytics 4 (ID de medición)', 'text', 'placeholder="G-AB12CD34EF" autocapitalize="characters"')}
+          ${field('gtm_id', 'Google Tag Manager (opcional)', 'text', 'placeholder="GTM-AB12CD3" autocapitalize="characters"')}
+          ${field('pixel_id', 'Píxel de Meta: Facebook e Instagram (opcional)', 'text', 'placeholder="123456789012345" inputmode="numeric"')}
+          <p class="help">Analytics y los píxeles solo se activan para los visitantes que acepten las cookies. El mapa del sitio para Google está en ${esc(S.base.replace(/^https?:\/\//, ''))}/sitemap.xml</p>
+          <button class="btn btn-main" type="submit">Guardar</button>
+        </form>`)}
       ${sec('horario', 'Horario', 'Días y horas de apertura', `
         <form class="form" data-form="horario" novalidate>
           <p class="help">Es el horario de la web y en el que se puede reservar. Para cerrar un día suelto (festivo, vacaciones), hazlo desde el Calendario.</p>

@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/tema.php';
 
-const ASSET_V = '17';
+const ASSET_V = '18';
 
 function tel_href(string $t): string
 {
@@ -37,7 +37,17 @@ function page_start(string $title, string $description = '', string $bodyClass =
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title><?= h($title) ?></title>
-<meta name="description" content="<?= h($description ?: $s['name'] . ' · ' . $s['tagline']) ?>">
+<meta name="description" content="<?= h($description ?: ($s['seo_description'] ?: trim($s['name'] . ' · ' . $s['tagline'] . ($s['city'] ? ' en ' . $s['city'] : '') . '. Reserva mesa online y consulta la carta.'))) ?>">
+<link rel="canonical" href="<?= h(base_url() . (basename($_SERVER['SCRIPT_NAME'] ?? '') === 'index.php' ? '/' : '/' . basename($_SERVER['SCRIPT_NAME'] ?? ''))) ?>">
+<?php if ($s['gsc_verify'] !== ''): ?><meta name="google-site-verification" content="<?= h($s['gsc_verify']) ?>">
+<?php endif; ?>
+<script>
+  window.SITE_TRACKING = <?= json_encode(['ga' => $s['ga_id'], 'gtm' => $s['gtm_id'], 'pixel' => $s['pixel_id']], JSON_HEX_TAG) ?>;
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('consent', 'default', { analytics_storage: 'denied', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', wait_for_update: 500 });
+</script>
+<script src="assets/consent.js?v=<?= ASSET_V ?>" defer></script>
 <meta property="og:title" content="<?= h($s['name']) ?>">
 <meta property="og:description" content="<?= h($s['tagline']) ?>">
 <meta property="og:image" content="<?= h(photo('hero', 1200)) ?>">
@@ -67,8 +77,8 @@ function site_header(?array $customer, bool $overHero = false): void
   <nav class="hd-nav" aria-label="Principal">
     <a href="./#nosotros">Nosotros</a>
     <a href="./#carta">Carta</a>
-    <a href="./#politicas">Políticas</a>
     <a href="./#app">App</a>
+    <a href="./#politicas">Políticas</a>
   </nav>
   <div class="hd-end">
     <a class="hd-account" href="cuenta.php"><?= $customer ? h($first) : 'Entrar' ?></a>
@@ -81,8 +91,8 @@ function site_header(?array $customer, bool $overHero = false): void
     <a href="./#nosotros">Nosotros</a>
     <a href="./#carta">Carta</a>
     <a href="./#reservar" data-book>Reservar</a>
-    <a href="./#politicas">Políticas</a>
     <a href="./#app">App</a>
+    <a href="./#politicas">Políticas</a>
     <a href="cuenta.php"><?= $customer ? 'Mi cuenta' : 'Entrar o registrarse' ?></a>
   </nav>
   <p class="menu-foot"><?= h(trim($s['address'] . ' · ' . $s['city'], ' ·')) ?></p>
@@ -123,7 +133,7 @@ function site_footer(): void
       </div>
       <div>
         <h2>Más</h2>
-        <p><a href="cuenta.php">Mi cuenta</a><br><a href="./#politicas">Políticas de reserva</a><br><a href="legal.php#aviso">Aviso legal</a><br><a href="legal.php#privacidad">Privacidad</a><br><a href="legal.php#cookies">Cookies</a></p>
+        <p><a href="cuenta.php">Mi cuenta</a><br><a href="./#politicas">Políticas de reserva</a><br><a href="legal.php#aviso">Aviso legal</a><br><a href="legal.php#privacidad">Privacidad</a><br><a href="legal.php#cookies">Cookies</a><br><a href="legal.php#cookies" data-cookies>Configurar cookies</a></p>
       </div>
     </div>
     <p class="ft-legal">© <?= date('Y') ?> <?= h($s['name']) ?>.<?php $cr = photo_credits(); if ($cr): ?> Fotos de
