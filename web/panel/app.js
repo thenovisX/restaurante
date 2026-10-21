@@ -26,12 +26,14 @@
   const euro = (n) => Number(n).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
   const telHref = (t) => 'tel:' + String(t).replace(/[^\d+]/g, '');
   const waHref = (t) => { let n = String(t).replace(/\D/g, ''); if (n.length === 9) n = '34' + n; return 'https://wa.me/' + n; };
-  const ACTIVE = ['pendiente', 'confirmada'];
+  const ACTIVE = ['pendiente', 'esperando', 'confirmada'];
   const alIcon = (k, size) => `<svg class="al-ic" width="${size}" height="${size}" aria-hidden="true"><use href="alergenos.svg?v=3#al-${k}"></use></svg>`;
-  const STATUS = { pendiente: 'Por confirmar', confirmada: 'Confirmada', rechazada: 'Rechazada', cancelada: 'Cancelada' };
+  const STATUS = { pendiente: 'Petición nueva', esperando: 'Esperando al cliente', confirmada: 'Confirmada', rechazada: 'Rechazada', cancelada: 'Cancelada' };
   const WEEK = { 1: 'Lunes', 2: 'Martes', 3: 'Miércoles', 4: 'Jueves', 5: 'Viernes', 6: 'Sábado', 7: 'Domingo' };
 
   const ICON = {
+    pet: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5.1 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.7 4H7.3a2 2 0 0 0-1.8 1.1z"/></svg>',
+    wa: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.2 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.4-.3Z"/></svg>',
     hoy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
     cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>',
     carta: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3v8a2 2 0 0 0 2 2v8M11 3v6M3 3v6a4 4 0 0 0 4 4M17 21V3c2.5 1 4 4 4 8h-4"/></svg>',
@@ -114,13 +116,13 @@
   }
 
   async function notifyNew(list) {
-    const lines = list.map((r) => `${r.name} · ${r.people} pers. · ${fmtShort(r.date)} ${r.time}`);
-    toast((list.length > 1 ? `${list.length} reservas nuevas: ` : 'Nueva reserva: ') + lines[0], 'new');
+    const lines = list.map((r) => (r.status === 'confirmada' ? 'Confirmada por el cliente: ' : 'Petición nueva: ') + `${r.name} · ${r.people} pers. · ${fmtShort(r.date)} ${r.time}`);
+    toast(list.length > 1 ? `${list.length} novedades. ${lines[0]}` : lines[0], 'new');
     if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
     try {
       if (LocalNotif) {
         await LocalNotif.schedule({
-          notifications: list.map((r, i) => ({ id: r.id, title: 'Nueva reserva', body: lines[i] })),
+          notifications: list.map((r, i) => ({ id: r.id, title: r.status === 'confirmada' ? 'Reserva confirmada' : 'Petición de reserva', body: lines[i] })),
         });
       } else if ('Notification' in window && Notification.permission === 'granted' && navigator.serviceWorker) {
         const reg = await navigator.serviceWorker.ready;
@@ -139,7 +141,7 @@
       setBadge(c.pending);
       if (isNew) {
         notifyNew(c.new);
-        if (S.tab === 'hoy' || S.tab === 'cal') render();
+        if (S.tab === 'hoy' || S.tab === 'cal' || S.tab === 'pet') render();
       }
     } catch (e) { /* se reintenta en el siguiente ciclo */ }
   }
@@ -270,6 +272,7 @@
 
   /* ---------- Estructura principal ---------- */
   const TABS = [
+    ['pet', 'Peticiones', ICON.pet],
     ['hoy', 'Hoy', ICON.hoy],
     ['cal', 'Calendario', ICON.cal],
     ['carta', 'Carta', ICON.carta],
@@ -285,7 +288,7 @@
       <main id="view"></main>
       <div id="fab-slot"></div>
       <nav class="tabs" aria-label="Secciones">
-        ${TABS.map(([k, label, icon]) => `<button type="button" data-tab="${k}">${icon}<span>${label}</span>${k === 'hoy' ? '<b class="badge" id="badge" hidden></b>' : ''}</button>`).join('')}
+        ${TABS.map(([k, label, icon]) => `<button type="button" data-tab="${k}">${icon}<span>${label}</span>${k === 'pet' ? '<b class="badge" id="badge" hidden></b>' : ''}</button>`).join('')}
       </nav>`;
     $('.tabs').addEventListener('click', (e) => {
       const b = e.target.closest('[data-tab]');
@@ -325,13 +328,13 @@
     const seq = ++renderSeq;
     const view = $('#view');
     if (!view) return;
-    const titles = { hoy: 'Hoy', cal: 'Calendario', carta: 'Carta', ajustes: 'Ajustes' };
+    const titles = { pet: 'Peticiones', hoy: 'Hoy', cal: 'Calendario', carta: 'Carta', ajustes: 'Ajustes' };
     setTitle(titles[S.tab]);
     setFab('', null);
     if (!view.dataset.tab || view.dataset.tab !== S.tab) view.innerHTML = '<div class="spin dark" aria-label="Cargando"></div>';
     view.dataset.tab = S.tab;
     try {
-      const html = await ({ hoy: viewHoy, cal: viewCal, carta: viewCarta, ajustes: viewAjustes })[S.tab]();
+      const html = await ({ pet: viewPet, hoy: viewHoy, cal: viewCal, carta: viewCarta, ajustes: viewAjustes })[S.tab]();
       if (seq !== renderSeq) return;
       view.innerHTML = html;
       afterRender[S.tab] && afterRender[S.tab](view);
@@ -347,10 +350,12 @@
     S.res[r.id] = r;
     const actions = [];
     if (r.status === 'pendiente') {
-      actions.push(`<button class="btn btn-sm b-ok" data-status="confirmada" data-id="${r.id}">Confirmar</button>`);
+      actions.push(waButton(r, 'Confirmar por WhatsApp'));
       actions.push(`<button class="btn btn-sm b-no" data-status="rechazada" data-id="${r.id}">Rechazar</button>`);
+    } else if (r.status === 'esperando') {
+      actions.push(waButton(r, 'Reenviar'));
     }
-    if (ACTIVE.includes(r.status) && r.phone) actions.push(`<a class="btn btn-sm btn-quiet b-call" href="${esc(telHref(r.phone))}" aria-label="Llamar a ${esc(r.name)}">${ICON.phone}${r.status === 'pendiente' ? '' : '<span>Llamar</span>'}</a>`);
+    if (ACTIVE.includes(r.status) && r.phone && r.status !== 'pendiente') actions.push(`<a class="btn btn-sm btn-quiet b-call" href="${esc(telHref(r.phone))}" aria-label="Llamar a ${esc(r.name)}">${ICON.phone}${r.status === 'pendiente' ? '' : '<span>Llamar</span>'}</a>`);
     return `<article class="res st-${r.status}" data-open="${r.id}">
       <div class="res-time">${showDate ? `<small>${esc(fmtShort(r.date))}</small>` : ''}<b>${esc(r.time)}</b></div>
       <div class="res-main">
@@ -361,12 +366,20 @@
       </div></article>`;
   }
 
+  /** Botón que abre WhatsApp con el mensaje y el enlace ya escritos para el cliente. */
+  function waButton(r, label, big) {
+    if (!r.wa_url) {
+      return `<button class="btn ${big ? '' : 'btn-sm '}b-ok" data-status="confirmada" data-id="${r.id}">Confirmar</button>`;
+    }
+    return `<a class="btn ${big ? '' : 'btn-sm '}b-wa" href="${esc(r.wa_url)}" target="_blank" rel="noopener" data-wa-send="${r.id}">${ICON.wa}<span>${esc(label)}</span></a>`;
+  }
+
   function daySummary(list) {
     const act = list.filter((r) => ACTIVE.includes(r.status));
     const people = act.reduce((a, r) => a + r.people, 0);
-    const pend = act.filter((r) => r.status === 'pendiente').length;
+    const pend = act.filter((r) => r.status !== 'confirmada').length;
     if (!act.length) return 'Sin reservas';
-    return `<b>${act.length}</b> ${act.length === 1 ? 'reserva' : 'reservas'} · <b>${people}</b> personas${pend ? ` · <b>${pend}</b> por confirmar` : ''}`;
+    return `<b>${act.length}</b> ${act.length === 1 ? 'reserva' : 'reservas'} · <b>${people}</b> personas${pend ? ` · <b>${pend}</b> sin confirmar` : ''}`;
   }
 
   function servicesHTML(list) {
@@ -383,17 +396,32 @@
     const t = todayISO();
     const all = await api(`reservations&from=${t}&to=${iso(addDays(new Date(), 180))}`);
     const today = all.filter((r) => r.date === t);
-    const pendingLater = all.filter((r) => r.date > t && r.status === 'pendiente');
+    const newReq = all.filter((r) => r.status === 'pendiente').length;
     setFab('Nueva reserva', () => editReservation(null, t));
     let html = `<div class="day-head"><p class="day-date">${esc(fmtDay(t))}</p><p class="day-sum">${daySummary(today)}</p></div>`;
-    if (pendingLater.length) {
-      html += `<h2 class="sec">Por confirmar en otros días <span>${pendingLater.length}</span></h2>` + pendingLater.map((r) => resCard(r, true)).join('');
+    if (newReq) {
+      html += `<button type="button" class="alert alert-btn" data-goto-tab="pet">${newReq} ${newReq === 1 ? 'petición nueva' : 'peticiones nuevas'} de reserva. Toca para verlas ›</button>`;
     }
     if (!today.length) {
       html += `<div class="empty"><p>Hoy no hay reservas todavía.</p><button class="btn btn-line btn-sm" data-new="${t}">Apuntar una reserva</button></div>`;
     } else {
       html += servicesHTML(today);
     }
+    return html;
+  }
+
+  /* ---------- PETICIONES ---------- */
+  async function viewPet() {
+    const d = await api('requests');
+    setFab('Nueva reserva', () => editReservation(null, todayISO()));
+    let html = `<p class="pet-intro">Al pulsar <b>Confirmar por WhatsApp</b> se abre WhatsApp con un mensaje para el cliente y un enlace. Dale a enviar: cuando el cliente toque el enlace, la reserva quedará confirmada.</p>`;
+    html += `<h2 class="sec">Nuevas <span>${d.nuevas.length}</span></h2>`;
+    html += d.nuevas.length ? d.nuevas.map((r) => resCard(r, true)).join('')
+      : '<div class="empty"><p>No hay peticiones nuevas.</p></div>';
+    html += `<h2 class="sec">Esperando que el cliente confirme <span>${d.esperando.length}</span></h2>`;
+    html += d.esperando.length ? d.esperando.map((r) => resCard(r, true)).join('')
+      : '<div class="empty"><p>Ninguna reserva pendiente del cliente.</p></div>';
+    if (d.esperando.length) html += '<p class="help" style="color:var(--granito)">Si un cliente te confirma por teléfono, abre su reserva y pulsa «Ya ha confirmado».</p>';
     return html;
   }
 
@@ -462,7 +490,9 @@
     if (!r) return;
     const btns = [];
     if (r.status === 'pendiente') {
-      btns.push(`<button class="btn b-ok" data-s="confirmada">Confirmar</button>`, `<button class="btn btn-quiet" data-s="rechazada">Rechazar</button>`);
+      btns.push(waButton(r, 'Confirmar por WhatsApp', true), `<button class="btn btn-quiet" data-s="rechazada">Rechazar</button>`);
+    } else if (r.status === 'esperando') {
+      btns.push(waButton(r, 'Reenviar WhatsApp', true), `<button class="btn btn-quiet" data-s="confirmada">Ya ha confirmado</button>`);
     } else if (r.status === 'confirmada') {
       btns.push(`<button class="btn btn-quiet" data-s="cancelada">Cancelar reserva</button>`);
     } else {
@@ -489,6 +519,7 @@
         <button class="btn btn-quiet" data-edit>Editar datos</button>
         <button class="btn btn-danger" data-del>Borrar reserva</button>
       </div>`, (body) => {
+      $$('[data-wa-send]', body).forEach((a) => a.addEventListener('click', () => { markSent(r.id); closeSheet(); }));
       $$('[data-s]', body).forEach((b) => b.addEventListener('click', async () => {
         busy(b, true, '…');
         try { await setStatus(r.id, b.dataset.s); closeSheet(); } catch (err) { toast(err.message, 'err'); busy(b, false); }
@@ -505,10 +536,22 @@
   async function setStatus(id, status) {
     const r = await api('reservation_status', { body: { id, status } });
     S.res[id] = r;
-    const msg = { confirmada: 'Reserva confirmada', rechazada: 'Reserva rechazada', cancelada: 'Reserva cancelada' }[status];
+    const msg = { esperando: 'WhatsApp preparado', confirmada: 'Reserva confirmada', rechazada: 'Reserva rechazada', cancelada: 'Reserva cancelada' }[status];
     toast(msg + (r.email && r.source === 'web' ? '. Le llega un email al cliente.' : ''));
     render();
     poll();
+  }
+
+  /** Tras abrir WhatsApp: la reserva pasa a «esperando al cliente». */
+  async function markSent(id) {
+    const r = S.res[id];
+    if (r && r.status === 'esperando') { toast('WhatsApp abierto: pulsa enviar'); return; }
+    try {
+      await api('reservation_status', { body: { id, status: 'esperando' } });
+      toast('Pulsa enviar en WhatsApp. La reserva queda esperando a que el cliente confirme.');
+      setTimeout(render, 400);
+      poll();
+    } catch (err) { toast(err.message, 'err'); }
   }
 
   function editReservation(r, date) {
@@ -817,8 +860,7 @@
         </form>`)}
       ${sec('reservas', 'Reservas online', 'Aforo, horas y confirmación', `
         <form class="form" data-form="reservas" novalidate>
-          <label class="switch-row">Confirmar automáticamente <span class="sw"><input type="checkbox" name="auto_confirm" ${s.auto_confirm ? 'checked' : ''}><span></span></span></label>
-          <p class="help">Si está apagado, cada reserva llega «por confirmar» y la confirmas tú desde Hoy.</p>
+          <p class="help">Cada reserva llega a Peticiones y la confirmas enviando un WhatsApp al cliente.</p>
           <div class="row">
             ${num('capacity', 'Comensales por franja', 'Máximo de personas a la misma hora', 1)}
             ${num('slot_minutes', 'Cada cuántos minutos', 'Ej.: 30 → 13:00, 13:30…', 5)}
@@ -836,10 +878,8 @@
       ${sec('politicas', 'Políticas de reserva', 'Cancelación, retrasos y normas', `
         <form class="form" data-form="politicas" novalidate>
           <p class="help">Salen en la web y el cliente tiene que aceptarlas al reservar.</p>
-          <div class="row">
-            ${num('cancel_hours', 'Cancelación gratis hasta (horas antes)', '')}
-            ${num('late_minutes', 'Mesa guardada si llegan tarde (min)', '')}
-          </div>
+          <p class="help">Cancelar es siempre gratis para el cliente.</p>
+          ${num('late_minutes', 'Mesa guardada si llegan tarde (min)', '')}
           <label>Otras normas <textarea name="policies" rows="5">${esc(s.policies)}</textarea><span class="help">Una por línea: «Título: texto». Ej.: «Mascotas: perros pequeños en la terraza».</span></label>
           <button class="btn btn-main" type="submit">Guardar</button>
         </form>`)}
@@ -957,6 +997,10 @@
   function onViewClick(e) {
     const t = e.target;
     if (t.closest('[data-retry]')) return render();
+    const wa = t.closest('[data-wa-send]');
+    if (wa) { e.stopPropagation(); markSent(Number(wa.dataset.waSend)); return; }
+    const gt = t.closest('[data-goto-tab]');
+    if (gt) return go(gt.dataset.gotoTab);
     const st = t.closest('[data-status]');
     if (st) {
       e.stopPropagation();

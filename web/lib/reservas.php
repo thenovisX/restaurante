@@ -1,8 +1,15 @@
 <?php
 declare(strict_types=1);
 
-const RES_STATUSES = ['pendiente', 'confirmada', 'rechazada', 'cancelada'];
-const RES_ACTIVE = ['pendiente', 'confirmada']; // ocupan sitio
+/*
+ * Estados de una reserva:
+ *  pendiente  → petición nueva desde la web; el restaurante aún no la ha revisado
+ *  esperando  → el restaurante la aceptó y envió el WhatsApp; falta que el cliente toque el enlace
+ *  confirmada → el cliente tocó el enlace (o el restaurante la confirmó a mano)
+ *  rechazada / cancelada
+ */
+const RES_STATUSES = ['pendiente', 'esperando', 'confirmada', 'rechazada', 'cancelada'];
+const RES_ACTIVE = ['pendiente', 'esperando', 'confirmada']; // ocupan sitio
 
 function fmt_date_es(string $date): string
 {
@@ -107,11 +114,12 @@ function create_public_reservation(array $in): array
     }
 
     $s = settings();
-    $status = $s['auto_confirm'] ? 'confirmada' : 'pendiente';
-    q('INSERT INTO reservations (name, phone, email, email_idx, rdate, rtime, people, notes, status, source, ip, created_at, updated_at, customer_id)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)', [
+    $status = 'pendiente';
+    $token = bin2hex(random_bytes(16));
+    q('INSERT INTO reservations (name, phone, email, email_idx, rdate, rtime, people, notes, status, source, ip, created_at, updated_at, customer_id, verify_token, seq)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', [
         enc($d['name']), enc($d['phone']), enc($d['email']), email_idx($d['email']), $d['rdate'], $d['rtime'], $d['people'], enc($d['notes']),
-        $status, 'web', $ip, now(), now(), $customer ? (int)$customer['id'] : 0,
+        $status, 'web', $ip, now(), now(), $customer ? (int)$customer['id'] : 0, enc($token), next_seq(),
     ]);
     $id = (int)$pdo->lastInsertId();
     $pdo->commit();
@@ -120,11 +128,10 @@ function create_public_reservation(array $in): array
     $when = fmt_date_es($d['rdate']) . ' a las ' . $d['rtime'];
     send_mail(
         $s['notify_email'] ?: $s['email'],
-        "Nueva reserva: {$d['name']}, {$d['people']} pers., $when",
-        "Nueva reserva desde la web\n\nNombre: {$d['name']}\nTeléfono: {$d['phone']}\nEmail: {$d['email']}\n"
-        . "Día: $when\nPersonas: {$d['people']}\nNotas: {$d['notes']}\n\nEstado: $status\nGestiónala desde la app."
+        "Petición de reserva: {$d['name']}, {$d['people']} pers., $when",
+        "Nueva petición de reserva desde la web\n\nNombre: {$d['name']}\nTeléfono: {$d['phone']}\nEmail: {$d['email']}\n"
+        . "Día: $when\nPersonas: {$d['people']}\nNotas: {$d['notes']}\n\nConfírmala desde la pestaña Peticiones de la app: se abrirá WhatsApp con el mensaje para el cliente."
     );
-    if ($status === 'confirmada') notify_customer(get_reservation($id));
 
     return [
         'id' => $id,
@@ -132,10 +139,75 @@ function create_public_reservation(array $in): array
         'when' => $when,
         'people' => $d['people'],
         'account' => (bool)$customer,
-        'message' => $status === 'confirmada'
-            ? "Reserva confirmada para el $when. ¡Te esperamos!"
-            : "Hemos recibido tu reserva para el $when. Te confirmaremos lo antes posible.",
+        'message' => "Hemos recibido tu petición para el $when ($d[people] " . ($d['people'] === 1 ? 'persona' : 'personas') . "). "
+            . 'El restaurante la revisará y te enviará un WhatsApp al ' . $d['phone'] . ' con un enlace para confirmarla.',
     ];
+}
+
+function next_seq(): int
+{
+    return (int)q('SELECT COALESCE(MAX(seq), 0) + 1 FROM reservations')->fetchColumn();
+}
+
+/** Enlace que recibe el cliente para confirmar su reserva. */
+function confirm_url(array $row): string
+{
+    $t = dec($row['verify_token'] ?? '');
+    if ($t === '') {
+        $t = bin2hex(random_bytes(16));
+        q('UPDATE reservations SET verify_token = ? WHERE id = ?', [enc($t), $row['id']]);
+    }
+    return base_url() . '/confirmar.php?r=' . (int)$row['id'] . '&t=' . $t;
+}
+
+/** Texto del WhatsApp que el restaurante envía al cliente. */
+function whatsapp_text(array $r, string $url): string
+{
+    $s = settings();
+    $first = explode(' ', trim($r['name']))[0];
+    return "Hola $first, confirma tu reserva en {$s['name']} para el " . fmt_date_es($r['date']) . " a las {$r['time']} ("
+        . $r['people'] . ($r['people'] === 1 ? ' persona' : ' personas') . ") pulsando en este enlace:\n$url\n\n"
+        . 'Si te has equivocado en algún dato, vuelve a hacer la reserva en la web: ' . base_url() . '/#reservar';
+}
+
+/** Reserva con lo que necesita el panel: enlace de confirmación y enlace de WhatsApp listo para enviar. */
+function res_admin(array $row): array
+{
+    $r = res_out($row);
+    if ($r['source'] === 'web' && in_array($r['status'], ['pendiente', 'esperando'], true) && $r['phone'] !== '') {
+        $url = confirm_url($row);
+        $n = preg_replace('/\D/', '', $r['phone']);
+        if (strlen($n) === 9) $n = '34' . $n;
+        $r['confirm_url'] = $url;
+        $r['wa_url'] = 'https://wa.me/' . $n . '?text=' . rawurlencode(whatsapp_text($r, $url));
+    }
+    return $r;
+}
+
+function get_reservation_admin(int $id): array
+{
+    $r = q('SELECT * FROM reservations WHERE id = ?', [$id])->fetch();
+    if (!$r) throw new ValidationError('La reserva no existe');
+    return res_admin($r);
+}
+
+/** El cliente toca el enlace del WhatsApp. Devuelve [estado, reserva]. */
+function confirm_by_customer(int $id, string $token): array
+{
+    $row = q('SELECT * FROM reservations WHERE id = ?', [$id])->fetch();
+    if (!$row || !preg_match('/^[a-f0-9]{32}$/', $token) || !hash_equals(dec($row['verify_token']), $token)) return ['invalido', null];
+    $r = res_out($row);
+    if ($r['status'] === 'confirmada') return ['ya', $r];
+    if (in_array($r['status'], ['rechazada', 'cancelada'], true)) return [$r['status'], $r];
+    if (strtotime($r['date'] . ' ' . $r['time']) < time()) return ['pasada', $r];
+    q("UPDATE reservations SET status = 'confirmada', updated_at = ?, seq = ? WHERE id = ?", [now(), next_seq(), $id]);
+    audit('reserva_confirmada_cliente', (int)$row['customer_id'], "Reserva #$id confirmada desde el enlace");
+    $r = get_reservation($id);
+    $s = settings();
+    send_mail($s['notify_email'] ?: $s['email'], "Reserva confirmada por el cliente: {$r['name']}, " . fmt_date_es($r['date']) . " {$r['time']}",
+        "{$r['name']} ha confirmado su reserva desde el enlace del WhatsApp.\n\nDía: " . fmt_date_es($r['date']) . " a las {$r['time']}\nPersonas: {$r['people']}\nTeléfono: {$r['phone']}");
+    notify_customer($r);
+    return ['confirmada', $r];
 }
 
 function get_reservation(int $id): array
@@ -159,7 +231,19 @@ function list_reservations(string $from, string $to): array
 {
     if (!is_date($from) || !is_date($to)) throw new ValidationError('Fechas no válidas');
     $rows = q('SELECT * FROM reservations WHERE rdate BETWEEN ? AND ? ORDER BY rdate, rtime, id', [$from, $to])->fetchAll();
-    return array_map('res_out', $rows);
+    return array_map('res_admin', $rows);
+}
+
+/** Peticiones para la pestaña del panel: nuevas y las que esperan a que el cliente confirme. */
+function list_requests(): array
+{
+    $rows = q("SELECT * FROM reservations WHERE status IN ('pendiente', 'esperando') AND rdate >= ? ORDER BY rdate, rtime, id", [today()])->fetchAll();
+    $o = ['nuevas' => [], 'esperando' => []];
+    foreach ($rows as $row) {
+        $r = res_admin($row);
+        if ($r['status'] === 'pendiente') $o['nuevas'][] = $r; else $o['esperando'][] = $r;
+    }
+    return $o;
 }
 
 /** Resumen por día de un mes para el calendario. */
@@ -176,22 +260,26 @@ function month_summary(string $month): array
         $d ??= ['count' => 0, 'people' => 0, 'pending' => 0];
         $d['count']++;
         $d['people'] += (int)$r['people'];
-        if ($r['status'] === 'pendiente') $d['pending']++;
+        if ($r['status'] !== 'confirmada') $d['pending']++;
         unset($d);
     }
     return ['month' => $month, 'days' => $days, 'closed_dates' => settings()['closed_dates']];
 }
 
-/** Reservas web nuevas desde el último id que conoce la app. */
+/**
+ * Novedades desde la última vez que miró la app: peticiones nuevas y reservas que el cliente acaba de confirmar.
+ * Usa un contador propio (seq) que avanza con cada petición y con cada confirmación.
+ */
 function changes(int $since): array
 {
-    $last = (int)q('SELECT COALESCE(MAX(id), 0) FROM reservations')->fetchColumn();
+    $last = (int)q('SELECT COALESCE(MAX(seq), 0) FROM reservations')->fetchColumn();
     $pending = (int)q("SELECT COUNT(*) FROM reservations WHERE status = 'pendiente' AND rdate >= ?", [today()])->fetchColumn();
+    $waiting = (int)q("SELECT COUNT(*) FROM reservations WHERE status = 'esperando' AND rdate >= ?", [today()])->fetchColumn();
     $new = [];
     if ($since > 0) {
-        $new = array_map('res_out', q("SELECT * FROM reservations WHERE id > ? AND source = 'web' ORDER BY id", [$since])->fetchAll());
+        $new = array_map('res_admin', q("SELECT * FROM reservations WHERE seq > ? AND source = 'web' AND status IN ('pendiente', 'confirmada') ORDER BY seq", [$since])->fetchAll());
     }
-    return ['last_id' => $last, 'pending' => $pending, 'new' => $new];
+    return ['last_id' => $last, 'pending' => $pending, 'waiting' => $waiting, 'new' => $new];
 }
 
 function set_reservation_status(int $id, string $status): array
@@ -201,7 +289,7 @@ function set_reservation_status(int $id, string $status): array
     q('UPDATE reservations SET status = ?, updated_at = ? WHERE id = ?', [$status, now(), $id]);
     $after = get_reservation($id);
     if ($before['status'] !== $status) notify_customer($after);
-    return $after;
+    return get_reservation_admin($id);
 }
 
 /** Crear o editar una reserva desde el panel (p. ej. una llamada). */
@@ -215,14 +303,14 @@ function save_reservation(array $in): array
         q('UPDATE reservations SET name=?, phone=?, email=?, email_idx=?, rdate=?, rtime=?, people=?, notes=?, updated_at=? WHERE id=?', [
             enc($d['name']), enc($d['phone']), enc($d['email']), email_idx($d['email']), $d['rdate'], $d['rtime'], $d['people'], enc($d['notes']), now(), $id,
         ]);
-        return get_reservation($id);
+        return get_reservation_admin($id);
     }
-    q('INSERT INTO reservations (name, phone, email, email_idx, rdate, rtime, people, notes, status, source, ip, created_at, updated_at)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)', [
+    q('INSERT INTO reservations (name, phone, email, email_idx, rdate, rtime, people, notes, status, source, ip, created_at, updated_at, seq)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)', [
         enc($d['name']), enc($d['phone']), enc($d['email']), email_idx($d['email']), $d['rdate'], $d['rtime'], $d['people'], enc($d['notes']),
-        'confirmada', 'panel', '', now(), now(),
+        'confirmada', 'panel', '', now(), now(), next_seq(),
     ]);
-    return get_reservation((int)db()->lastInsertId());
+    return get_reservation_admin((int)db()->lastInsertId());
 }
 
 function delete_reservation(int $id): void
@@ -237,6 +325,7 @@ function notify_customer(array $r): void
     $when = fmt_date_es($r['date']) . ' a las ' . $r['time'];
     $tel = $s['phone'] ? "\nSi necesitas cambiar algo, llámanos al {$s['phone']}." : '';
     $msgs = [
+        'esperando'  => ["Confirma tu reserva en {$s['name']}", "Hola {$r['name']}:\n\nTenemos mesa para {$r['people']} personas el $when. Para confirmar la reserva, abre este enlace:\n\n" . confirm_url(q('SELECT * FROM reservations WHERE id = ?', [$r['id']])->fetch()) . "\n\nTambién te lo hemos enviado por WhatsApp. Si te has equivocado en algún dato, vuelve a hacer la reserva en la web.\n\n{$s['name']}"],
         'confirmada' => ["Reserva confirmada en {$s['name']}", "Hola {$r['name']}:\n\nTu reserva para {$r['people']} personas el $when está confirmada. ¡Te esperamos!$tel\n\n{$s['name']}\n{$s['address']}"],
         'rechazada'  => ["No podemos atender tu reserva en {$s['name']}", "Hola {$r['name']}:\n\nLo sentimos, no tenemos mesa para {$r['people']} personas el $when.$tel\n\n{$s['name']}"],
         'cancelada'  => ["Reserva cancelada en {$s['name']}", "Hola {$r['name']}:\n\nTu reserva del $when ha quedado cancelada.$tel\n\n{$s['name']}"],

@@ -50,7 +50,7 @@ function purge_old_reservations(bool $force = false): int
 }
 
 /** Actualiza la base de datos de instalaciones anteriores sin perder datos. */
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 5;
 /** Versión de las condiciones y la privacidad: se guarda con cada aceptación. Súbela si cambias los textos. */
 const LEGAL_VERSION = '2026-10-21';
 function ensure_schema(): void
@@ -105,6 +105,16 @@ function ensure_schema(): void
         }
         // Las cuentas creadas antes de este cambio se dan por activadas
         q('UPDATE customers SET verified_at = created_at WHERE verified_at IS NULL');
+    }
+    if ($v < 5) {
+        // v5: enlace de confirmación por WhatsApp y contador de novedades
+        foreach ([
+            "ALTER TABLE reservations ADD COLUMN verify_token VARCHAR(255) NOT NULL DEFAULT ''",
+            'ALTER TABLE reservations ADD COLUMN seq INT NOT NULL DEFAULT 0',
+        ] as $sql) {
+            try { db()->exec($sql); } catch (Throwable $e) { /* ya existe */ }
+        }
+        q('UPDATE reservations SET seq = id WHERE seq = 0');
     }
     q("DELETE FROM settings WHERE k = '_schema'");
     q("INSERT INTO settings (k, v) VALUES ('_schema', ?)", [(string)SCHEMA_VERSION]);
@@ -211,9 +221,9 @@ const SETTINGS_DEFAULTS = [
     'min_notice'    => 60,     // minutos de antelación mínima
     'last_before'   => 60,     // última reserva X minutos antes del cierre
     'days_ahead'    => 60,     // hasta cuántos días se puede reservar
-    'auto_confirm'  => false,  // confirmar sin revisar
+    'auto_confirm'  => false,  // ya no se usa: las reservas se confirman siempre por WhatsApp
     // Políticas de reserva (se muestran en la web y hay que aceptarlas al reservar)
-    'cancel_hours'  => 4,      // horas antes para cancelar desde la cuenta del cliente
+    'cancel_hours'  => 0,      // ya no se usa: cancelar es gratis siempre
     'late_minutes'  => 15,     // minutos que se guarda la mesa si llegan tarde
     'policies'      => "Grupos: para más de 10 personas, escríbenos o llámanos y te preparamos un menú cerrado.\nAlergias: dínoslo al reservar; la cocina adapta los platos siempre que sea posible.\nNiños: son bienvenidos. Tenemos tronas, pídela en las notas de la reserva.\nMascotas: perros pequeños en la terraza.",
 ];

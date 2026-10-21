@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/tema.php';
 
-const ASSET_V = '20';
+const ASSET_V = '21';
 
 function tel_href(string $t): string
 {

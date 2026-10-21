@@ -179,7 +179,7 @@
   function showPane(n) {
     $$('.bk-pane', dlg).forEach(function (p) { p.hidden = p.dataset.pane !== String(n); });
     $('#bk-step').textContent = n <= 3 ? 'Paso ' + n + ' de 3' : 'Hecho';
-    $('#bk-title').textContent = ['', 'Reservar mesa', 'Elige la hora', 'Tus datos', 'Reserva enviada'][n];
+    $('#bk-title').textContent = ['', 'Reservar mesa', 'Elige la hora', 'Tus datos', 'Petición enviada'][n];
     summary();
     var focusable = $('.bk-pane:not([hidden]) button, .bk-pane:not([hidden]) input', dlg);
     if (n > 1 && focusable) focusable.focus({ preventScroll: true });
@@ -268,7 +268,7 @@
     f.privacy.checked = false;
     $('#bk-err').textContent = '';
     $('#bk-send').disabled = false;
-    $('#bk-send').textContent = 'Confirmar reserva';
+    $('#bk-send').textContent = 'Enviar petición';
   }
 
   if (dlg) {
@@ -322,10 +322,11 @@
         notes: f.notes.value.trim(), website: f.website.value, privacy: f.privacy.checked ? 1 : 0
       };
       err.textContent = '';
+      if (!data.phone && R.customer) { $('#bk-fields').hidden = false; }
       if (!R.customer || !$('#bk-fields').hidden) {
         var miss = [];
         if (!data.name) miss.push('tu nombre');
-        if (!data.phone) miss.push('un teléfono');
+        if (!data.phone) miss.push('un teléfono móvil');
         if (miss.length) { err.textContent = 'Falta ' + miss.join(' y ') + '.'; $('#bk-fields').hidden = false; return; }
       }
       if (!data.privacy) { err.textContent = 'Marca la casilla para aceptar las políticas.'; return; }
@@ -333,16 +334,16 @@
       btn.disabled = true;
       btn.textContent = 'Enviando…';
       api('reserve', data).then(function (r) {
-        $('#bk-done-t').textContent = r.status === 'confirmada' ? 'Te esperamos' : 'Reserva recibida';
+        $('#bk-done-t').textContent = 'Petición realizada';
         $('#bk-done-msg').textContent = r.message;
         var more = $('#bk-done-more');
-        if (r.account) more.innerHTML = 'La tienes en <a href="cuenta.php">tu cuenta</a>, desde donde puedes cancelarla.';
-        else more.innerHTML = '¿Quieres verla y poder cancelarla tú? <a href="cuenta.php?registro=1">Crea una cuenta</a> con el mismo email.';
+        if (r.account) more.innerHTML = 'Esperando confirmación. La verás en <a href="cuenta.php">tu cuenta</a>, donde también podrás confirmarla o cancelarla.';
+        else more.innerHTML = 'Esperando confirmación. Mientras no toques el enlace del WhatsApp, la reserva queda pendiente.';
         showPane(4);
       }).catch(function (e) {
         err.textContent = e.message;
         btn.disabled = false;
-        btn.textContent = 'Confirmar reserva';
+        btn.textContent = 'Enviar petición';
       });
     });
 
@@ -405,6 +406,16 @@
   var logout = $('#logout');
   if (logout) logout.addEventListener('click', function () {
     api('c_logout', {}).then(function () { location.href = './'; }, function (e) { toast(e.message); });
+  });
+
+  $$('[data-confirm-res]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      b.disabled = true;
+      api('c_confirm', { id: +b.dataset.confirmRes }).then(function () {
+        toast('Reserva confirmada');
+        setTimeout(function () { location.reload(); }, 700);
+      }).catch(function (e) { toast(e.message); b.disabled = false; });
+    });
   });
 
   $$('[data-cancel]').forEach(function (b) {
