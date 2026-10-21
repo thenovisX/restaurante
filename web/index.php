@@ -139,7 +139,7 @@ page_start($s['name'] . ' · ' . $s['tagline'], '', 'home');
         <?php endforeach; ?>
         <details>
           <summary>Tus datos</summary>
-          <p>Usamos tus datos solo para gestionar tus reservas. No los cedemos a nadie ni te enviamos publicidad. Lee la <a href="legal.php#privacidad">política de privacidad</a>.</p>
+          <p>Usamos tus datos solo para gestionar tus reservas y se guardan cifrados. El nombre, el teléfono y el email de cada reserva se borran solos 24 horas después. No los cedemos a nadie ni te enviamos publicidad. Lee la <a href="legal.php#privacidad">política de privacidad</a>.</p>
         </details>
       </div>
     </div>

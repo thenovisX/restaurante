@@ -29,7 +29,8 @@ site_header(current_customer());
   <p><strong>Para qué:</strong> solo para gestionar tus reservas y avisarte si hay algún cambio. No enviamos publicidad ni cedemos tus datos a nadie,
     salvo al proveedor que aloja la web (Hostinger), que los guarda por nosotros.</p>
   <p><strong>Base legal:</strong> tu consentimiento y la gestión de lo que nos pides.</p>
-  <p><strong>Cuánto tiempo:</strong> los de las reservas, como máximo un año después. Los de tu cuenta, hasta que la borres; puedes hacerlo tú mismo desde <a href="cuenta.php">Mi cuenta</a>.</p>
+  <p><strong>Cuánto tiempo:</strong> el nombre, el teléfono, el email y las notas de cada reserva se borran solos 24 horas después de la hora reservada. Los datos de tu cuenta se guardan hasta que la borres; puedes hacerlo tú mismo desde <a href="cuenta.php">Mi cuenta</a>.</p>
+  <p><strong>Seguridad:</strong> la web funciona con conexión cifrada (https). Tu nombre, teléfono, email y notas se guardan cifrados, y tu contraseña nunca se guarda: solo una huella cifrada que no se puede revertir.</p>
   <p><strong>Tus derechos:</strong> puedes ver, corregir o borrar tus datos, u oponerte a su uso, escribiendo a <?= h($contacto ?: 'nuestro contacto') ?>.
     Si crees que no los tratamos bien, puedes reclamar ante la Agencia Española de Protección de Datos (aepd.es).</p>
 

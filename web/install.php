@@ -8,6 +8,7 @@ declare(strict_types=1);
  */
 
 require __DIR__ . '/lib/core.php';
+require __DIR__ . '/lib/cifrado.php';
 require __DIR__ . '/lib/schema.php';
 date_default_timezone_set('Europe/Madrid');
 
