@@ -143,7 +143,7 @@ try {
             out(true);
 
         case 'settings':
-            out(settings() + ['allergens' => allergen_list(), 'web_photos' => web_photos_info()]);
+            out(settings_admin() + ['allergens' => allergen_list(), 'web_photos' => web_photos_info()]);
         case 'web_photo':
             only_post();
             out(web_photo_set((string)($in['key'] ?? ''), $_FILES['photo'] ?? null));
@@ -152,7 +152,16 @@ try {
             out(web_photo_reset((string)($in['key'] ?? '')));
         case 'settings_save':
             only_post();
-            out(settings_save($in));
+            settings_save($in);
+            out(settings_admin());
+        case 'mail_test':
+            only_post();
+            $to = trim((string)($in['to'] ?? '')) ?: (settings()['notify_email'] ?: settings()['email']);
+            if (!filter_var($to, FILTER_VALIDATE_EMAIL)) throw new ValidationError('Pon antes el email para avisos de reservas (en Contacto)');
+            $s = settings();
+            if (!$s['smtp_on']) throw new ValidationError('Activa primero el envío con tu cuenta y guarda');
+            send_mail($to, "Prueba de email de {$s['name']}", "¡Funciona! Los emails de la web ya salen desde {$s['smtp_user']}.\n\nA partir de ahora los clientes recibirán desde esta cuenta el enlace para activar su cuenta y los avisos de sus reservas.", true);
+            out(['to' => $to]);
         case 'password':
             only_post();
             change_password($user, $in);

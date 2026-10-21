@@ -6,6 +6,8 @@ if (!installed()) { header('Location: install.php'); exit; }
 $s = settings();
 $titular = $s['owner_name'] ?: $s['name'];
 $contacto = $s['email'] ?: $s['phone'];
+$google_mail = mail_via_google();
+$analytics = $s['ga_id'] !== '' || $s['gtm_id'] !== '';
 page_start('Información legal · ' . $s['name'], '', 'page-legal');
 site_header(current_customer());
 ?>
@@ -14,8 +16,9 @@ site_header(current_customer());
   <h1 class="title">Información legal</h1>
 
   <h2 id="aviso">Aviso legal</h2>
-  <p>Esta web pertenece a <strong><?= h($titular) ?></strong><?= $s['owner_nif'] ? ', con NIF ' . h($s['owner_nif']) : '' ?>,
-    con domicilio en <?= h(trim($s['address'] . ', ' . $s['city'], ', ')) ?: '—' ?>. Contacto: <?= h($contacto ?: '—') ?>.</p>
+  <p>En cumplimiento de la Ley 34/2002 de servicios de la sociedad de la información (LSSI-CE): esta web pertenece a <strong><?= h($titular) ?></strong><?= $s['owner_nif'] ? ', con NIF ' . h($s['owner_nif']) : '' ?>,
+    con domicilio en <?= h(trim($s['address'] . ', ' . $s['city'], ', ')) ?: '—' ?>.<?= $s['owner_registry'] ? ' ' . h($s['owner_registry']) . '.' : '' ?>
+    Email: <?= $s['email'] ? '<a href="mailto:' . h($s['email']) . '">' . h($s['email']) . '</a>' : '—' ?><?= $s['phone'] ? ' · Teléfono: ' . h($s['phone']) : '' ?>.</p>
   <p>Los textos, fotos y precios son orientativos y pueden cambiar sin previo aviso. La carta del local es la que vale.</p>
 
   <h2 id="politicas">Políticas de reserva</h2>
@@ -38,16 +41,20 @@ site_header(current_customer());
   <p><strong>Qué datos tratamos y para qué:</strong></p>
   <ul>
     <li><strong>Reservas:</strong> nombre, teléfono, email (opcional), día, hora, personas y notas. Sirven para gestionar la reserva y avisarte de cambios. Base legal: la gestión de lo que nos pides (art. 6.1.b RGPD). El teléfono es obligatorio porque te enviamos por WhatsApp el enlace para confirmar la reserva; solo se usa para eso y para avisarte de cambios. Nunca enviamos publicidad ni hacemos llamadas comerciales.</li>
-    <li><strong>Cuenta (opcional):</strong> nombre, email, teléfono (opcional) y una huella de tu contraseña que no se puede revertir. Base legal: tu consentimiento y el servicio que pides.</li>
+    <li><strong>Cuenta (opcional):</strong> nombre, email, teléfono (opcional) y una huella de tu contraseña que no se puede revertir. Sirve para que reserves sin escribir tus datos y veas y canceles tus reservas. Base legal: las condiciones de uso de la cuenta que aceptas al crearla (art. 6.1.b RGPD). En tu cuenta aparecen las reservas hechas con ella o con su mismo email; las hechas sin email no se pueden añadir.</li>
     <li><strong>Estadísticas y publicidad:</strong> solo si aceptas esas cookies. Base legal: tu consentimiento, que puedes retirar en cualquier momento.</li>
     <li><strong>Registro de seguridad:</strong> cuándo aceptas estas condiciones, cambias tu contraseña o tus datos, con la IP (cifrada) y el navegador. Base legal: nuestro interés legítimo en poder demostrar tu consentimiento y proteger tu cuenta.</li>
   </ul>
-  <p><strong>Publicidad:</strong> no te enviamos emails promocionales ni compartimos tus datos para que otros lo hagan. Los emails que recibes son solo sobre tu reserva o tu cuenta.</p>
-  <p><strong>Quién más trata tus datos (encargados):</strong> Hostinger, que aloja la web en servidores de la Unión Europea; WhatsApp (Meta), por el que te llega el mensaje de confirmación desde el WhatsApp del restaurante<?php if ($s['ga_id'] !== '' || $s['gtm_id'] !== ''): ?>; Google (Analytics), solo si aceptas las cookies de análisis<?php endif; ?><?php if ($s['pixel_id'] !== ''): ?>; Meta (Facebook e Instagram), solo si aceptas las cookies de publicidad<?php endif; ?>.
-    <?php if ($s['ga_id'] !== '' || $s['gtm_id'] !== '' || $s['pixel_id'] !== ''): ?>Google y Meta pueden transferir datos a Estados Unidos, amparados por el Marco de Privacidad de Datos UE-EE. UU. y cláusulas contractuales tipo. Si no aceptas esas cookies, no se les envía nada.<?php endif; ?></p>
-  <p><strong>Cuánto tiempo:</strong> el nombre, el teléfono, el email y las notas de cada reserva se borran solos 24 horas después de la hora reservada. Los datos de tu cuenta se guardan hasta que la borres. El registro de seguridad se conserva mientras pueda hacer falta para demostrar tu consentimiento.</p>
+  <p><strong>Datos obligatorios:</strong> para reservar hacen falta el nombre y el teléfono; sin ellos no podemos enviarte la confirmación. El email es opcional.</p>
+  <p><strong>Publicidad y perfiles:</strong> no te enviamos emails promocionales ni compartimos tus datos para que otros lo hagan. Los emails que recibes son solo sobre tu reserva o tu cuenta. No tomamos decisiones automatizadas sobre ti ni elaboramos perfiles.</p>
+  <p><strong>Cesiones:</strong> no cedemos tus datos a terceros, salvo que una ley nos obligue (por ejemplo, a petición de un juez).</p>
+  <p><strong>Proveedores que tratan datos por cuenta nuestra (encargados):</strong> Hostinger (Hostinger International Ltd.), que aloja la web y la base de datos en servidores de la Unión Europea; WhatsApp (WhatsApp Ireland Ltd., del grupo Meta), por el que te llega el mensaje de confirmación desde el WhatsApp del restaurante<?php if ($google_mail): ?>; Google (Google Ireland Ltd., Gmail), por el que te enviamos los emails de tu reserva o tu cuenta<?php endif; ?><?php if ($analytics): ?>; Google (Analytics), solo si aceptas las cookies de análisis<?php endif; ?><?php if ($s['pixel_id'] !== ''): ?>; Meta Platforms Ireland Ltd. (Facebook e Instagram), solo si aceptas las cookies de publicidad<?php endif; ?>. Todos tienen firmado con nosotros el contrato que exige el art. 28 RGPD (sus condiciones de tratamiento de datos).</p>
+  <?php $tr = array_merge(['WhatsApp'], $google_mail || $analytics ? ['Google'] : [], $s['pixel_id'] !== '' ? ['Meta'] : []);
+        $trTxt = count($tr) > 1 ? implode(', ', array_slice($tr, 0, -1)) . ' y ' . end($tr) . ' pueden' : 'WhatsApp puede'; ?>
+  <p><strong>Transferencias fuera de la UE:</strong> <?= $trTxt ?> tratar datos en Estados Unidos. Esas transferencias están amparadas por el Marco de Privacidad de Datos UE-EE. UU. (decisión de adecuación de la Comisión Europea de julio de 2023) y por cláusulas contractuales tipo.<?php if ($analytics || $s['pixel_id'] !== ''): ?> Si no aceptas las cookies de análisis y publicidad, a Google y Meta no se les envía nada desde esta web.<?php endif; ?></p>
+  <p><strong>Cuánto tiempo:</strong> el nombre, el teléfono, el email y las notas de cada reserva se borran solos 24 horas después de la hora reservada. El aviso de cada reserva que recibe el restaurante por email solo lleva el nombre, el día y las personas, y el chat de WhatsApp de la confirmación lo borra el restaurante periódicamente. Los datos de tu cuenta se guardan hasta que la borres; si creas una cuenta y no la activas, se borra a los 7 días. El registro de seguridad se guarda 3 años, el plazo en que se podría tener que demostrar tu consentimiento ante la Agencia de Protección de Datos, y después se borra.</p>
   <p><strong>Seguridad:</strong> la conexión va siempre cifrada (https). Tus datos personales se guardan cifrados en la base de datos y tu contraseña no se guarda nunca, solo una huella que no se puede revertir. Si hubiera una brecha de seguridad que afectara a tus datos, avisaríamos a la Agencia Española de Protección de Datos en menos de 72 horas y a ti sin demora.</p>
-  <p><strong>Tus derechos:</strong> puedes acceder a tus datos, corregirlos, borrarlos, oponerte a su uso, limitarlo y llevártelos a otro servicio (portabilidad). Desde «Mi cuenta» puedes descargar todos tus datos y borrar la cuenta tú mismo; para todo lo demás escribe a <?= h($contacto ?: 'nuestro contacto') ?>. Si crees que no tratamos bien tus datos, puedes reclamar ante la Agencia Española de Protección de Datos (aepd.es).</p>
+  <p><strong>Tus derechos:</strong> puedes acceder a tus datos, corregirlos, borrarlos, oponerte a su uso, limitarlo y llevártelos a otro servicio (portabilidad), y retirar en cualquier momento los consentimientos que hayas dado (por ejemplo, el de las cookies) sin que afecte a lo anterior. Desde «Mi cuenta» puedes descargar todos tus datos y borrar la cuenta tú mismo; para todo lo demás escribe a <?= h($contacto ?: 'nuestro contacto') ?> indicando qué derecho quieres ejercer. Te responderemos en un mes como máximo. Si crees que no tratamos bien tus datos, puedes reclamar ante la Agencia Española de Protección de Datos (<a href="https://www.aepd.es" target="_blank" rel="noopener">aepd.es</a>).</p>
   <p><strong>Menores:</strong> la web no está dirigida a menores de 14 años. Si tienes menos de 14, pide a tus padres o tutores que hagan la reserva.</p>
 
   <h2 id="cookies">Cookies</h2>
@@ -55,7 +62,7 @@ site_header(current_customer());
   <table class="ck-tabla">
     <thead><tr><th>Cookie</th><th>Para qué</th><th>De quién</th><th>Duración</th></tr></thead>
     <tbody>
-      <tr><td>cookie_consent</td><td>Recordar tu elección sobre las cookies (necesaria)</td><td>Esta web</td><td>13 meses</td></tr>
+      <tr><td>cookie_consent</td><td>Recordar tu elección sobre las cookies (necesaria). Pasado ese plazo te volvemos a preguntar.</td><td>Esta web</td><td>13 meses</td></tr>
       <tr><td>cliente_sesion</td><td>Mantener abierta tu cuenta si entras (necesaria)</td><td>Esta web</td><td>60 días</td></tr>
       <?php if ($s['ga_id'] !== '' || $s['gtm_id'] !== ''): ?>
       <tr><td>_ga, _ga_*</td><td>Estadísticas anónimas de visitas (análisis, solo si lo aceptas)</td><td>Google Analytics</td><td>2 años</td></tr>
@@ -68,10 +75,11 @@ site_header(current_customer());
       <?php endif; ?>
     </tbody>
   </table>
-  <p>Si pulsas «Mostrar el mapa», Google Maps puede usar sus propias cookies. Las fotos de la web se cargan desde Unsplash.</p>
+  <p>Si pulsas «Mostrar el mapa», se carga Google Maps, que puede usar sus propias cookies; hasta que no lo pulses no se conecta con Google. Las tipografías y las fotos se sirven desde nuestro propio servidor, así que tu navegador no se conecta a otras empresas para cargarlas.</p>
+  <p>Si no aceptas las cookies opcionales, no te volveremos a preguntar hasta que pase el plazo indicado, y la web funciona igual.</p>
   <p>También puedes borrar o bloquear las cookies desde la configuración de tu navegador.</p>
 
-  <p class="muted small">Texto de referencia. Revísalo con un asesor para adaptarlo a tu negocio.</p>
+  <p class="muted small">Última actualización: <?= h(date('j/n/Y', strtotime(LEGAL_VERSION))) ?>. Texto de referencia: revísalo con un asesor para adaptarlo a tu negocio.</p>
   </div>
 </main>
 <?php site_footer(); page_end(); ?>
