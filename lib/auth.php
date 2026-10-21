@@ -58,6 +58,7 @@ function change_password(array $user, array $in): void
     if (!password_verify($cur, $u['pass_hash'])) throw new ValidationError('La contraseña actual no es correcta');
     if (strlen($new) < 8) throw new ValidationError('La nueva contraseña necesita al menos 8 caracteres');
     q('UPDATE users SET pass_hash = ? WHERE id = ?', [password_hash($new, PASSWORD_DEFAULT), $user['id']]);
+    audit('admin_cambio_contrasena', 0, 'Usuario del panel: ' . $user['username']);
     // Cierra las demás sesiones
     q('DELETE FROM tokens WHERE user_id = ? AND token <> ?', [$user['id'], hash('sha256', request_token())]);
 }

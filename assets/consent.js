@@ -107,10 +107,10 @@
       '<div class="ck-opts"' + (settings ? '' : ' hidden') + '>' +
         '<label class="ck-opt"><span><strong>Necesarias</strong><small>Mantienen tu sesión y recuerdan esta elección. Siempre activas.</small></span><input type="checkbox" checked disabled></label>' +
         '<label class="ck-opt"><span><strong>Análisis</strong><small>Estadísticas de visitas (Google Analytics).</small></span><input type="checkbox" name="analytics"' + (c.analytics ? ' checked' : '') + '></label>' +
-        '<label class="ck-opt"><span><strong>Publicidad</strong><small>Medir anuncios en Google, Instagram o Facebook.</small></span><input type="checkbox" name="marketing"' + (c.marketing ? ' checked' : '') + '></label>' +
+        '<label class="ck-opt"><span><strong>Publicidad</strong><small>' + (navigator.globalPrivacyControl === true ? 'Desactivada: tu navegador pide no compartir datos (GPC).' : 'Medir anuncios en Google, Instagram o Facebook. Implica compartir datos con esas empresas.') + '</small></span><input type="checkbox" name="marketing"' + (c.marketing && navigator.globalPrivacyControl !== true ? ' checked' : '') + (navigator.globalPrivacyControl === true ? ' disabled' : '') + '></label>' +
       '</div>' +
       '<div class="ck-btns">' +
-        '<button type="button" class="btn btn-ghost" data-ck="reject">Rechazar</button>' +
+        '<button type="button" class="btn btn-rubor" data-ck="reject">Rechazar todas</button>' +
         '<button type="button" class="btn btn-ghost" data-ck="config"' + (settings ? ' hidden' : '') + '>Configurar</button>' +
         '<button type="button" class="btn btn-ghost" data-ck="save"' + (settings ? '' : ' hidden') + '>Guardar elección</button>' +
         '<button type="button" class="btn btn-rubor" data-ck="accept">Aceptar todas</button>' +
@@ -138,7 +138,13 @@
     if (e.target.closest('[data-cookies]')) { e.preventDefault(); show(true); }
   });
 
-  var c = read();
+  // Global Privacy Control: si el navegador pide no compartir datos, la publicidad queda desactivada
+  var gpc = navigator.globalPrivacyControl === true;
+  function respectGpc(c) { if (gpc && c) c.marketing = false; return c; }
+  var _choose = choose;
+  choose = function (c) { _choose(respectGpc(c)); };
+
+  var c = respectGpc(read());
   if (c) apply(c);
   else if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { show(false); });
   else show(false);

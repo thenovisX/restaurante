@@ -23,16 +23,33 @@ site_header(current_customer());
     <?= $s['auto_confirm'] ? 'Las reservas online quedan confirmadas al momento.' : 'Las reservas online quedan pendientes hasta que el restaurante las confirma por email.' ?></p>
   <?php foreach (preg_split('/\R/', (string)$s['policies']) as $line): if (trim($line) === '') continue; ?><p><?= h(trim($line)) ?></p><?php endforeach; ?>
 
+  <h2 id="condiciones">Condiciones de uso</h2>
+  <p>Estas condiciones regulan el uso de esta web y de su servicio de reservas. Al reservar o crear una cuenta las aceptas. Versión del <?= h(date('j/n/Y', strtotime(LEGAL_VERSION))) ?>.</p>
+  <p><strong>El servicio:</strong> la web permite consultar la carta y solicitar reservas de mesa en <?= h($s['name']) ?>. Reservar es gratis y no se cobra nada a través de la web.</p>
+  <p><strong>Reservas:</strong> <?= $s['auto_confirm'] ? 'la reserva queda confirmada al enviarla.' : 'la reserva es una solicitud hasta que el restaurante la confirma por email.' ?>
+    Puedes cancelarla sin coste hasta <?= (int)$s['cancel_hours'] ?> horas antes. Guardamos la mesa <?= (int)$s['late_minutes'] ?> minutos desde la hora reservada.
+    El restaurante puede rechazar o cancelar una reserva si no hay disponibilidad o por causas ajenas a su voluntad, y te avisará lo antes posible.</p>
+  <p><strong>Tu cuenta:</strong> es personal. Mantén tu contraseña en secreto. Podemos suspender una cuenta que se use para hacer reservas falsas o de forma abusiva. Puedes borrarla cuando quieras desde «Mi cuenta».</p>
+  <p><strong>Carta y precios:</strong> son orientativos y pueden cambiar. Los alérgenos se indican con la mayor exactitud posible, pero avísanos siempre de cualquier alergia antes de pedir.</p>
+  <p><strong>Responsabilidad:</strong> hacemos lo posible para que la web funcione bien y sin interrupciones, pero no respondemos de fallos técnicos ajenos a nosotros. Nada en estas condiciones limita los derechos que te reconoce la ley como consumidor.</p>
+  <p><strong>Ley y tribunales:</strong> se aplica la ley española. Si hubiera un conflicto, serán competentes los juzgados de tu domicilio como consumidor.</p>
+
   <h2 id="privacidad">Política de privacidad</h2>
-  <p><strong>Responsable:</strong> <?= h($titular) ?>. <strong>Contacto:</strong> <?= h($contacto ?: '—') ?>.</p>
-  <p><strong>Qué datos recogemos:</strong> al reservar, tu nombre, teléfono, email (si lo das), el día, la hora, el número de personas y las notas que escribas. Si creas una cuenta, además guardamos tu contraseña cifrada y el historial de tus reservas.</p>
-  <p><strong>Para qué:</strong> solo para gestionar tus reservas y avisarte si hay algún cambio. No enviamos publicidad ni cedemos tus datos a nadie,
-    salvo al proveedor que aloja la web (Hostinger), que los guarda por nosotros.</p>
-  <p><strong>Base legal:</strong> tu consentimiento y la gestión de lo que nos pides.</p>
-  <p><strong>Cuánto tiempo:</strong> el nombre, el teléfono, el email y las notas de cada reserva se borran solos 24 horas después de la hora reservada. Los datos de tu cuenta se guardan hasta que la borres; puedes hacerlo tú mismo desde <a href="cuenta.php">Mi cuenta</a>.</p>
-  <p><strong>Seguridad:</strong> la web funciona con conexión cifrada (https). Tu nombre, teléfono, email y notas se guardan cifrados, y tu contraseña nunca se guarda: solo una huella cifrada que no se puede revertir.</p>
-  <p><strong>Tus derechos:</strong> puedes ver, corregir o borrar tus datos, u oponerte a su uso, escribiendo a <?= h($contacto ?: 'nuestro contacto') ?>.
-    Si crees que no los tratamos bien, puedes reclamar ante la Agencia Española de Protección de Datos (aepd.es).</p>
+  <p><strong>Responsable:</strong> <?= h($titular) ?><?= $s['owner_nif'] ? ', NIF ' . h($s['owner_nif']) : '' ?>. <?= h(trim($s['address'] . ', ' . $s['city'], ', ')) ?>. <strong>Contacto:</strong> <?= h($contacto ?: '—') ?>.</p>
+  <p><strong>Qué datos tratamos y para qué:</strong></p>
+  <ul>
+    <li><strong>Reservas:</strong> nombre, teléfono, email (opcional), día, hora, personas y notas. Sirven para gestionar la reserva y avisarte de cambios. Base legal: la gestión de lo que nos pides (art. 6.1.b RGPD). El teléfono solo se usa para contactarte sobre tu reserva: no enviamos SMS ni hacemos llamadas comerciales.</li>
+    <li><strong>Cuenta (opcional):</strong> nombre, email, teléfono (opcional) y una huella de tu contraseña que no se puede revertir. Base legal: tu consentimiento y el servicio que pides.</li>
+    <li><strong>Estadísticas y publicidad:</strong> solo si aceptas esas cookies. Base legal: tu consentimiento, que puedes retirar en cualquier momento.</li>
+    <li><strong>Registro de seguridad:</strong> cuándo aceptas estas condiciones, cambias tu contraseña o tus datos, con la IP (cifrada) y el navegador. Base legal: nuestro interés legítimo en poder demostrar tu consentimiento y proteger tu cuenta.</li>
+  </ul>
+  <p><strong>Publicidad:</strong> no te enviamos emails promocionales ni compartimos tus datos para que otros lo hagan. Los emails que recibes son solo sobre tu reserva o tu cuenta.</p>
+  <p><strong>Quién más trata tus datos (encargados):</strong> Hostinger, que aloja la web en servidores de la Unión Europea<?php if ($s['ga_id'] !== '' || $s['gtm_id'] !== ''): ?>; Google (Analytics), solo si aceptas las cookies de análisis<?php endif; ?><?php if ($s['pixel_id'] !== ''): ?>; Meta (Facebook e Instagram), solo si aceptas las cookies de publicidad<?php endif; ?>.
+    <?php if ($s['ga_id'] !== '' || $s['gtm_id'] !== '' || $s['pixel_id'] !== ''): ?>Google y Meta pueden transferir datos a Estados Unidos, amparados por el Marco de Privacidad de Datos UE-EE. UU. y cláusulas contractuales tipo. Si no aceptas esas cookies, no se les envía nada.<?php endif; ?></p>
+  <p><strong>Cuánto tiempo:</strong> el nombre, el teléfono, el email y las notas de cada reserva se borran solos 24 horas después de la hora reservada. Los datos de tu cuenta se guardan hasta que la borres. El registro de seguridad se conserva mientras pueda hacer falta para demostrar tu consentimiento.</p>
+  <p><strong>Seguridad:</strong> la conexión va siempre cifrada (https). Tus datos personales se guardan cifrados en la base de datos y tu contraseña no se guarda nunca, solo una huella que no se puede revertir. Si hubiera una brecha de seguridad que afectara a tus datos, avisaríamos a la Agencia Española de Protección de Datos en menos de 72 horas y a ti sin demora.</p>
+  <p><strong>Tus derechos:</strong> puedes acceder a tus datos, corregirlos, borrarlos, oponerte a su uso, limitarlo y llevártelos a otro servicio (portabilidad). Desde «Mi cuenta» puedes descargar todos tus datos y borrar la cuenta tú mismo; para todo lo demás escribe a <?= h($contacto ?: 'nuestro contacto') ?>. Si crees que no tratamos bien tus datos, puedes reclamar ante la Agencia Española de Protección de Datos (aepd.es).</p>
+  <p><strong>Menores:</strong> la web no está dirigida a menores de 14 años. Si tienes menos de 14, pide a tus padres o tutores que hagan la reserva.</p>
 
   <h2 id="cookies">Cookies</h2>
   <p>Las cookies son pequeños archivos que la web guarda en tu navegador. Las necesarias se usan siempre; las demás solo si las aceptas en el aviso de cookies. Puedes cambiar tu elección cuando quieras: <a href="#cookies" data-cookies>configurar cookies</a>.</p>

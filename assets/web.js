@@ -275,7 +275,15 @@
       err.textContent = '';
       btn.disabled = true;
       btn.textContent = 'Un momento…';
-      api(f.dataset.api, data).then(function () {
+      api(f.dataset.api, data).then(function (r) {
+        if (f.dataset.api === 'c_register' && r && r.pending) {
+          f.hidden = true;
+          $('.tabs') && ($('.tabs').hidden = true);
+          $('#acc-pend-email').textContent = r.email;
+          $('#acc-pendiente').hidden = false;
+          $('#acc-reenviar').dataset.email = r.email;
+          return;
+        }
         if (f.dataset.api === 'c_profile') {
           toast('Datos guardados');
           btn.disabled = false;
@@ -290,6 +298,13 @@
         btn.textContent = label;
       });
     });
+  });
+
+  var resend = $('#acc-reenviar');
+  if (resend) resend.addEventListener('click', function () {
+    resend.disabled = true;
+    api('c_resend', { email: resend.dataset.email }).then(function () { toast('Email enviado otra vez'); }, function (e) { toast(e.message); })
+      .then(function () { setTimeout(function () { resend.disabled = false; }, 30000); });
   });
 
   var logout = $('#logout');
