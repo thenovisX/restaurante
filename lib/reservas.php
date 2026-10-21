@@ -39,10 +39,23 @@ function day_slots(string $date, bool $ignoreRules = false): array
     $ranges = $s['hours'][date('N', strtotime($date))] ?? [];
     if (!$ranges) return ['reason' => 'Ese día el restaurante cierra'] + $res;
 
-    $booked = [];
+    // Reservas del día que ocupan sitio: [inicio en segundos, personas]
     $ph = implode(',', array_fill(0, count(RES_ACTIVE), '?'));
     $rows = q("SELECT rtime, SUM(people) AS p FROM reservations WHERE rdate = ? AND status IN ($ph) GROUP BY rtime", array_merge([$date], RES_ACTIVE))->fetchAll();
-    foreach ($rows as $r) $booked[$r['rtime']] = (int)$r['p'];
+    $booked = array_map(fn($r) => [strtotime("$date {$r['rtime']}"), (int)$r['p']], $rows);
+    // Tiempo de mesa: una reserva ocupa su sitio desde su hora hasta que pasa este tiempo (0 = solo su hora)
+    $dur = max(0, (int)$s['table_minutes']) * 60;
+    $occupied = function (int $x) use ($booked, $dur): int {
+        $n = 0;
+        foreach ($booked as [$start, $p]) if ($dur > 0 ? ($start <= $x && $x < $start + $dur) : $start === $x) $n += $p;
+        return $n;
+    };
+    // Plazas libres a la hora $t: lo que cabe sin pasar del aforo en ningún momento de la comida
+    $free = function (int $t) use ($booked, $dur, $occupied, $s): int {
+        $peak = $occupied($t);
+        if ($dur > 0) foreach ($booked as [$start]) if ($start > $t && $start < $t + $dur) $peak = max($peak, $occupied($start));
+        return max(0, (int)$s['capacity'] - $peak);
+    };
 
     $step = max(5, (int)$s['slot_minutes']) * 60;
     $earliest = time() + (int)$s['min_notice'] * 60;
@@ -53,7 +66,7 @@ function day_slots(string $date, bool $ignoreRules = false): array
         for (; $t <= $end; $t += $step) {
             if (!$ignoreRules && $t < $earliest) continue;
             $hm = date('H:i', $t);
-            $res['slots'][] = ['time' => $hm, 'left' => max(0, (int)$s['capacity'] - ($booked[$hm] ?? 0))];
+            $res['slots'][] = ['time' => $hm, 'left' => $free($t)];
         }
     }
     $res['open'] = (bool)array_filter($res['slots'], fn($x) => $x['left'] > 0);
