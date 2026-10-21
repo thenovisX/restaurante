@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/tema.php';
 
-const ASSET_V = '11';
+const ASSET_V = '12';
 
 function tel_href(string $t): string
 {
@@ -147,4 +147,13 @@ function page_end(array $data = []): void
 </body>
 </html>
     <?php
+}
+
+/** Icono de un alérgeno (dibujos en assets/alergenos.svg). */
+function al_icon(string $key, int $size = 22, string $label = ''): string
+{
+    $aria = $label === '' ? 'aria-hidden="true"' : 'role="img" aria-label="' . h($label) . '"';
+    return '<svg class="al-ic" width="' . $size . '" height="' . $size . '" ' . $aria . '>'
+        . ($label !== '' ? '<title>' . h($label) . '</title>' : '')
+        . '<use href="assets/alergenos.svg?v=' . ASSET_V . '#al-' . h($key) . '"></use></svg>';
 }

@@ -27,6 +27,7 @@
   const telHref = (t) => 'tel:' + String(t).replace(/[^\d+]/g, '');
   const waHref = (t) => { let n = String(t).replace(/\D/g, ''); if (n.length === 9) n = '34' + n; return 'https://wa.me/' + n; };
   const ACTIVE = ['pendiente', 'confirmada'];
+  const alIcon = (k, size) => `<svg class="al-ic" width="${size}" height="${size}" aria-hidden="true"><use href="alergenos.svg?v=3#al-${k}"></use></svg>`;
   const STATUS = { pendiente: 'Por confirmar', confirmada: 'Confirmada', rechazada: 'Rechazada', cancelada: 'Cancelada' };
   const WEEK = { 1: 'Lunes', 2: 'Martes', 3: 'Miércoles', 4: 'Jueves', 5: 'Viernes', 6: 'Sábado', 7: 'Domingo' };
 
@@ -576,7 +577,8 @@
           ${d.photo ? `<img class="md-img" src="${esc(d.photo)}" alt="" loading="lazy">` : `<div class="md-img">${ICON.plate}</div>`}
           <button class="md-body" type="button" data-dish="${d.id}">
             <p class="md-name">${esc(d.name)}</p>
-            <p class="md-meta">${euro(d.price)}${d.featured ? ' · recomendado' : ''}${al.length ? ' · ' + esc(al.join(', ')) : ''}${d.available ? '' : ' · <span class="md-off">agotado</span>'}</p>
+            <p class="md-meta">${euro(d.price)}${d.featured ? ' · recomendado' : ''}${d.available ? '' : ' · <span class="md-off">agotado</span>'}</p>
+            ${d.allergens.length ? `<p class="md-alg" aria-label="Alérgenos: ${esc(al.join(', '))}">${d.allergens.map((k) => alIcon(k, 20)).join('')}</p>` : ''}
           </button>
           <label class="sw" title="Disponible"><input type="checkbox" data-toggle="${d.id}" ${d.available ? 'checked' : ''} aria-label="${esc(d.name)} disponible"><span></span></label>
         </div>`;
@@ -629,7 +631,7 @@
         </div>
         <label>Descripción <span class="help">(opcional)</span><textarea name="description" rows="2" maxlength="400">${esc(d.description)}</textarea></label>
         <div class="field">Alérgenos
-          <div class="chips">${S.menu.allergens.map((a) => `<label><input type="checkbox" name="allergens" value="${a.key}" ${d.allergens.includes(a.key) ? 'checked' : ''}><span>${esc(a.name)}</span></label>`).join('')}</div>
+          <div class="chips">${S.menu.allergens.map((a) => `<label><input type="checkbox" name="allergens" value="${a.key}" ${d.allergens.includes(a.key) ? 'checked' : ''}><span>${alIcon(a.key, 22)}${esc(a.name)}</span></label>`).join('')}</div>
         </div>
         <label class="switch-row">Disponible (sale en la web) <span class="sw"><input type="checkbox" name="available" ${d.available ? 'checked' : ''}><span></span></span></label>
         <label class="switch-row">Recomendado de la casa <span class="sw"><input type="checkbox" name="featured" ${d.featured ? 'checked' : ''}><span></span></span></label>

@@ -3,26 +3,26 @@ declare(strict_types=1);
 
 /** Los 14 alérgenos de declaración obligatoria (Reglamento UE 1169/2011). */
 const ALLERGENS = [
-    'gluten'      => ['Gluten', 'Gl'],
-    'crustaceos'  => ['Crustáceos', 'Cr'],
-    'huevos'      => ['Huevos', 'Hu'],
-    'pescado'     => ['Pescado', 'Pe'],
-    'cacahuetes'  => ['Cacahuetes', 'Ca'],
-    'soja'        => ['Soja', 'So'],
-    'lacteos'     => ['Lácteos', 'La'],
-    'frutos'      => ['Frutos de cáscara', 'Fc'],
-    'apio'        => ['Apio', 'Ap'],
-    'mostaza'     => ['Mostaza', 'Mo'],
-    'sesamo'      => ['Sésamo', 'Se'],
-    'sulfitos'    => ['Sulfitos', 'Su'],
-    'altramuces'  => ['Altramuces', 'Al'],
-    'moluscos'    => ['Moluscos', 'Ml'],
+    'gluten'      => ['Gluten', 'Gl', 'Trigo (también espelta y kamut), centeno, cebada, avena y todo lo hecho con ellos: pan, pasta, rebozados, salsas espesadas.'],
+    'crustaceos'  => ['Crustáceos', 'Cr', 'Gambas, langostinos, cigalas, bogavante, nécoras, cangrejos y caldos o salsas que los lleven.'],
+    'huevos'      => ['Huevos', 'Hu', 'Huevo de cualquier ave y lo elaborado con él: mayonesa, alioli, masas, rebozados, postres.'],
+    'pescado'     => ['Pescado', 'Pe', 'Cualquier pescado y sus derivados, como fumet, caldos o salsas de pescado.'],
+    'cacahuetes'  => ['Cacahuetes', 'Ca', 'Cacahuetes y productos que los contienen, como aceite o crema de cacahuete.'],
+    'soja'        => ['Soja', 'So', 'Soja y derivados: salsa de soja, tofu, edamame, bebida de soja, lecitina de soja.'],
+    'lacteos'     => ['Lácteos', 'La', 'Leche de cualquier animal y derivados, incluida la lactosa: nata, mantequilla, queso, yogur.'],
+    'frutos'      => ['Frutos de cáscara', 'Fc', 'Almendras, avellanas, nueces, anacardos, pacanas, pistachos, macadamias y nueces de Brasil.'],
+    'apio'        => ['Apio', 'Ap', 'Apio en rama, en raíz o como especia, y caldos, sopas o sofritos que lo lleven.'],
+    'mostaza'     => ['Mostaza', 'Mo', 'Mostaza en grano, en polvo o en salsa, y aliños o vinagretas que la contengan.'],
+    'sesamo'      => ['Sésamo', 'Se', 'Granos y aceite de sésamo, tahini, y panes o salsas que lo lleven.'],
+    'sulfitos'    => ['Sulfitos', 'Su', 'Dióxido de azufre y sulfitos (más de 10 mg/kg). Suelen estar en el vino, la cerveza, la sidra y algunos encurtidos.'],
+    'altramuces'  => ['Altramuces', 'Al', 'Altramuces y harinas o productos elaborados con ellos.'],
+    'moluscos'    => ['Moluscos', 'Ml', 'Mejillones, almejas, ostras, vieiras, zamburiñas, pulpo, calamar, sepia y caracoles.'],
 ];
 
 function allergen_list(): array
 {
     $o = [];
-    foreach (ALLERGENS as $k => [$name, $abbr]) $o[] = ['key' => $k, 'name' => $name, 'abbr' => $abbr];
+    foreach (ALLERGENS as $k => [$name, $abbr, $desc]) $o[] = ['key' => $k, 'name' => $name, 'abbr' => $abbr, 'desc' => $desc];
     return $o;
 }
 
