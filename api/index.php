@@ -38,11 +38,37 @@ try {
         case 'slots':
             out(day_slots((string)($_GET['date'] ?? '')));
         case 'reserve':
-            only_post();
+            only_post(); same_origin_only();
             out(create_public_reservation($in), 201);
         case 'login':
             only_post();
             out(login($in));
+
+        /* Cuentas de clientes (cookie de sesión, solo desde la propia web) */
+        case 'c_me':
+            out(['customer' => customer_out(current_customer())]);
+        case 'c_register':
+            only_post(); same_origin_only();
+            out(customer_register($in), 201);
+        case 'c_login':
+            only_post(); same_origin_only();
+            out(customer_login($in));
+        case 'c_logout':
+            only_post(); same_origin_only();
+            customer_logout();
+            out(true);
+        case 'c_reservations':
+            out(customer_reservations(require_customer()));
+        case 'c_cancel':
+            only_post(); same_origin_only();
+            out(customer_cancel(require_customer(), $id));
+        case 'c_profile':
+            only_post(); same_origin_only();
+            out(customer_update(require_customer(), $in));
+        case 'c_delete':
+            only_post(); same_origin_only();
+            customer_delete(require_customer(), $in);
+            out(true);
     }
 
     /* ---------- Gestión (requieren sesión) ---------- */
@@ -123,6 +149,6 @@ try {
 function public_info(): array
 {
     $s = settings();
-    $keys = ['name', 'tagline', 'description', 'address', 'city', 'phone', 'whatsapp', 'email', 'instagram', 'hours', 'closed_dates', 'max_people', 'days_ahead'];
+    $keys = ['name', 'tagline', 'description', 'address', 'city', 'phone', 'whatsapp', 'email', 'instagram', 'hours', 'closed_dates', 'max_people', 'days_ahead', 'cancel_hours', 'late_minutes', 'policies', 'auto_confirm'];
     return array_intersect_key($s, array_flip($keys)) + ['today' => today()];
 }
