@@ -129,7 +129,13 @@ try {
             out(true);
 
         case 'settings':
-            out(settings() + ['allergens' => allergen_list()]);
+            out(settings() + ['allergens' => allergen_list(), 'web_photos' => web_photos_info()]);
+        case 'web_photo':
+            only_post();
+            out(web_photo_set((string)($in['key'] ?? ''), $_FILES['photo'] ?? null));
+        case 'web_photo_reset':
+            only_post();
+            out(web_photo_reset((string)($in['key'] ?? '')));
         case 'settings_save':
             only_post();
             out(settings_save($in));

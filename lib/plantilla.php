@@ -5,11 +5,18 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/tema.php';
 
-const ASSET_V = '13';
+const ASSET_V = '14';
 
 function tel_href(string $t): string
 {
     return 'tel:' . preg_replace('/[^\d+]/', '', $t);
+}
+
+function maps_href(): string
+{
+    $s = settings();
+    if ($s['maps_url'] !== '') return social_url('', $s['maps_url']);
+    return 'https://www.google.com/maps/search/?api=1&query=' . urlencode(trim($s['name'] . ' ' . $s['address'] . ' ' . $s['city']));
 }
 
 function wa_number(string $t): string
@@ -90,7 +97,7 @@ function site_footer(): void
     ?>
 <footer class="ft">
   <div class="wrap">
-    <p class="ft-big">¿Cenamos?</p>
+    <?php if ($s['footer_title'] !== ''): ?><p class="ft-big"><?= h($s['footer_title']) ?></p><?php endif; ?>
     <div class="ft-cols">
       <div>
         <h2>Horario</h2>
@@ -102,21 +109,24 @@ function site_footer(): void
       </div>
       <div>
         <h2>Contacto</h2>
-        <?php if ($s['address']): ?><p><?= h($s['address']) ?><?= $s['city'] ? '<br>' . h($s['city']) : '' ?></p><?php endif; ?>
+        <?php if ($s['address']): ?><p><?= h($s['address']) ?><?= $s['city'] ? '<br>' . h($s['city']) : '' ?><br><a href="<?= h(maps_href()) ?>" target="_blank" rel="noopener">Cómo llegar</a></p><?php endif; ?>
         <p>
           <?php if ($s['phone']): ?><a href="<?= h(tel_href($s['phone'])) ?>"><?= h($s['phone']) ?></a><br><?php endif; ?>
           <?php if ($s['email']): ?><a href="mailto:<?= h($s['email']) ?>"><?= h($s['email']) ?></a><br><?php endif; ?>
-          <?php if ($wa): ?><a href="https://wa.me/<?= h($wa) ?>" target="_blank" rel="noopener">WhatsApp</a><br><?php endif; ?>
-          <?php if ($s['instagram']): ?><a href="https://instagram.com/<?= h(ltrim($s['instagram'], '@')) ?>" target="_blank" rel="noopener">Instagram</a><?php endif; ?>
+          <?php if ($wa): ?><a href="https://wa.me/<?= h($wa) ?>" target="_blank" rel="noopener">WhatsApp</a><?php endif; ?>
         </p>
+        <?php $nets = array_filter(['Instagram' => social_url('instagram', $s['instagram']), 'Facebook' => social_url('facebook', $s['facebook']), 'TikTok' => social_url('tiktok', $s['tiktok']), 'TripAdvisor' => social_url('tripadvisor', $s['tripadvisor'])]); ?>
+        <?php if ($nets): ?>
+          <p class="ft-redes"><?php foreach ($nets as $label => $url): ?><a href="<?= h($url) ?>" target="_blank" rel="noopener"><?= $label ?></a><?php endforeach; ?></p>
+        <?php endif; ?>
       </div>
       <div>
         <h2>Más</h2>
         <p><a href="cuenta.php">Mi cuenta</a><br><a href="./#politicas">Políticas de reserva</a><br><a href="legal.php#aviso">Aviso legal</a><br><a href="legal.php#privacidad">Privacidad</a><br><a href="legal.php#cookies">Cookies</a></p>
       </div>
     </div>
-    <p class="ft-legal">© <?= date('Y') ?> <?= h($s['name']) ?>. Fotos de
-      <?php $i = 0; foreach (PHOTOS as $p): if (!isset($p['by'])) continue; ?><?= $i++ ? ', ' : '' ?><a href="<?= h($p['url']) ?>" target="_blank" rel="noopener"><?= h($p['by']) ?></a><?php endforeach; ?> en Unsplash.</p>
+    <p class="ft-legal">© <?= date('Y') ?> <?= h($s['name']) ?>.<?php $cr = photo_credits(); if ($cr): ?> Fotos de
+      <?php $i = 0; foreach ($cr as $p): ?><?= $i++ ? ', ' : '' ?><a href="<?= h($p['url']) ?>" target="_blank" rel="noopener"><?= h($p['by']) ?></a><?php endforeach; ?> en Unsplash.<?php endif; ?></p>
   </div>
 </footer>
     <?php

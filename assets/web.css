@@ -307,8 +307,10 @@ body.menu-open { overflow: hidden; }
 .portada-abrir { border: 1px solid rgba(196, 162, 109, .6); background: none; color: var(--oro); border-radius: 999px; min-height: 46px; padding: 0 24px; font-weight: 600; cursor: pointer; }
 .portada-abrir:hover { background: var(--oro); color: #17120F; }
 
-.mini-alg { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 12px 18px; }
-.mini-alg li { display: flex; align-items: center; gap: 10px; font-size: .95rem; }
+.mini-alg { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 14px 22px; }
+.mini-alg li { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+.mini-alg strong { display: block; font-family: var(--display); font-weight: 500; font-size: 1.05rem; line-height: 1.2; }
+.mini-alg small { display: block; color: var(--tinta-2); font-size: .8rem; line-height: 1.4; margin-top: 2px; }
 .mini-alg li.sin-uso { opacity: .45; }
 .hoja-nota { margin: 22px 0 0; text-align: center; color: var(--tinta-2); font-size: .92rem; }
 
@@ -333,15 +335,6 @@ body.menu-open { overflow: hidden; }
 .libro:not(.is-book) .libro-flecha, .libro:not(.is-book) .esquina, .libro:not(.is-book) .libro-pagina { display: none; }
 .libro:not(.is-book) .hojas::before, .libro:not(.is-book) .hojas::after { display: none; }
 .libro.is-book .hojas { touch-action: pan-y; }
-
-/* Leyenda de alérgenos bajo la carta */
-.alergenos { margin-top: clamp(56px, 8vw, 96px); }
-.alergenos h3 { font-family: var(--display); font-weight: 400; font-size: clamp(1.8rem, 4vw, 2.6rem); margin: 0 0 8px; }
-.alergenos-intro { color: var(--ceniza); margin: 0 0 28px; max-width: 60ch; }
-.al-lista { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); gap: 4px 32px; }
-.al-lista li { display: flex; gap: 16px; align-items: flex-start; padding: 16px 0; border-top: 1px solid var(--linea); }
-.al-lista strong { display: block; font-weight: 600; font-size: 1.05rem; }
-.al-lista p { margin: 4px 0 0; color: var(--ceniza); font-size: .93rem; line-height: 1.5; }
 
 /* ---------- Galería ---------- */
 .gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
@@ -397,6 +390,7 @@ body.menu-open { overflow: hidden; }
 .ft-hours { list-style: none; margin: 0; padding: 0; max-width: 340px; }
 .ft-hours li { display: flex; justify-content: space-between; gap: 16px; padding: 4px 0; color: var(--ceniza); font-variant-numeric: tabular-nums; }
 .ft-hours li.is-today { color: var(--hueso); }
+.ft-redes { display: flex; flex-wrap: wrap; gap: 6px 16px; }
 .ft-legal { margin-top: 56px !important; font-size: .82rem; color: var(--ceniza); }
 
 .wa-float {
@@ -629,3 +623,14 @@ html, body { max-width: 100%; }
   /* En la portada, el botón de reservar de la cabecera vuelve mientras no hay barra inferior */
   .home:not(.is-scrolled) .hd-book { display: inline-flex; }
 }
+
+/* ---------- Que nada se descoloque con textos largos o muchas secciones ---------- */
+.hd-brand { max-width: 46vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.marcas a { max-width: 18ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.portada-name { font-size: min(clamp(3.6rem, 13vw, 6.2rem), calc(var(--ancho) * 1.02 / var(--n, 5))); overflow-wrap: anywhere; }
+.hoja-titulo, .plato-nombre, .indice-nombre, .acc-when, .about-text, .ft-big, .title { overflow-wrap: anywhere; hyphens: auto; }
+.plato-txt, .indice a > .indice-nombre { min-width: 0; }
+.indice-nombre { flex: 0 1 auto; }
+.plato-alg { max-width: 100%; }
+.hero-brand.is-long { white-space: normal; line-height: .92; text-align: left; margin: 0; letter-spacing: -.02em; padding-bottom: .1em; }
+.portada-name { line-height: 1.05; }
