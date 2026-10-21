@@ -90,7 +90,19 @@ try {
             logout();
             out(true);
         case 'me':
-            out(['user' => $user['username'], 'restaurant' => settings()['name'], 'today' => today()]);
+            out(['user' => $user['username'], 'restaurant' => settings()['name'], 'today' => today(), 'me' => user_out($user)]);
+        case 'users':
+            require_admin($user);
+            out(['users' => users_list(), 'perms' => PERMS]);
+        case 'user_save':
+            only_post();
+            require_admin($user);
+            out(user_save($user, $in));
+        case 'user_delete':
+            only_post();
+            require_admin($user);
+            user_delete($user, $id);
+            out(true);
 
         case 'reservations':
             $from = (string)($_GET['from'] ?? today());
@@ -105,12 +117,15 @@ try {
             out(day_slots((string)($_GET['date'] ?? ''), true));
         case 'reservation_status':
             only_post();
+            require_perm($user, 'reservas');
             out(set_reservation_status($id, (string)($in['status'] ?? '')));
         case 'reservation_save':
             only_post();
+            require_perm($user, 'reservas');
             out(save_reservation($in));
         case 'reservation_delete':
             only_post();
+            require_perm($user, 'reservas');
             delete_reservation($id);
             out(true);
 
@@ -118,27 +133,34 @@ try {
             out(menu_data(true));
         case 'category_save':
             only_post();
+            require_perm($user, 'carta');
             out(save_category($in));
         case 'category_delete':
             only_post();
+            require_perm($user, 'carta');
             delete_category($id);
             out(true);
         case 'category_move':
             only_post();
+            require_perm($user, 'carta');
             move_category($id, (int)($in['dir'] ?? 1));
             out(true);
         case 'dish_save':
             only_post();
+            require_perm($user, 'carta');
             out(save_dish($in, $_FILES['photo'] ?? null));
         case 'dish_toggle':
             only_post();
+            require_perm($user, 'carta');
             out(toggle_dish($id, filter_var($in['available'] ?? false, FILTER_VALIDATE_BOOLEAN)));
         case 'dish_move':
             only_post();
+            require_perm($user, 'carta');
             move_dish($id, (int)($in['dir'] ?? 1));
             out(true);
         case 'dish_delete':
             only_post();
+            require_perm($user, 'carta');
             delete_dish($id);
             out(true);
 
@@ -146,16 +168,22 @@ try {
             out(settings_admin() + ['allergens' => allergen_list(), 'web_photos' => web_photos_info()]);
         case 'web_photo':
             only_post();
+            require_perm($user, 'ajustes');
             out(web_photo_set((string)($in['key'] ?? ''), $_FILES['photo'] ?? null));
         case 'web_photo_reset':
             only_post();
+            require_perm($user, 'ajustes');
             out(web_photo_reset((string)($in['key'] ?? '')));
         case 'settings_save':
             only_post();
+            // Cerrar o abrir días sueltos lo puede hacer quien gestiona reservas; lo demás, quien tiene «ajustes»
+            if (array_keys($in) === ['closed_dates']) require_perm($user, user_can($user, 'ajustes') ? 'ajustes' : 'reservas');
+            else require_perm($user, 'ajustes');
             settings_save($in);
             out(settings_admin());
         case 'mail_test':
             only_post();
+            require_perm($user, 'ajustes');
             $to = trim((string)($in['to'] ?? '')) ?: (settings()['notify_email'] ?: settings()['email']);
             if (!filter_var($to, FILTER_VALIDATE_EMAIL)) throw new ValidationError('Pon antes el email para avisos de reservas (en Contacto)');
             $s = settings();

@@ -45,8 +45,9 @@ header('X-Robots-Tag: noindex');
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $id = (int)($_POST['r'] ?? 0);
     $token = (string)($_POST['t'] ?? '');
-    confirm_by_customer($id, $token);
-    header('Location: confirmar.php?r=' . $id . '&t=' . rawurlencode($token) . '&hecho=1', true, 303);
+    if (($_POST['accion'] ?? '') === 'cancelar') cancel_by_link($id, $token);
+    else confirm_by_customer($id, $token);
+    header('Location: confirmar.php?r=' . $id . '&t=' . rawurlencode($token) . (($_POST['accion'] ?? '') === 'cancelar' ? '' : '&hecho=1'), true, 303);
     exit;
 }
 [$state, $r] = peek_by_customer($id, $token);
@@ -55,7 +56,9 @@ $ok = in_array($state, ['confirmada', 'ya'], true);
 $pend = $state === 'pendiente';
 
 $errors = [
-    'cancelada' => ['Esta reserva está cancelada', 'Si quieres venir, haz una reserva nueva: tardas un minuto.'],
+    'cancelada' => ($r['cancel_by'] ?? '') === 'restaurante'
+        ? ['Reserva cancelada', 'El restaurante ha cancelado esta reserva.' . ($s['phone'] ? ' Si tienes dudas, llámanos al ' . $s['phone'] . '.' : '')]
+        : ['Reserva cancelada', 'Tu reserva está cancelada. Si quieres venir otro día, haz una reserva nueva: tardas un minuto.'],
     'rechazada' => ['No pudimos atender esta reserva', 'Prueba con otro día u otra hora.'],
     'pasada'    => ['Este enlace ha caducado', 'La fecha de la reserva ya ha pasado.'],
     'invalido'  => ['Este enlace no funciona', 'Puede que se haya copiado incompleto. Ábrelo otra vez desde el WhatsApp o haz una reserva nueva.'],
@@ -112,6 +115,12 @@ site_header(current_customer());
       <?php if (current_customer()): ?><br>También la tienes en <a href="cuenta.php">tus reservas</a>.<?php endif; ?>
     </p>
     <?php endif; ?>
+    <form class="cf-cancel" method="post" action="confirmar.php" onsubmit="return confirm('¿Seguro que quieres cancelar la reserva?')">
+      <input type="hidden" name="r" value="<?= (int)$r['id'] ?>">
+      <input type="hidden" name="t" value="<?= h($token) ?>">
+      <input type="hidden" name="accion" value="cancelar">
+      <span>¿No puedes venir?</span> <button type="submit">Cancelar la reserva</button>
+    </form>
   <?php else: [$title, $text] = $errors[$state]; ?>
     <p class="cf-mark is-off" aria-hidden="true">—</p>
     <h1 class="cf-title"><?= h($title) ?></h1>

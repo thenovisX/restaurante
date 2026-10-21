@@ -332,3 +332,21 @@ a { color: inherit; }
 .local-s { margin: 2px 0 0; font-size: .88rem; color: var(--granito); }
 .local-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 5px; background: var(--gris-bg); }
 .local-bar::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--p); background: var(--alga); }
+
+/* Usuarios y buscador de ajustes */
+.set-none { color: var(--granito); margin: 0 0 12px; }
+.user-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; text-align: left; background: var(--fondo); border: 0; border-radius: 12px; padding: 12px; margin-bottom: 6px; }
+.user-row.off { opacity: .55; }
+.user-main { display: grid; min-width: 0; }
+.user-main b { overflow-wrap: anywhere; }
+.user-main small { color: var(--granito); }
+.user-tags { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
+.tag { font-style: normal; font-size: .75rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--alga-bg); color: var(--alga); }
+.tag-admin { background: var(--mar); color: #fff; }
+.tag-ver { background: var(--gris-bg); color: var(--granito); }
+.chips input[type=radio] + span { padding: 6px 14px; }
+/* El editor de horarios cabe siempre en el ancho del móvil */
+.hours-row { grid-template-columns: 84px minmax(0, 1fr); }
+.hours-day, .hours-day > div, .set-body, .set-body .form { min-width: 0; }
+.range input { flex: 1 1 0; min-width: 0; }
+.hours-day .switch-row { gap: 8px; }

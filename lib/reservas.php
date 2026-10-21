@@ -38,6 +38,11 @@ function day_slots(string $date, bool $ignoreRules = false): array
 
     $ranges = $s['hours'][date('N', strtotime($date))] ?? [];
     if (!$ranges) return ['reason' => 'Ese día el restaurante cierra'] + $res;
+    // Con horario de cocina, solo se puede reservar mientras la cocina está abierta
+    if ($s['kitchen_on']) {
+        $ranges = $s['kitchen_hours'][date('N', strtotime($date))] ?? [];
+        if (!$ranges) return ['reason' => 'Ese día la cocina no abre'] + $res;
+    }
 
     // Reservas del día que ocupan sitio: [inicio en segundos, personas]
     $ph = implode(',', array_fill(0, count(RES_ACTIVE), '?'));
@@ -260,20 +265,21 @@ function res_out(array $r): array
         'date' => $r['rdate'], 'time' => $r['rtime'], 'people' => (int)$r['people'], 'notes' => dec($r['notes']),
         'status' => $r['status'], 'source' => $r['source'], 'created_at' => $r['created_at'],
         'customer' => (int)($r['customer_id'] ?? 0) > 0,
+        'cancel_by' => (string)($r['cancel_by'] ?? ''),   // cliente o restaurante
     ];
 }
 
 function list_reservations(string $from, string $to): array
 {
     if (!is_date($from) || !is_date($to)) throw new ValidationError('Fechas no válidas');
-    $rows = q('SELECT * FROM reservations WHERE rdate BETWEEN ? AND ? ORDER BY rdate, rtime, id', [$from, $to])->fetchAll();
+    $rows = q('SELECT * FROM reservations WHERE deleted = 0 AND rdate BETWEEN ? AND ? ORDER BY rdate, rtime, id', [$from, $to])->fetchAll();
     return array_map('res_admin', $rows);
 }
 
 /** Peticiones para la pestaña del panel: nuevas y las que esperan a que el cliente confirme. */
 function list_requests(): array
 {
-    $rows = q("SELECT * FROM reservations WHERE status IN ('pendiente', 'esperando') AND rdate >= ? ORDER BY rdate, rtime, id", [today()])->fetchAll();
+    $rows = q("SELECT * FROM reservations WHERE deleted = 0 AND status IN ('pendiente', 'esperando') AND rdate >= ? ORDER BY rdate, rtime, id", [today()])->fetchAll();
     $o = ['nuevas' => [], 'esperando' => []];
     foreach ($rows as $row) {
         $r = res_admin($row);
@@ -288,7 +294,7 @@ function month_summary(string $month): array
     if (!preg_match('/^\d{4}-\d{2}$/', $month)) throw new ValidationError('Mes no válido');
     $from = "$month-01";
     $to = date('Y-m-t', strtotime($from));
-    $rows = q('SELECT rdate, status, people FROM reservations WHERE rdate BETWEEN ? AND ?', [$from, $to])->fetchAll();
+    $rows = q('SELECT rdate, status, people FROM reservations WHERE deleted = 0 AND rdate BETWEEN ? AND ?', [$from, $to])->fetchAll();
     $days = [];
     foreach ($rows as $r) {
         if (!in_array($r['status'], RES_ACTIVE, true)) continue;
@@ -313,7 +319,7 @@ function changes(int $since): array
     $waiting = (int)q("SELECT COUNT(*) FROM reservations WHERE status = 'esperando' AND rdate >= ?", [today()])->fetchColumn();
     $new = [];
     if ($since > 0) {
-        $new = array_map('res_admin', q("SELECT * FROM reservations WHERE seq > ? AND source = 'web' AND status IN ('pendiente', 'confirmada') ORDER BY seq", [$since])->fetchAll());
+        $new = array_map('res_admin', q("SELECT * FROM reservations WHERE seq > ? AND deleted = 0 AND source = 'web' AND (status IN ('pendiente', 'confirmada') OR (status = 'cancelada' AND cancel_by = 'cliente')) ORDER BY seq", [$since])->fetchAll());
     }
     return ['last_id' => $last, 'pending' => $pending, 'waiting' => $waiting, 'new' => $new];
 }
@@ -322,7 +328,7 @@ function set_reservation_status(int $id, string $status): array
 {
     if (!in_array($status, RES_STATUSES, true)) throw new ValidationError('Estado no válido');
     $before = get_reservation($id);
-    q('UPDATE reservations SET status = ?, updated_at = ? WHERE id = ?', [$status, now(), $id]);
+    q('UPDATE reservations SET status = ?, cancel_by = ?, updated_at = ? WHERE id = ?', [$status, $status === 'cancelada' ? 'restaurante' : '', now(), $id]);
     $after = get_reservation($id);
     if ($before['status'] !== $status) notify_customer($after);
     return get_reservation_admin($id);
@@ -349,9 +355,29 @@ function save_reservation(array $in): array
     return get_reservation_admin((int)db()->lastInsertId());
 }
 
+/**
+ * Borrar desde el panel: desaparece de la app, pero se guarda como cancelada hasta que pasa su hora para que
+ * el enlace del cliente diga «reserva cancelada» y no «enlace no válido». Luego se borra del todo.
+ */
 function delete_reservation(int $id): void
 {
-    q('DELETE FROM reservations WHERE id = ?', [$id]);
+    q("UPDATE reservations SET status = 'cancelada', cancel_by = 'restaurante', deleted = 1, updated_at = ? WHERE id = ?", [now(), $id]);
+}
+
+/** El cliente cancela desde el enlace del WhatsApp o del email (solo por POST). Devuelve [estado, reserva]. */
+function cancel_by_link(int $id, string $token): array
+{
+    [$state, $r] = peek_by_customer($id, $token);
+    if (!in_array($state, ['pendiente', 'ya'], true)) return [$state, $r];
+    q("UPDATE reservations SET status = 'cancelada', cancel_by = 'cliente', updated_at = ?, seq = ? WHERE id = ?", [now(), next_seq(), $id]);
+    $row = q('SELECT customer_id FROM reservations WHERE id = ?', [$id])->fetch();
+    audit('reserva_cancelada_cliente', (int)$row['customer_id'], "Reserva #$id cancelada desde el enlace");
+    $r = get_reservation($id);
+    $s = settings();
+    send_mail($s['notify_email'] ?: $s['email'], "Reserva cancelada por el cliente: {$r['name']}, " . fmt_date_es($r['date']) . " {$r['time']}",
+        "{$r['name']} ha cancelado su reserva desde el enlace.\n\nDía: " . fmt_date_es($r['date']) . " a las {$r['time']}\nPersonas: {$r['people']}");
+    notify_customer($r);
+    return ['cancelada', $r];
 }
 
 function notify_customer(array $r): void
