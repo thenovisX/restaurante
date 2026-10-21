@@ -13,9 +13,6 @@ $customer = current_customer();
 $menu = menu_data(false);
 $todayClosed = in_array(today(), $s['closed_dates'], true);
 $todayRanges = $todayClosed ? [] : ($s['hours'][date('N')] ?? []);
-$allergens = [];
-foreach ($menu['allergens'] as $a) $allergens[$a['key']] = $a;
-$price = fn(float $p) => number_format($p, 2, ',', '.') . ' €';
 
 // La palabra grande de la portada ocupa todo el ancho, sea cual sea el nombre
 $brand = mb_strtoupper($s['name']);
@@ -87,57 +84,7 @@ page_start($s['name'] . ' · ' . $s['tagline'], '', 'home');
     </div>
   </section>
 
-  <section class="carta" id="carta" aria-labelledby="carta-t">
-    <div class="wrap carta-grid">
-      <div class="carta-side">
-        <h2 id="carta-t" class="title">La carta</h2>
-        <?php if ($menu['categories']): ?>
-          <nav class="cats" aria-label="Secciones de la carta">
-            <?php foreach ($menu['categories'] as $c): ?><a href="#cat-<?= $c['id'] ?>"><?= h($c['name']) ?></a><?php endforeach; ?>
-          </nav>
-          <p class="carta-note">Si tienes alguna alergia, dínoslo al reservar o al pedir. Las letras junto a cada plato indican sus alérgenos.</p>
-        <?php endif; ?>
-      </div>
-      <div class="carta-list">
-        <?php if (!$menu['categories']): ?>
-          <p class="muted">Estamos preparando la carta. Pregúntanos por los platos del día.</p>
-        <?php endif; ?>
-        <?php foreach ($menu['categories'] as $c): ?>
-          <div class="cat" id="cat-<?= $c['id'] ?>">
-            <h3><?= h($c['name']) ?></h3>
-            <ul class="dishes">
-              <?php foreach ($c['dishes'] as $d): ?>
-                <li class="dish<?= $d['photo'] ? ' has-photo' : '' ?>">
-                  <?php if ($d['photo']): ?><img src="<?= h($d['photo']) ?>" alt="" loading="lazy" width="80" height="80"><?php endif; ?>
-                  <div class="dish-body">
-                    <p class="dish-line">
-                      <span class="dish-name"><?= h($d['name']) ?></span>
-                      <span class="leader" aria-hidden="true"></span>
-                      <span class="dish-price"><?= $price($d['price']) ?></span>
-                    </p>
-                    <?php if ($d['description'] || $d['featured']): ?>
-                      <p class="dish-desc"><?php if ($d['featured']): ?><span class="house">De la casa.</span> <?php endif; ?><?= h($d['description']) ?></p>
-                    <?php endif; ?>
-                    <?php if ($d['allergens']): ?>
-                      <p class="alg" aria-label="Alérgenos: <?= h(implode(', ', array_map(fn($k) => $allergens[$k]['name'] ?? $k, $d['allergens']))) ?>">
-                        <?php foreach ($d['allergens'] as $k): if (!isset($allergens[$k])) continue; ?><abbr title="<?= h($allergens[$k]['name']) ?>"><?= h($allergens[$k]['abbr']) ?></abbr><?php endforeach; ?>
-                      </p>
-                    <?php endif; ?>
-                  </div>
-                </li>
-              <?php endforeach; ?>
-            </ul>
-          </div>
-        <?php endforeach; ?>
-        <?php if ($menu['categories']): ?>
-          <details class="legend">
-            <summary>Qué significa cada letra</summary>
-            <ul><?php foreach ($menu['allergens'] as $a): ?><li><abbr><?= h($a['abbr']) ?></abbr><?= h($a['name']) ?></li><?php endforeach; ?></ul>
-          </details>
-        <?php endif; ?>
-      </div>
-    </div>
-  </section>
+  <?php include __DIR__ . '/lib/carta-libro.php'; ?>
 
   <section class="gallery" aria-label="Fotos">
     <?php foreach (['barra', 'plato', 'coctel'] as $g): ?>

@@ -180,7 +180,7 @@ a { color: inherit; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chips label { display: block; }
 .chips input { position: absolute; opacity: 0; }
-.chips span { display: inline-block; padding: 8px 12px; border-radius: 999px; border: 1.5px solid #BCC5C1; font-weight: 500; font-size: .9rem; }
+.chips span { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px 6px 6px; border-radius: 999px; border: 1.5px solid #BCC5C1; font-weight: 500; font-size: .9rem; }
 .chips input:checked + span { background: var(--mar); border-color: var(--mar); color: #fff; }
 .chips input:focus-visible + span { outline: 3px solid var(--pimenton); outline-offset: 2px; }
 .photo { display: flex; align-items: center; gap: 12px; }
@@ -224,3 +224,6 @@ a { color: inherit; }
 .t { max-width: 520px; background: var(--mar); color: #fff; padding: 12px 16px; border-radius: 14px; box-shadow: 0 6px 18px rgba(0,0,0,.2); font-weight: 600; animation: up .2s ease-out; pointer-events: auto; }
 .t.err { background: #8A2219; }
 .t.new { background: var(--alga); }
+
+.al-ic { display: inline-block; flex: none; vertical-align: middle; }
+.md-alg { display: flex; flex-wrap: wrap; gap: 3px; margin: 5px 0 0; }

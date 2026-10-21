@@ -6,7 +6,9 @@ Web pública (diseño nocturno, restaurante de ejemplo «Novia») con:
 - **Cuentas de clientes**: registro y acceso. El cliente ve sus reservas, las cancela él mismo hasta X horas antes, edita sus datos y puede borrar su cuenta.
 - **Políticas de reserva**: plazo de cancelación, minutos de cortesía y normas propias (grupos, alergias, niños, mascotas…), editables desde la app.
 - **Instalable como app desde el navegador** (PWA): botón «Instalar la app» en Android y escritorio, e instrucciones para iPhone. El icono se genera solo con la inicial del restaurante.
-- **Carta** con alérgenos, horario, contacto y textos legales.
+- **Carta como un librito de papel** que se hojea (flechas, deslizando el dedo o tocando la esquina), con portada, pestañas de índice y una página por sección.
+- **Alérgenos con iconos de colores** (dibujo propio, `web/assets/alergenos.svg`) junto a cada plato y la explicación de los 14 debajo de la carta.
+- Horario, contacto y textos legales.
 - Las fotos son de Unsplash (licencia gratuita, se muestran los autores en el pie). Para usar fotos propias, cambia las direcciones en `web/lib/tema.php`.
 
 Más una **app de gestión** para el móvil con tres secciones:

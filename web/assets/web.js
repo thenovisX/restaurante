@@ -327,16 +327,83 @@
     });
   });
 
-  /* ---------- Carta: resalta la sección visible ---------- */
-  var catLinks = $$('.cats a');
-  if (catLinks.length && 'IntersectionObserver' in window) {
-    var io = new IntersectionObserver(function (entries) {
-      entries.forEach(function (en) {
-        if (!en.isIntersecting) return;
-        catLinks.forEach(function (a) { a.classList.toggle('is-on', a.getAttribute('href') === '#' + en.target.id); });
-      });
-    }, { rootMargin: '-40% 0px -55% 0px' });
-    $$('.cat').forEach(function (c) { io.observe(c); });
+  /* ---------- Carta: librito que se hojea ---------- */
+  var libro = $('#libro');
+  if (libro) {
+    var stage = $('.hojas', libro);
+    var hojas = $$('.hoja', libro);
+    var marcas = $$('.marcas a', libro);
+    var flechas = $$('.libro-flecha', libro);
+    var pagina = $('#libro-pagina');
+    var cur = 0, turning = false;
+    libro.classList.add('is-book');
+
+    var fitHeight = function () { stage.style.height = hojas[cur].offsetHeight + 'px'; };
+    var update = function () {
+      var last = hojas.length - 1;
+      pagina.textContent = cur === 0 ? 'Portada' : hojas[cur].dataset.label + ' · página ' + cur + ' de ' + last;
+      flechas[0].disabled = cur === 0;
+      flechas[1].disabled = cur === last;
+      marcas.forEach(function (m) { m.classList.toggle('is-on', +m.dataset.goto === cur); });
+      var on = marcas.filter(function (m) { return m.classList.contains('is-on'); })[0];
+      if (on) on.scrollIntoView({ block: 'nearest', inline: 'center', behavior: reduce ? 'auto' : 'smooth' });
+    };
+    var go = function (i) {
+      if (i < 0 || i >= hojas.length || i === cur || turning) return;
+      var forward = i > cur, from = hojas[cur], to = hojas[i];
+      to.classList.add('is-on');
+      cur = i;
+      fitHeight();
+      update();
+      // Si la carta queda por encima de la pantalla, vuelve al principio de la hoja
+      var top = libro.getBoundingClientRect().top;
+      if (top < 0) window.scrollTo({ top: window.scrollY + top - 90, behavior: reduce ? 'auto' : 'smooth' });
+      if (reduce) { from.classList.remove('is-on'); return; }
+      turning = true;
+      var moving = forward ? from : to;
+      if (forward) from.classList.remove('is-on');
+      moving.classList.add(forward ? 'pasa-ida' : 'pasa-vuelta');
+      setTimeout(function () {
+        moving.classList.remove('pasa-ida', 'pasa-vuelta');
+        if (!forward) from.classList.remove('is-on');
+        turning = false;
+      }, 620);
+    };
+
+    libro.addEventListener('click', function (e) {
+      var d = e.target.closest('[data-dir]');
+      if (d) { go(cur + (+d.dataset.dir)); return; }
+      var m = e.target.closest('[data-goto]');
+      if (m) { e.preventDefault(); go(+m.dataset.goto); }
+    });
+    stage.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowRight') { e.preventDefault(); go(cur + 1); }
+      if (e.key === 'ArrowLeft') { e.preventDefault(); go(cur - 1); }
+    });
+    // Deslizar con el dedo
+    var x0 = null, y0 = 0;
+    stage.addEventListener('pointerdown', function (e) { if (e.pointerType !== 'mouse') { x0 = e.clientX; y0 = e.clientY; } });
+    stage.addEventListener('pointerup', function (e) {
+      if (x0 === null) return;
+      var dx = e.clientX - x0, dy = e.clientY - y0;
+      x0 = null;
+      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.4) go(cur + (dx < 0 ? 1 : -1));
+    });
+    stage.addEventListener('pointercancel', function () { x0 = null; });
+
+    window.addEventListener('resize', fitHeight);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitHeight);
+    $$('img', stage).forEach(function (img) { img.addEventListener('load', fitHeight); });
+    fitHeight();
+    update();
+    // Enlaces a una sección concreta (#cat-3)
+    var fromHash = function () {
+      var target = location.hash && document.getElementById(location.hash.slice(1));
+      var idx = hojas.indexOf(target);
+      if (idx > 0) { go(idx); }
+    };
+    fromHash();
+    window.addEventListener('hashchange', fromHash);
   }
 
   /* ---------- Instalar como app ---------- */

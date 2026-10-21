@@ -1,6 +1,6 @@
 /* Service worker del panel (solo cuando se usa desde el navegador / iPhone). */
-const CACHE = 'panel-v2';
-const SHELL = ['./', 'index.html', 'app.css?v=2', 'app.js?v=2', 'manifest.webmanifest', 'icons/icon-192.png'];
+const CACHE = 'panel-v3';
+const SHELL = ['./', 'index.html', 'app.css?v=3', 'app.js?v=3', 'manifest.webmanifest', 'icons/icon-192.png', 'alergenos.svg?v=3'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
