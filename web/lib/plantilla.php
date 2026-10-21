@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/tema.php';
 
-const ASSET_V = '10';
+const ASSET_V = '11';
 
 function tel_href(string $t): string
 {
@@ -122,8 +122,22 @@ function site_footer(): void
     <?php
 }
 
+function mobile_bar(): void
+{
+    $s = settings();
+    $wa = wa_number($s['whatsapp']);
+    ?>
+<nav class="mbar" aria-label="Acciones rápidas">
+  <a class="btn btn-rubor" href="./#reservar" data-book>Reservar mesa</a>
+  <?php if ($s['phone']): ?><a class="mbar-ic" href="<?= h(tel_href($s['phone'])) ?>" aria-label="Llamar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2Z"/></svg></a><?php endif; ?>
+  <?php if ($wa): ?><a class="mbar-ic" href="https://wa.me/<?= h($wa) ?>" target="_blank" rel="noopener" aria-label="WhatsApp"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.2 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.4-.3Z"/></svg></a><?php endif; ?>
+</nav>
+    <?php
+}
+
 function page_end(array $data = []): void
 {
+    mobile_bar();
     $s = settings();
     $data += ['today' => today(), 'daysAhead' => (int)$s['days_ahead'], 'maxPeople' => (int)$s['max_people'], 'name' => $s['name'],
         'hours' => $s['hours'], 'closed' => $s['closed_dates'], 'phone' => $s['phone']];
