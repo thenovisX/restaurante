@@ -40,6 +40,101 @@
     setTimeout(function () { t.remove(); }, 3200);
   }
 
+  /* ---------- Movimiento: entrada, apariciones y parallax ---------- */
+  window.__motionOK = true;
+  var motion = document.documentElement.classList.contains('js-motion');
+  if (motion) {
+    var hero = $('.hero');
+    if (hero) requestAnimationFrame(function () { requestAnimationFrame(function () { hero.classList.add('is-in'); }); });
+
+    // Títulos con máscara
+    $$('.title').forEach(function (t) {
+      if (t.querySelector('.mask')) return;
+      t.innerHTML = '<span class="mask"><span class="mask-in">' + t.innerHTML + '</span></span>';
+      t.classList.add('rv-mask');
+    });
+    // Bloques que aparecen desde abajo, escalonados entre hermanos
+    var groups = ['.carta-intro', '.book-lead', '.book .btn-lg', '.book-alt', '.book-facts > div', '.pol-list details',
+      '.app-grid > div > p', '.app-actions', '.ft-cols > div', '.libro', '.ft-big', '.acc-lead', '.acc-box', '.acc-sec', '.legal h2', '.legal p'];
+    groups.forEach(function (sel) {
+      $$(sel).forEach(function (el, i) {
+        if (el.closest('.hero')) return;
+        el.classList.add('rv');
+        el.style.setProperty('--d', Math.min(i, 5) * 0.08 + 's');
+      });
+    });
+    // Texto de «Nosotros» palabra a palabra
+    var about = $('.about-text'), pals = [];
+    if (about) {
+      Array.prototype.slice.call(about.childNodes).forEach(function (n) {
+        if (n.nodeType !== 3) return;
+        var frag = document.createDocumentFragment();
+        n.textContent.split(/(\s+)/).forEach(function (w) {
+          if (!w) return;
+          if (/^\s+$/.test(w)) { frag.appendChild(document.createTextNode(w)); return; }
+          var sp = document.createElement('span');
+          sp.className = 'pal';
+          sp.textContent = w;
+          frag.appendChild(sp);
+        });
+        about.replaceChild(frag, n);
+      });
+      pals = $$('.pal', about);
+    }
+
+    var targets = $$('.rv, .rv-img, .rv-mask');
+    if ('IntersectionObserver' in window) {
+      var io2 = new IntersectionObserver(function (entries) {
+        entries.forEach(function (en) {
+          if (en.isIntersecting) { en.target.classList.add('is-in'); io2.unobserve(en.target); }
+        });
+      }, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' });
+      targets.forEach(function (t) { io2.observe(t); });
+    } else {
+      targets.forEach(function (t) { t.classList.add('is-in'); });
+    }
+
+    // Efectos ligados al scroll (solo transform y opacidad)
+    var media = $('#hero-media'), brand = $('.hero-brand'), skew = $('.ribbon-skew'), par = $$('[data-speed]');
+    var lastY = window.scrollY, vel = 0, queued = false;
+    var frame = function () {
+      queued = false;
+      var y = window.scrollY, vh = window.innerHeight;
+      if (media && y < vh * 1.3) {
+        media.style.transform = 'translate3d(0,' + (y * 0.35).toFixed(1) + 'px,0)';
+        if (brand) {
+          brand.style.transform = 'translate3d(0,' + (y * 0.16).toFixed(1) + 'px,0)';
+          brand.style.opacity = Math.max(0, 1 - y / (vh * 0.9)).toFixed(3);
+        }
+      }
+      if (pals.length) {
+        var r = about.getBoundingClientRect();
+        var p = Math.max(0, Math.min(1, (vh * 0.88 - r.top) / (r.height + vh * 0.3)));
+        var n = Math.round(p * pals.length);
+        for (var i = 0; i < pals.length; i++) pals[i].classList.toggle('on', i < n);
+      }
+      if (par.length && window.innerWidth > 640) {
+        par.forEach(function (f) {
+          var rr = f.getBoundingClientRect();
+          if (rr.bottom < -100 || rr.top > vh + 100) return;
+          var max = f.offsetHeight * 0.08;
+          var off = Math.max(-max, Math.min(max, (rr.top + rr.height / 2 - vh / 2) * +f.dataset.speed));
+          f.querySelector('img').style.translate = '0 ' + off.toFixed(1) + 'px';
+        });
+      }
+      if (skew) {
+        vel += ((y - lastY) - vel) * 0.25;
+        var k = Math.max(-9, Math.min(9, vel * 0.4));
+        skew.style.transform = 'skewX(' + (-k).toFixed(2) + 'deg)';
+        if (Math.abs(vel) > 0.05) { queued = true; requestAnimationFrame(frame); }
+      }
+      lastY = y;
+    };
+    window.addEventListener('scroll', function () { if (!queued) { queued = true; requestAnimationFrame(frame); } }, { passive: true });
+    window.addEventListener('resize', frame);
+    frame();
+  }
+
   /* ---------- Cabecera y menú ---------- */
   var hd = $('#hd');
   if (hd && hd.classList.contains('hd-over')) {

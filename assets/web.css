@@ -136,7 +136,10 @@ body.menu-open { overflow: hidden; }
   position: relative; min-height: 100svh; display: grid; grid-template-rows: auto 1fr auto;
   padding: calc(var(--hd-h) + env(safe-area-inset-top) + 20px) var(--gutter) 0; overflow: hidden; isolation: isolate;
 }
-.hero-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; }
+.hero-media { position: absolute; inset: -6% 0 0 0; z-index: -2; overflow: hidden; will-change: transform; }
+.hero-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.hero-brand .w { display: inline-block; white-space: nowrap; }
+.hero-brand .l { display: inline-block; }
 .hero::after {
   content: ""; position: absolute; inset: 0; z-index: -1;
   background: linear-gradient(180deg, rgba(0,0,0,.55) 0%, rgba(0,0,0,.15) 35%, rgba(0,0,0,.35) 60%, #000 100%);
@@ -745,3 +748,49 @@ html, body { max-width: 100%; }
 .acc-pendiente strong { color: var(--hueso); }
 .legal ul { color: var(--ceniza); max-width: 68ch; padding-left: 1.2em; }
 .legal li { margin-bottom: 8px; }
+
+/* =========================================================
+   MOVIMIENTO (solo si el visitante no pide reducir movimiento)
+   ========================================================= */
+:root { --ease-out: cubic-bezier(.16, 1, .3, 1); }
+
+/* Entrada de la portada */
+.js-motion .hero-img { transform: scale(1.14); transition: transform 2.8s var(--ease-out); }
+.js-motion .hero.is-in .hero-img { transform: scale(1); }
+.js-motion .hero-brand .w { overflow: hidden; vertical-align: bottom; padding-bottom: .04em; margin-bottom: -.04em; }
+.js-motion .hero-brand .l { transform: translateY(105%); transition: transform 1.15s var(--ease-out); transition-delay: calc(var(--i) * 55ms + 120ms); }
+.js-motion .hero.is-in .hero-brand .l { transform: none; }
+.js-motion .hero-top, .js-motion .hero-mid { opacity: 0; transform: translateY(18px); transition: opacity .9s ease, transform 1s var(--ease-out); }
+.js-motion .hero-top { transition-delay: .35s; }
+.js-motion .hero-mid { transition-delay: .55s; }
+.js-motion .hero.is-in .hero-top, .js-motion .hero.is-in .hero-mid { opacity: 1; transform: none; }
+.hero-brand { will-change: transform, opacity; }
+
+/* Aparecer al bajar */
+.js-motion .rv { opacity: 0; transform: translateY(42px); transition: opacity 1s ease, transform 1.1s var(--ease-out); transition-delay: var(--d, 0s); }
+.js-motion .rv.is-in { opacity: 1; transform: none; }
+/* Títulos que suben desde una máscara */
+.mask { display: block; overflow: hidden; padding-bottom: .08em; margin-bottom: -.08em; }
+.mask-in { display: block; }
+.js-motion .mask-in { transform: translateY(108%); transition: transform 1.15s var(--ease-out); transition-delay: var(--d, 0s); }
+.js-motion .is-in > .mask > .mask-in, .js-motion .mask.is-in > .mask-in { transform: none; }
+/* Fotos que se descubren con una cortinilla (el recorte va en la imagen para que el marco se pueda detectar) */
+.js-motion .rv-img img { clip-path: inset(100% 0 0 0); transform: scale(1.18); transition: clip-path 1.25s var(--ease-out), transform 1.8s var(--ease-out); transition-delay: var(--d, 0s); }
+.js-motion .rv-img.is-in img { clip-path: inset(0 0 0 0); transform: scale(1); }
+.gallery figure, .about figure { overflow: hidden; }
+.gallery figure img, .about figure img { will-change: transform; }
+
+/* Texto de «Nosotros»: las palabras se encienden al bajar */
+.js-motion .about-text .pal { opacity: .18; transition: opacity .35s ease; }
+.js-motion .about-text .pal.on { opacity: 1; }
+
+/* Cinta que se inclina con la velocidad */
+.ribbon-track { will-change: transform; }
+.ribbon-skew { display: block; transition: transform .25s ease-out; }
+
+/* Fotos con parallax: la imagen es algo más alta que su marco para poder moverse */
+.gallery figure { aspect-ratio: 3 / 4; }
+.gallery img { width: 100%; height: 118%; margin-top: -9%; aspect-ratio: auto; object-fit: cover; }
+.about-b { aspect-ratio: 4 / 5; }
+.about-b img { height: 118% !important; margin-top: -9%; aspect-ratio: auto !important; }
+@media (max-width: 640px) { .gallery figure { aspect-ratio: 4 / 5; } }
