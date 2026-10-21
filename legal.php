@@ -35,8 +35,25 @@ site_header(current_customer());
     Si crees que no los tratamos bien, puedes reclamar ante la Agencia Española de Protección de Datos (aepd.es).</p>
 
   <h2 id="cookies">Cookies</h2>
-  <p>Solo usamos una cookie técnica, <code>cliente_sesion</code>, cuando entras en tu cuenta, para mantener la sesión abierta. Es imprescindible para que la cuenta funcione y no se usa para nada más. No usamos cookies de publicidad ni de analítica.</p>
-  <p>Las fotos de la web se cargan desde Unsplash, que puede registrar tu visita como cualquier servidor de imágenes.</p>
+  <p>Las cookies son pequeños archivos que la web guarda en tu navegador. Las necesarias se usan siempre; las demás solo si las aceptas en el aviso de cookies. Puedes cambiar tu elección cuando quieras: <a href="#cookies" data-cookies>configurar cookies</a>.</p>
+  <table class="ck-tabla">
+    <thead><tr><th>Cookie</th><th>Para qué</th><th>De quién</th><th>Duración</th></tr></thead>
+    <tbody>
+      <tr><td>cookie_consent</td><td>Recordar tu elección sobre las cookies (necesaria)</td><td>Esta web</td><td>13 meses</td></tr>
+      <tr><td>cliente_sesion</td><td>Mantener abierta tu cuenta si entras (necesaria)</td><td>Esta web</td><td>60 días</td></tr>
+      <?php if ($s['ga_id'] !== '' || $s['gtm_id'] !== ''): ?>
+      <tr><td>_ga, _ga_*</td><td>Estadísticas anónimas de visitas (análisis, solo si lo aceptas)</td><td>Google Analytics</td><td>2 años</td></tr>
+      <?php endif; ?>
+      <?php if ($s['gtm_id'] !== ''): ?>
+      <tr><td>_gcl_*</td><td>Medir anuncios de Google (publicidad, solo si lo aceptas)</td><td>Google</td><td>3 meses</td></tr>
+      <?php endif; ?>
+      <?php if ($s['pixel_id'] !== ''): ?>
+      <tr><td>_fbp, _fbc</td><td>Medir anuncios en Facebook e Instagram (publicidad, solo si lo aceptas)</td><td>Meta</td><td>3 meses</td></tr>
+      <?php endif; ?>
+    </tbody>
+  </table>
+  <p>Si pulsas «Mostrar el mapa», Google Maps puede usar sus propias cookies. Las fotos de la web se cargan desde Unsplash.</p>
+  <p>También puedes borrar o bloquear las cookies desde la configuración de tu navegador.</p>
 
   <p class="muted small">Texto de referencia. Revísalo con un asesor para adaptarlo a tu negocio.</p>
   </div>

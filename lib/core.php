@@ -154,6 +154,12 @@ const SETTINGS_DEFAULTS = [
     'ribbon'        => '',     // frases de la cinta, separadas por comas (si no, sale la frase corta)
     'footer_title'  => '¿Cenamos?',
     'photos'        => [],     // fotos propias de la web: clave => uploads/…
+    // SEO y estadísticas (solo se cargan si el visitante acepta las cookies)
+    'seo_description' => '',   // texto que sale en Google bajo el nombre
+    'ga_id'         => '',     // Google Analytics 4: G-XXXXXXX
+    'gtm_id'        => '',     // Google Tag Manager: GTM-XXXXXX
+    'pixel_id'      => '',     // Píxel de Meta (Facebook/Instagram): solo números
+    'gsc_verify'    => '',     // código de verificación de Google Search Console
     'notify_email'  => '',
     'owner_name'    => '',
     'owner_nif'     => '',
@@ -205,12 +211,21 @@ function settings_save(array $values): array
         } elseif ($k === 'closed_dates') {
             $v = array_values(array_unique(array_filter((array)$v, 'is_date')));
             sort($v);
+        } elseif (in_array($k, ['ga_id', 'gtm_id', 'pixel_id', 'gsc_verify'], true)) {
+            // Solo letras, números y guiones: así nadie puede colar código en la web
+            $v = trim((string)$v);
+            if (preg_match('/content=["\']([^"\']+)/', $v, $m)) $v = $m[1]; // si pegan la etiqueta meta entera
+            $v = substr(preg_replace('/[^A-Za-z0-9_\-]/', '', $v), 0, 80);
+            if ($k === 'ga_id' && $v !== '' && !preg_match('/^G-[A-Z0-9]{4,}$/i', $v)) throw new ValidationError('El ID de Google Analytics empieza por G- (por ejemplo G-AB12CD34EF)');
+            if ($k === 'gtm_id' && $v !== '' && !preg_match('/^GTM-[A-Z0-9]{4,}$/i', $v)) throw new ValidationError('El ID de Tag Manager empieza por GTM- (por ejemplo GTM-AB12CD3)');
+            if ($k === 'pixel_id' && $v !== '' && !ctype_digit($v)) throw new ValidationError('El ID del píxel de Meta son solo números');
+            $v = in_array($k, ['ga_id', 'gtm_id'], true) ? strtoupper($v) : $v;
         } elseif (is_bool($def)) {
             $v = filter_var($v, FILTER_VALIDATE_BOOLEAN);
         } elseif (is_int($def)) {
             $v = max(0, (int)$v);
         } else {
-            $v = mb_substr(trim((string)$v), 0, ['description' => 1000, 'policies' => 3000, 'maps_url' => 600, 'tripadvisor' => 600, 'facebook' => 300, 'tiktok' => 300][$k] ?? 200);
+            $v = mb_substr(trim((string)$v), 0, ['description' => 1000, 'policies' => 3000, 'seo_description' => 300, 'maps_url' => 600, 'tripadvisor' => 600, 'facebook' => 300, 'tiktok' => 300][$k] ?? 200);
         }
         $clean[$k] = $v;
     }

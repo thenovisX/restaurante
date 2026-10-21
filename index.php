@@ -44,6 +44,14 @@ page_start($s['name'] . ' · ' . $s['tagline'], '', 'home');
     '@context' => 'https://schema.org', '@type' => 'Restaurant', 'name' => $s['name'],
     'address' => trim($s['address'] . ', ' . $s['city'], ', '), 'telephone' => $s['phone'],
     'acceptsReservations' => true, 'url' => base_url(), 'image' => photo('hero', 1200),
+    'description' => $s['seo_description'] ?: $s['tagline'],
+    'openingHoursSpecification' => array_merge(...array_map(fn($d) => array_map(fn($r) => [
+        '@type' => 'OpeningHoursSpecification',
+        'dayOfWeek' => ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][(int)$d],
+        'opens' => $r[0], 'closes' => $r[1],
+    ], $s['hours'][$d] ?? []), array_keys(WEEKDAYS))),
+    'sameAs' => array_values(array_filter([social_url('instagram', $s['instagram']), social_url('facebook', $s['facebook']), social_url('tiktok', $s['tiktok']), social_url('tripadvisor', $s['tripadvisor'])])),
+    'hasMenu' => base_url() . '/#carta',
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG) ?></script>
 
 <?php site_header($customer, true); ?>
@@ -119,6 +127,25 @@ page_start($s['name'] . ' · ' . $s['tagline'], '', 'home');
     </div>
   </section>
 
+  <section class="app" id="app" aria-labelledby="app-t">
+    <div class="wrap app-grid">
+      <div>
+        <h2 id="app-t" class="title"><?= h($s['name']) ?> en tu móvil</h2>
+        <p>Instala la web como una app: icono en tu pantalla de inicio, se abre a pantalla completa y reservas en dos toques. No ocupa espacio ni hay que pasar por ninguna tienda.</p>
+        <div class="app-actions">
+          <button class="btn btn-hueso" type="button" id="install-btn" hidden>Instalar la app</button>
+          <p class="app-ios" id="install-ios" hidden>En iPhone: pulsa <strong>Compartir</strong> en Safari y luego <strong>Añadir a pantalla de inicio</strong>.</p>
+          <p class="app-help" id="install-help">En el móvil, abre el menú del navegador y elige <strong>Instalar app</strong> o <strong>Añadir a pantalla de inicio</strong>.</p>
+          <p class="app-done" id="install-done" hidden>Ya tienes la app instalada.</p>
+        </div>
+      </div>
+      <div class="app-phone" aria-hidden="true">
+        <div class="app-icon"><img src="icon.php?s=192" alt="" width="96" height="96"></div>
+        <span><?= h($s['name']) ?></span>
+      </div>
+    </div>
+  </section>
+
   <section class="policies" id="politicas" aria-labelledby="pol-t">
     <div class="wrap pol-grid">
       <h2 id="pol-t" class="title">Políticas</h2>
@@ -141,25 +168,6 @@ page_start($s['name'] . ' · ' . $s['tagline'], '', 'home');
           <summary>Tus datos</summary>
           <p>Usamos tus datos solo para gestionar tus reservas y se guardan cifrados. El nombre, el teléfono y el email de cada reserva se borran solos 24 horas después. No los cedemos a nadie ni te enviamos publicidad. Lee la <a href="legal.php#privacidad">política de privacidad</a>.</p>
         </details>
-      </div>
-    </div>
-  </section>
-
-  <section class="app" id="app" aria-labelledby="app-t">
-    <div class="wrap app-grid">
-      <div>
-        <h2 id="app-t" class="title"><?= h($s['name']) ?> en tu móvil</h2>
-        <p>Instala la web como una app: icono en tu pantalla de inicio, se abre a pantalla completa y reservas en dos toques. No ocupa espacio ni hay que pasar por ninguna tienda.</p>
-        <div class="app-actions">
-          <button class="btn btn-hueso" type="button" id="install-btn" hidden>Instalar la app</button>
-          <p class="app-ios" id="install-ios" hidden>En iPhone: pulsa <strong>Compartir</strong> en Safari y luego <strong>Añadir a pantalla de inicio</strong>.</p>
-          <p class="app-help" id="install-help">En el móvil, abre el menú del navegador y elige <strong>Instalar app</strong> o <strong>Añadir a pantalla de inicio</strong>.</p>
-          <p class="app-done" id="install-done" hidden>Ya tienes la app instalada.</p>
-        </div>
-      </div>
-      <div class="app-phone" aria-hidden="true">
-        <div class="app-icon"><img src="icon.php?s=192" alt="" width="96" height="96"></div>
-        <span><?= h($s['name']) ?></span>
       </div>
     </div>
   </section>
