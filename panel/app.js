@@ -27,6 +27,20 @@
   const telHref = (t) => 'tel:' + String(t).replace(/[^\d+]/g, '');
   const waHref = (t) => { let n = String(t).replace(/\D/g, ''); if (n.length === 9) n = '34' + n; return 'https://wa.me/' + n; };
   const ACTIVE = ['pendiente', 'esperando', 'confirmada'];
+  /** Minutos que dura una comida (Ajustes → Reservas online → Tiempo de mesa). */
+  const tableMin = () => Number((S.settings && S.settings.table_minutes) ?? 90) || 0;
+  const toMin = (hm) => { const [h, m] = String(hm).split(':').map(Number); return h * 60 + m; };
+  const fromMin = (n) => `${pad(Math.floor(n / 60) % 24)}:${pad(n % 60)}`;
+  /** Hora a la que queda libre la mesa de una reserva ('' si no hay tiempo de mesa). */
+  const endTime = (r) => (tableMin() ? fromMin(toMin(r.time) + tableMin()) : '');
+  /** Reservas de hoy que están ahora en el local (entre su hora y el final del tiempo de mesa). */
+  function inHouse(list) {
+    const d = new Date();
+    const now = d.getHours() * 60 + d.getMinutes();
+    const dur = tableMin();
+    if (!dur) return [];
+    return list.filter((r) => r.date === todayISO() && ACTIVE.includes(r.status) && toMin(r.time) <= now && now < toMin(r.time) + dur);
+  }
   const alIcon = (k, size) => `<svg class="al-ic" width="${size}" height="${size}" aria-hidden="true"><use href="alergenos.svg?v=3#al-${k}"></use></svg>`;
   const STATUS = { pendiente: 'Petición nueva', esperando: 'Esperando al cliente', confirmada: 'Confirmada', rechazada: 'Rechazada', cancelada: 'Cancelada' };
   const WEEK = { 1: 'Lunes', 2: 'Martes', 3: 'Miércoles', 4: 'Jueves', 5: 'Viernes', 6: 'Sábado', 7: 'Domingo' };
@@ -399,7 +413,7 @@
     }
     if (ACTIVE.includes(r.status) && r.phone && r.status !== 'pendiente') actions.push(`<a class="btn btn-sm btn-quiet b-call" href="${esc(telHref(r.phone))}" aria-label="Llamar a ${esc(r.name)}">${ICON.phone}${r.status === 'pendiente' ? '' : '<span>Llamar</span>'}</a>`);
     return `<article class="res st-${r.status}" data-open="${r.id}">
-      <div class="res-time">${showDate ? `<small>${esc(fmtShort(r.date))}</small>` : ''}<b>${esc(r.time)}</b></div>
+      <div class="res-time">${showDate ? `<small>${esc(fmtShort(r.date))}</small>` : ''}<b>${esc(r.time)}</b>${endTime(r) && ACTIVE.includes(r.status) ? `<small class="res-end" title="Mesa ocupada hasta las ${endTime(r)}">hasta ${endTime(r)}</small>` : ''}</div>
       <div class="res-main">
         <p class="res-name">${esc(r.name)}</p>
         <p class="res-meta"><span>${r.people} ${r.people === 1 ? 'persona' : 'personas'}</span><span class="chip chip-${r.status}">${STATUS[r.status]}</span>${r.source === 'panel' ? '<span class="by-hand">a mano</span>' : ''}${r.customer ? '<span class="by-hand">con cuenta</span>' : ''}</p>
@@ -436,7 +450,7 @@
   /* ---------- HOY ---------- */
   async function viewHoy() {
     const t = todayISO();
-    S.hoyAll = await api(`reservations&from=${t}&to=${iso(addDays(new Date(), 180))}`);
+    [S.hoyAll] = await Promise.all([api(`reservations&from=${t}&to=${iso(addDays(new Date(), 180))}`), loadSettings()]);
     const newReq = S.hoyAll.filter((r) => r.status === 'pendiente').length;
     setFab('Nueva reserva', () => editReservation(null, S.hoyDay));
     let html = `<label class="search">${ICON.search}<input type="search" id="hoy-q" placeholder="Buscar reserva por nombre o teléfono" value="${esc(S.query)}" autocomplete="off" enterkeyhint="search"></label>`;
@@ -478,6 +492,18 @@
     const list = S.hoyAll.filter((r) => r.date === S.hoyDay);
     const t = todayISO();
     let html = dayStrip();
+    if (S.hoyDay === t && tableMin()) {
+      const here = inHouse(S.hoyAll);
+      const ppl = here.reduce((a, r) => a + r.people, 0);
+      const cap = Number(S.settings.capacity) || 0;
+      const next = here.map((r) => toMin(r.time) + tableMin()).sort((a, b) => a - b)[0];
+      html += `<div class="local${ppl ? ' on' : ''}">
+        <p class="local-n"><b>${ppl}</b>${cap ? `<span> de ${cap}</span>` : ''}</p>
+        <div><p class="local-t">${ppl === 1 ? 'persona en el local ahora' : 'personas en el local ahora'}</p>
+        <p class="local-s">${here.length ? here.map((r) => `${esc(r.name.split(' ')[0])} (${r.people}) hasta las ${endTime(r)}`).join(' · ') : `Cada reserva cuenta ${tableMin()} minutos desde su hora.`}</p></div>
+        ${cap ? `<i class="local-bar" style="--p:${Math.min(100, Math.round(ppl / cap * 100))}%"></i>` : ''}
+      </div>`;
+    }
     html += `<div class="day-head"><p class="day-date">${esc(fmtDay(S.hoyDay))}</p><p class="day-sum">${daySummary(list)}</p></div>`;
     html += list.length ? servicesHTML(list)
       : `<div class="empty"><p>${S.hoyDay === t ? 'Hoy no hay reservas todavía.' : 'Este día no hay reservas.'}</p><button class="btn btn-line btn-sm" data-new="${S.hoyDay}">Apuntar una reserva</button></div>`;
@@ -488,7 +514,7 @@
 
   /* ---------- PETICIONES ---------- */
   async function viewPet() {
-    const d = await api('requests');
+    const [d] = await Promise.all([api('requests'), loadSettings()]);
     setFab('Nueva reserva', () => editReservation(null, todayISO()));
     let html = `<p class="pet-intro">Al pulsar <b>Confirmar por WhatsApp</b> se abre WhatsApp con un mensaje para el cliente y un enlace. Dale a enviar: cuando el cliente toque el enlace, la reserva quedará confirmada.</p>`;
     html += `<h2 class="sec">Nuevas <span>${d.nuevas.length}</span></h2>`;
@@ -577,7 +603,7 @@
     openSheet(r.name, `
       <dl class="detail">
         <dt>Día</dt><dd>${esc(fmtDay(r.date))}</dd>
-        <dt>Hora</dt><dd>${esc(r.time)}</dd>
+        <dt>Hora</dt><dd>${esc(r.time)}${endTime(r) ? ` · mesa ocupada hasta las ${endTime(r)}` : ''}</dd>
         <dt>Personas</dt><dd>${r.people}</dd>
         <dt>Estado</dt><dd><span class="chip chip-${r.status}">${STATUS[r.status]}</span></dd>
         ${r.phone ? `<dt>Teléfono</dt><dd>${esc(r.phone)}</dd>` : '<dt>Datos</dt><dd>Borrados (pasaron 24 h)</dd>'}
@@ -1209,6 +1235,8 @@
   }
 
   setInterval(poll, 30000);
+  // El contador de personas en el local se actualiza solo cada minuto
+  setInterval(() => { if (S.tab === 'hoy' && !S.query && !$('.sheet-wrap') && $('#hoy-body')) renderHoyBody($('#view')); }, 60000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden && S.token) { poll(); if (S.tab === 'hoy') render(); } });
 
   if (!NATIVE && 'serviceWorker' in navigator && location.protocol === 'https:') {
