@@ -42,6 +42,8 @@ const PHOTOS = [
 /** URL de una foto a un ancho concreto (Unsplash las redimensiona al vuelo). */
 function photo(string $key, int $w = 1600): string
 {
+    $own = settings()['photos'][$key] ?? '';
+    if ($own !== '') return $own;
     $src = PHOTOS[$key]['src'];
     if (str_starts_with($src, 'https://images.unsplash.com/')) {
         return $src . '?auto=format&fit=crop&q=70&w=' . $w;
@@ -51,6 +53,14 @@ function photo(string $key, int $w = 1600): string
 
 function photo_srcset(string $key, array $widths = [640, 1024, 1600, 2200]): string
 {
+    if (!empty(settings()['photos'][$key])) return '';
     if (!str_starts_with(PHOTOS[$key]['src'], 'https://images.unsplash.com/')) return '';
     return implode(', ', array_map(fn($w) => photo($key, $w) . " {$w}w", $widths));
+}
+
+/** Fotos de Unsplash que siguen en uso (para los créditos del pie). */
+function photo_credits(): array
+{
+    $own = settings()['photos'];
+    return array_filter(PHOTOS, fn($p, $k) => empty($own[$k]) && isset($p['by']), ARRAY_FILTER_USE_BOTH);
 }

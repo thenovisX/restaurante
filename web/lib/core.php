@@ -96,6 +96,13 @@ const SETTINGS_DEFAULTS = [
     'whatsapp'      => '',
     'email'         => '',
     'instagram'     => '',
+    'facebook'      => '',
+    'tiktok'        => '',
+    'tripadvisor'   => '',
+    'maps_url'      => '',     // enlace de Google Maps (si no, se busca la dirección)
+    'ribbon'        => '',     // frases de la cinta, separadas por comas (si no, sale la frase corta)
+    'footer_title'  => '¿Cenamos?',
+    'photos'        => [],     // fotos propias de la web: clave => uploads/…
     'notify_email'  => '',
     'owner_name'    => '',
     'owner_nif'     => '',
@@ -141,6 +148,7 @@ function settings_save(array $values): array
     foreach ($values as $k => $v) {
         if (!array_key_exists($k, SETTINGS_DEFAULTS)) continue;
         $def = SETTINGS_DEFAULTS[$k];
+        if ($k === 'photos') continue; // las fotos van por su propia ruta
         if ($k === 'hours') {
             $v = clean_hours($v);
         } elseif ($k === 'closed_dates') {
@@ -151,7 +159,7 @@ function settings_save(array $values): array
         } elseif (is_int($def)) {
             $v = max(0, (int)$v);
         } else {
-            $v = mb_substr(trim((string)$v), 0, ['description' => 1000, 'policies' => 3000][$k] ?? 200);
+            $v = mb_substr(trim((string)$v), 0, ['description' => 1000, 'policies' => 3000, 'maps_url' => 600, 'tripadvisor' => 600, 'facebook' => 300, 'tiktok' => 300][$k] ?? 200);
         }
         $clean[$k] = $v;
     }
@@ -191,6 +199,21 @@ function ranges_text(array $ranges): string
 {
     if (!$ranges) return 'Cerrado';
     return implode(' y ', array_map(fn($r) => $r[0] . '–' . $r[1], $ranges));
+}
+
+/** Enlace completo a una red social a partir de lo que se escriba (usuario, @usuario o enlace). */
+function social_url(string $net, string $v): string
+{
+    $v = trim($v);
+    if ($v === '') return '';
+    if (preg_match('#^https?://#i', $v)) return $v;
+    $u = ltrim($v, '@');
+    return match ($net) {
+        'instagram' => 'https://instagram.com/' . rawurlencode($u),
+        'facebook'  => 'https://facebook.com/' . rawurlencode($u),
+        'tiktok'    => 'https://www.tiktok.com/@' . rawurlencode($u),
+        default     => 'https://' . $v,
+    };
 }
 
 /* ---------- Validación ---------- */

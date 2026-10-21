@@ -19,7 +19,7 @@ $total = count($cats) + 1; // páginas después de la portada
 <section class="carta" id="carta" aria-labelledby="carta-t">
   <div class="wrap carta-head">
     <h2 id="carta-t" class="title">La carta</h2>
-    <p class="carta-intro">Pásala como si estuvieras en la mesa: con las flechas, deslizando el dedo o tocando la esquina de la página. Los iconos de cada plato son sus alérgenos y debajo de la carta tienes qué significa cada uno.</p>
+    <p class="carta-intro">Pásala como si estuvieras en la mesa: con las flechas, deslizando el dedo o tocando la esquina de la página. Los iconos de cada plato son sus alérgenos; en la última página tienes qué significa cada uno.</p>
   </div>
 
   <?php if (!$cats): ?>
@@ -41,7 +41,7 @@ $total = count($cats) + 1; // páginas después de la portada
         <article class="hoja hoja-portada is-on" data-label="Portada">
           <div class="portada-marco">
             <p class="portada-orn" aria-hidden="true">✦</p>
-            <p class="portada-name"><?= h(mb_strtoupper($s['name'])) ?></p>
+            <p class="portada-name" style="--n: <?= max(4, max(array_map('mb_strlen', preg_split('/\s+/u', $s['name'])) ?: [4])) ?>"><?= h(mb_strtoupper($s['name'])) ?></p>
             <p class="portada-sub">La carta</p>
             <p class="portada-season"><?= h($season) ?></p>
             <button class="portada-abrir" type="button" data-dir="1">Abrir la carta</button>
@@ -114,7 +114,7 @@ $total = count($cats) + 1; // páginas después de la portada
           <p class="hoja-orn" aria-hidden="true">— ✦ —</p>
           <ul class="mini-alg">
             <?php foreach ($menu['allergens'] as $a): ?>
-              <li class="<?= isset($used[$a['key']]) ? '' : 'sin-uso' ?>"><?= al_icon($a['key'], 30) ?><span><?= h($a['name']) ?></span></li>
+              <li class="<?= isset($used[$a['key']]) ? '' : 'sin-uso' ?>"><?= al_icon($a['key'], 34) ?><div><strong><?= h($a['name']) ?></strong><small><?= h($a['desc']) ?></small></div></li>
             <?php endforeach; ?>
           </ul>
           <p class="hoja-nota">Si tienes alguna alergia o intolerancia, dínoslo antes de pedir: te diremos qué platos puedes tomar o cómo adaptarlos.</p>
@@ -127,13 +127,4 @@ $total = count($cats) + 1; // páginas después de la portada
   </div>
   <?php endif; ?>
 
-  <div class="wrap alergenos" id="alergenos" aria-labelledby="alg-t">
-    <h3 id="alg-t">Qué significa cada icono</h3>
-    <p class="alergenos-intro">Estos son los 14 alérgenos que la ley obliga a indicar. Junto a cada plato verás los que lleva.</p>
-    <ul class="al-lista">
-      <?php foreach ($menu['allergens'] as $a): ?>
-        <li><?= al_icon($a['key'], 52) ?><div><strong><?= h($a['name']) ?></strong><p><?= h($a['desc']) ?></p></div></li>
-      <?php endforeach; ?>
-    </ul>
-  </div>
 </section>

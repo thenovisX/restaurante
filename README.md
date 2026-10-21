@@ -7,7 +7,7 @@ Web pública (diseño nocturno, restaurante de ejemplo «Novia») con:
 - **Políticas de reserva**: plazo de cancelación, minutos de cortesía y normas propias (grupos, alergias, niños, mascotas…), editables desde la app.
 - **Instalable como app desde el navegador** (PWA): botón «Instalar la app» en Android y escritorio, e instrucciones para iPhone. El icono se genera solo con la inicial del restaurante.
 - **Carta como un librito de papel** que se hojea (flechas, deslizando el dedo o tocando la esquina), con portada, pestañas de índice y una página por sección.
-- **Alérgenos con iconos de colores** (dibujo propio, `web/assets/alergenos.svg`) junto a cada plato y la explicación de los 14 debajo de la carta.
+- **Alérgenos con iconos de colores** (dibujo propio, `web/assets/alergenos.svg`) junto a cada plato y la explicación de los 14 en la última página de la carta.
 - Horario, contacto y textos legales.
 - Las fotos son de Unsplash (licencia gratuita, se muestran los autores en el pie). Para usar fotos propias, cambia las direcciones en `web/lib/tema.php`.
 
@@ -16,7 +16,7 @@ Más una **app de gestión** para el móvil con tres secciones:
 - **Hoy**: las reservas del día separadas en comida y cena, con botones para confirmar, rechazar o llamar. Arriba salen las reservas de otros días que faltan por confirmar.
 - **Calendario**: el mes entero con las personas reservadas cada día. Al tocar un día ves sus reservas. Desde aquí también se cierran días sueltos (festivos o vacaciones).
 - **Carta**: platos, precios, fotos y alérgenos. Un interruptor marca un plato como agotado y lo quita de la web al momento.
-- **Ajustes**: datos del restaurante, horario, aforo, confirmación automática, políticas de reserva y contraseña.
+- **Ajustes**, en secciones plegables: datos y presentación, contacto y ubicación, redes sociales (Instagram, Facebook, TikTok, TripAdvisor), fotos de la web, textos de la cinta y del pie, horario, reservas online, políticas, datos legales, avisos y contraseña. Todo se ve en la web al momento.
 
 Cuando entra una reserva, la app avisa con una notificación y llega también un email al restaurante. Si el cliente dejó su email, recibe la confirmación o el rechazo.
 

@@ -173,6 +173,11 @@ function remove_upload(string $rel): void
 
 function store_photo(array $file, int $dishId): string
 {
+    return store_image($file, 'plato-' . $dishId, 1200);
+}
+
+function store_image(array $file, string $prefix, int $max): string
+{
     if ($file['error'] !== UPLOAD_ERR_OK) {
         throw new ValidationError($file['error'] === UPLOAD_ERR_INI_SIZE || $file['error'] === UPLOAD_ERR_FORM_SIZE
             ? 'La foto pesa demasiado' : 'No se pudo subir la foto');
@@ -182,7 +187,7 @@ function store_photo(array $file, int $dishId): string
     if (!$info || !in_array($info[2], [IMAGETYPE_JPEG, IMAGETYPE_PNG, IMAGETYPE_WEBP], true)) {
         throw new ValidationError('La foto tiene que ser JPG, PNG o WEBP');
     }
-    $name = 'uploads/plato-' . $dishId . '-' . bin2hex(random_bytes(4)) . '.jpg';
+    $name = 'uploads/' . $prefix . '-' . bin2hex(random_bytes(4)) . '.jpg';
     $dest = dirname(__DIR__) . '/' . $name;
     uploads_dir();
 
@@ -206,7 +211,7 @@ function store_photo(array $file, int $dishId): string
     }
     $w = imagesx($src);
     $hgt = imagesy($src);
-    $scale = min(1, 1200 / max($w, $hgt));
+    $scale = min(1, $max / max($w, $hgt));
     $nw = (int)round($w * $scale);
     $nh = (int)round($hgt * $scale);
     $dst = imagecreatetruecolor($nw, $nh);
@@ -214,4 +219,57 @@ function store_photo(array $file, int $dishId): string
     imagecopyresampled($dst, $src, 0, 0, 0, 0, $nw, $nh, $w, $hgt);
     imagejpeg($dst, $dest, 82);
     return $name;
+}
+
+/* ---------- Fotos de la web (portada, nosotros, galería) ---------- */
+
+const WEB_PHOTO_SLOTS = [
+    'hero'   => 'Portada',
+    'sala'   => 'Nosotros: foto grande',
+    'cocina' => 'Nosotros: foto pequeña',
+    'barra'  => 'Galería 1',
+    'plato'  => 'Galería 2',
+    'coctel' => 'Galería 3',
+];
+
+function web_photo_set(string $key, ?array $file): array
+{
+    if (!isset(WEB_PHOTO_SLOTS[$key])) throw new ValidationError('Foto no válida');
+    if (!$file || ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) throw new ValidationError('Elige una foto');
+    $photos = settings()['photos'];
+    $path = store_image($file, 'web-' . $key, $key === 'hero' ? 2200 : 1600);
+    if (!empty($photos[$key])) remove_upload($photos[$key]);
+    $photos[$key] = $path;
+    web_photos_save($photos);
+    return web_photos_info();
+}
+
+function web_photo_reset(string $key): array
+{
+    $photos = settings()['photos'];
+    if (!empty($photos[$key])) remove_upload($photos[$key]);
+    unset($photos[$key]);
+    web_photos_save($photos);
+    return web_photos_info();
+}
+
+function web_photos_save(array $photos): void
+{
+    q("DELETE FROM settings WHERE k = 'photos'");
+    q("INSERT INTO settings (k, v) VALUES ('photos', ?)", [json_encode($photos, JSON_UNESCAPED_SLASHES)]);
+    settings(true);
+}
+
+/** Para el panel: cada hueco con su nombre, la foto actual y si es propia. */
+function web_photos_info(): array
+{
+    require_once __DIR__ . '/tema.php';
+    $own = settings()['photos'];
+    $o = [];
+    foreach (WEB_PHOTO_SLOTS as $k => $label) {
+        $url = photo($k, 600);
+        if (!preg_match('#^https?://#', $url)) $url = base_url() . '/' . $url;
+        $o[] = ['key' => $k, 'label' => $label, 'url' => $url, 'custom' => !empty($own[$k])];
+    }
+    return $o;
 }

@@ -53,6 +53,7 @@
     settings: null,
     menu: null,
     res: {},          // reservas cargadas, por id
+    openSets: new Set(),
     calMonth: todayISO().slice(0, 7),
     calDay: todayISO(),
     pending: 0,
@@ -593,10 +594,10 @@
     return null;
   }
 
-  async function shrinkImage(file) {
+  async function shrinkImage(file, max = 1600) {
     try {
       const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
-      const scale = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+      const scale = Math.min(1, max / Math.max(bmp.width, bmp.height));
       const c = document.createElement('canvas');
       c.width = Math.round(bmp.width * scale);
       c.height = Math.round(bmp.height * scale);
@@ -748,73 +749,105 @@
       </div></div>`;
     }).join('');
 
+    const sec = (id, title, desc, inner) => `<details class="card set" data-set="${id}" ${S.openSets.has(id) ? 'open' : ''}>
+        <summary><span>${title}<small>${desc}</small></span></summary>
+        <div class="set-body">${inner}</div></details>`;
+    const photos = (s.web_photos || []).map((p) => `<div class="wph">
+        <img src="${esc(p.url)}" alt="" loading="lazy">
+        <p>${esc(p.label)}${p.custom ? '<small>Foto propia</small>' : '<small>Foto de ejemplo</small>'}</p>
+        <div class="wph-btns">
+          <span class="btn btn-quiet btn-sm file-btn">Cambiar<input type="file" accept="image/*" data-wph="${p.key}" aria-label="Cambiar foto: ${esc(p.label)}"></span>
+          ${p.custom ? `<button type="button" class="link-btn" data-wph-reset="${p.key}">Quitar</button>` : ''}
+        </div></div>`).join('');
+
     return `
-      <form class="card form" data-form="reservas" novalidate>
-        <h2>Reservas online</h2>
-        <label class="switch-row">Confirmar automáticamente <span class="sw"><input type="checkbox" name="auto_confirm" ${s.auto_confirm ? 'checked' : ''}><span></span></span></label>
-        <p class="help">Si está apagado, cada reserva llega «por confirmar» y la confirmas tú desde Hoy.</p>
-        <div class="row">
-          ${num('capacity', 'Comensales por franja', 'Máximo de personas que entran a la misma hora', 1)}
-          ${num('slot_minutes', 'Cada cuántos minutos', 'Ej.: 30 → 13:00, 13:30…', 5)}
-        </div>
-        <div class="row">
-          ${num('max_people', 'Máx. personas por reserva', 'Grupos más grandes, por teléfono', 1)}
-          ${num('days_ahead', 'Días de antelación máx.', '', 1)}
-        </div>
-        <div class="row">
-          ${num('min_notice', 'Antelación mínima (min)', 'Ej.: 60 = no se reserva con menos de 1 h')}
-          ${num('last_before', 'Última reserva antes del cierre (min)', '')}
-        </div>
-        <button class="btn btn-main" type="submit">Guardar</button>
-      </form>
-
-      <form class="card form" data-form="politicas" novalidate>
-        <h2>Políticas de reserva</h2>
-        <p>Salen en la web y el cliente tiene que aceptarlas al reservar.</p>
-        <div class="row">
-          ${num('cancel_hours', 'Cancelación gratis hasta (horas antes)', 'Con cuenta, el cliente cancela solo hasta entonces')}
-          ${num('late_minutes', 'Mesa guardada si llegan tarde (min)', '')}
-        </div>
-        <label>Otras normas <textarea name="policies" rows="5">${esc(s.policies)}</textarea><span class="help">Una por línea, con el formato «Título: texto». Ej.: «Mascotas: perros pequeños en la terraza».</span></label>
-        <button class="btn btn-main" type="submit">Guardar políticas</button>
-      </form>
-
-      <form class="card form" data-form="horario" novalidate>
-        <h2>Horario</h2>
-        <p>Es el horario que sale en la web y en el que se puede reservar. Para cerrar un día suelto (festivo, vacaciones), hazlo desde el Calendario.</p>
-        ${hoursRows}
-        <button class="btn btn-main" type="submit">Guardar horario</button>
-      </form>
-
-      <form class="card form" data-form="datos" novalidate>
-        <h2>Datos del restaurante</h2>
-        ${field('name', 'Nombre', 'text', 'required')}
-        ${field('tagline', 'Frase corta', 'text', 'placeholder="Cocina gallega de mercado"')}
-        <label>Presentación <textarea name="description" rows="3">${esc(s.description)}</textarea></label>
-        ${field('address', 'Dirección', 'text', 'placeholder="Rúa do Príncipe, 10"')}
-        ${field('city', 'Código postal y ciudad', 'text', 'placeholder="36202 Vigo"')}
-        <div class="row">${field('phone', 'Teléfono', 'tel')}${field('whatsapp', 'WhatsApp', 'tel')}</div>
-        ${field('email', 'Email de contacto', 'email')}
-        ${field('notify_email', 'Email para avisos de reservas', 'email')}
-        ${field('instagram', 'Instagram', 'text', 'placeholder="@turestaurante"')}
-        <h2 style="margin-top:8px">Datos legales</h2>
-        ${field('owner_name', 'Titular (nombre o empresa)')}
-        ${field('owner_nif', 'NIF / CIF')}
-        <button class="btn btn-main" type="submit">Guardar datos</button>
-      </form>
-
-      <section class="card">
-        <h2>Avisos de reservas nuevas</h2>
-        <p>Con la app abierta (o en segundo plano) revisa cada 30 segundos si hay reservas nuevas y te avisa. Además, cada reserva llega por email a «${esc(s.notify_email || s.email || 'el email de avisos')}».</p>
-        <button class="btn btn-line btn-sm" type="button" data-notif>Activar avisos en este móvil</button>
-      </section>
-
-      <form class="card form" data-form="password" novalidate>
-        <h2>Cambiar contraseña</h2>
-        <label>Contraseña actual <input name="current" type="password" autocomplete="current-password"></label>
-        <label>Nueva contraseña <input name="new" type="password" autocomplete="new-password" minlength="8"><span class="help">Mínimo 8 caracteres</span></label>
-        <button class="btn btn-dark" type="submit">Cambiar contraseña</button>
-      </form>
+      <p class="set-intro">Todo lo que cambies aquí se ve en la web al momento.</p>
+      ${sec('datos', 'Datos del restaurante', 'Nombre, frase corta y presentación', `
+        <form class="form" data-form="datos" novalidate>
+          ${field('name', 'Nombre', 'text', 'required maxlength="60"')}
+          ${field('tagline', 'Frase corta', 'text', 'placeholder="Cocina de fuego, cócteles y noches largas"')}
+          <label>Presentación <textarea name="description" rows="4" maxlength="1000">${esc(s.description)}</textarea><span class="help">Sale en grande en la sección «Nosotros».</span></label>
+          <button class="btn btn-main" type="submit">Guardar</button>
+        </form>`)}
+      ${sec('contacto', 'Contacto y ubicación', 'Dirección, teléfono, WhatsApp y emails', `
+        <form class="form" data-form="contacto" novalidate>
+          ${field('address', 'Dirección', 'text', 'placeholder="Rúa do Príncipe, 10"')}
+          ${field('city', 'Código postal y ciudad', 'text', 'placeholder="36202 Vigo"')}
+          ${field('maps_url', 'Enlace de Google Maps', 'url', 'placeholder="https://maps.app.goo.gl/…"')}
+          <p class="help">Opcional. Si lo dejas vacío, el botón «Cómo llegar» busca la dirección.</p>
+          <div class="row">${field('phone', 'Teléfono', 'tel')}${field('whatsapp', 'WhatsApp', 'tel')}</div>
+          ${field('email', 'Email de contacto', 'email')}
+          ${field('notify_email', 'Email para avisos de reservas', 'email')}
+          <button class="btn btn-main" type="submit">Guardar</button>
+        </form>`)}
+      ${sec('redes', 'Redes sociales', 'Instagram, Facebook, TikTok y TripAdvisor', `
+        <form class="form" data-form="redes" novalidate>
+          ${field('instagram', 'Instagram', 'text', 'placeholder="@turestaurante" autocapitalize="off"')}
+          ${field('facebook', 'Facebook', 'text', 'placeholder="turestaurante o enlace" autocapitalize="off"')}
+          ${field('tiktok', 'TikTok', 'text', 'placeholder="@turestaurante" autocapitalize="off"')}
+          ${field('tripadvisor', 'TripAdvisor', 'url', 'placeholder="https://www.tripadvisor.es/…" autocapitalize="off"')}
+          <p class="help">Puedes poner el usuario o el enlace completo. Las que dejes vacías no salen en la web.</p>
+          <button class="btn btn-main" type="submit">Guardar</button>
+        </form>`)}
+      ${sec('fotos', 'Fotos de la web', 'Portada, «Nosotros» y galería', `
+        <p class="help">Usa fotos horizontales para la portada. Se recortan solas para encajar.</p>
+        <div class="wph-grid">${photos}</div>`)}
+      ${sec('textos', 'Otros textos de la web', 'Cinta que se mueve y título del pie', `
+        <form class="form" data-form="textos" novalidate>
+          ${field('ribbon', 'Frases de la cinta', 'text', 'placeholder="Cocina de fuego, Coctelería, Música los viernes"')}
+          <p class="help">Separadas por comas. Si lo dejas vacío, se usa la frase corta.</p>
+          ${field('footer_title', 'Título grande del pie', 'text', 'placeholder="¿Cenamos?" maxlength="40"')}
+          <button class="btn btn-main" type="submit">Guardar</button>
+        </form>`)}
+      ${sec('horario', 'Horario', 'Días y horas de apertura', `
+        <form class="form" data-form="horario" novalidate>
+          <p class="help">Es el horario de la web y en el que se puede reservar. Para cerrar un día suelto (festivo, vacaciones), hazlo desde el Calendario.</p>
+          ${hoursRows}
+          <button class="btn btn-main" type="submit">Guardar horario</button>
+        </form>`)}
+      ${sec('reservas', 'Reservas online', 'Aforo, horas y confirmación', `
+        <form class="form" data-form="reservas" novalidate>
+          <label class="switch-row">Confirmar automáticamente <span class="sw"><input type="checkbox" name="auto_confirm" ${s.auto_confirm ? 'checked' : ''}><span></span></span></label>
+          <p class="help">Si está apagado, cada reserva llega «por confirmar» y la confirmas tú desde Hoy.</p>
+          <div class="row">
+            ${num('capacity', 'Comensales por franja', 'Máximo de personas a la misma hora', 1)}
+            ${num('slot_minutes', 'Cada cuántos minutos', 'Ej.: 30 → 13:00, 13:30…', 5)}
+          </div>
+          <div class="row">
+            ${num('max_people', 'Máx. personas por reserva', 'Grupos más grandes, por teléfono', 1)}
+            ${num('days_ahead', 'Días de antelación máx.', '', 1)}
+          </div>
+          <div class="row">
+            ${num('min_notice', 'Antelación mínima (min)', 'Ej.: 60 = no se reserva con menos de 1 h')}
+            ${num('last_before', 'Última reserva antes del cierre (min)', '')}
+          </div>
+          <button class="btn btn-main" type="submit">Guardar</button>
+        </form>`)}
+      ${sec('politicas', 'Políticas de reserva', 'Cancelación, retrasos y normas', `
+        <form class="form" data-form="politicas" novalidate>
+          <p class="help">Salen en la web y el cliente tiene que aceptarlas al reservar.</p>
+          <div class="row">
+            ${num('cancel_hours', 'Cancelación gratis hasta (horas antes)', '')}
+            ${num('late_minutes', 'Mesa guardada si llegan tarde (min)', '')}
+          </div>
+          <label>Otras normas <textarea name="policies" rows="5">${esc(s.policies)}</textarea><span class="help">Una por línea: «Título: texto». Ej.: «Mascotas: perros pequeños en la terraza».</span></label>
+          <button class="btn btn-main" type="submit">Guardar</button>
+        </form>`)}
+      ${sec('legal', 'Datos legales', 'Titular y NIF para el aviso legal', `
+        <form class="form" data-form="legal" novalidate>
+          ${field('owner_name', 'Titular (nombre o empresa)')}
+          ${field('owner_nif', 'NIF / CIF')}
+          <button class="btn btn-main" type="submit">Guardar</button>
+        </form>`)}
+      ${sec('avisos', 'Avisos de reservas nuevas', 'Notificaciones en este móvil', `
+        <p class="help">Con la app abierta (o en segundo plano) revisa cada 30 segundos si hay reservas nuevas. Además, cada reserva llega por email a «${esc(s.notify_email || s.email || 'el email de avisos')}».</p>
+        <button class="btn btn-line btn-sm" type="button" data-notif>Activar avisos en este móvil</button>`)}
+      ${sec('password', 'Contraseña', 'Cambiar la contraseña de la app', `
+        <form class="form" data-form="password" novalidate>
+          <label>Contraseña actual <input name="current" type="password" autocomplete="current-password"></label>
+          <label>Nueva contraseña <input name="new" type="password" autocomplete="new-password" minlength="8"><span class="help">Mínimo 8 caracteres</span></label>
+          <button class="btn btn-dark" type="submit">Cambiar contraseña</button>
+        </form>`)}
 
       <section class="card">
         <h2>Sesión</h2>
@@ -827,6 +860,28 @@
   }
 
   afterRender.ajustes = (view) => {
+    $$('details[data-set]', view).forEach((d) => d.addEventListener('toggle', () => {
+      if (d.open) S.openSets.add(d.dataset.set); else S.openSets.delete(d.dataset.set);
+    }));
+    $$('[data-wph]', view).forEach((inp) => inp.addEventListener('change', async () => {
+      const file = inp.files[0];
+      if (!file) return;
+      const box = inp.closest('.wph');
+      box.classList.add('is-busy');
+      try {
+        const fd = new FormData();
+        fd.append('key', inp.dataset.wph);
+        fd.append('photo', await shrinkImage(file, 2200), 'foto.jpg');
+        await api('web_photo', { form: fd });
+        toast('Foto cambiada. Ya se ve en la web.');
+        render();
+      } catch (err) { toast(err.message, 'err'); box.classList.remove('is-busy'); }
+    }));
+    $$('[data-wph-reset]', view).forEach((b) => b.addEventListener('click', async () => {
+      if (!confirm('¿Quitar tu foto y volver a la de ejemplo?')) return;
+      try { await api('web_photo_reset', { body: { key: b.dataset.wphReset } }); toast('Foto quitada'); render(); }
+      catch (err) { toast(err.message, 'err'); }
+    }));
     $$('[data-open]', view).forEach((cb) => cb.addEventListener('change', () => {
       const box = $(`[data-ranges="${cb.dataset.open}"]`, view);
       box.hidden = !cb.checked;

@@ -16,10 +16,16 @@ $todayRanges = $todayClosed ? [] : ($s['hours'][date('N')] ?? []);
 
 // La palabra grande de la portada ocupa todo el ancho, sea cual sea el nombre
 $brand = mb_strtoupper($s['name']);
-$brandSize = min(27, round(128 / max(3, mb_strlen($brand)), 2));
+// Nombres cortos: una sola línea a todo el ancho. Largos: se reparten en líneas según la palabra más larga.
+$longest = max(array_map('mb_strlen', preg_split('/\s+/u', $brand)) ?: [3]);
+$brandSize = mb_strlen($brand) <= 9
+    ? min(27, round(128 / max(3, mb_strlen($brand)), 2))
+    : min(18, round(110 / max(4, $longest), 2));
 
 // Frases de la cinta: salen de la frase corta del restaurante
-$ribbon = array_values(array_filter(array_map('trim', preg_split('/,| y /u', $s['tagline']))));
+$ribbon = $s['ribbon'] !== ''
+    ? array_values(array_filter(array_map('trim', explode(',', $s['ribbon']))))
+    : array_values(array_filter(array_map('trim', preg_split('/,| y /u', $s['tagline']))));
 if (!$ribbon) $ribbon = [$s['name']];
 
 // Políticas: cada línea "Título: texto"
@@ -58,7 +64,7 @@ page_start($s['name'] . ' · ' . $s['tagline'], '', 'home');
         <a class="btn btn-line" href="#carta">Ver la carta</a>
       </div>
     </div>
-    <h1 class="hero-brand" id="hero-t" style="--brand-size: <?= $brandSize ?>vw"><?= h($brand) ?></h1>
+    <h1 class="hero-brand<?= mb_strlen($brand) > 9 ? ' is-long' : '' ?>" id="hero-t" style="--brand-size: <?= $brandSize ?>vw"><?= h($brand) ?></h1>
   </section>
 
   <div class="ribbon" aria-hidden="true">
