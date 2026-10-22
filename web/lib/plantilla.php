@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/tema.php';
 
-const ASSET_V = '27';
+const ASSET_V = '28';
 
 // Idioma de la visita (las páginas públicas cargan este archivo antes de pintar nada)
 detect_lang();
@@ -217,7 +217,7 @@ function page_end(array $data = []): void
     mobile_bar();
     $s = settings();
     $data += ['today' => today(), 'daysAhead' => (int)$s['days_ahead'], 'maxPeople' => (int)$s['max_people'], 'name' => $s['name'],
-        'hours' => $s['hours'], 'closed' => $s['closed_dates'], 'phone' => $s['phone']];
+        'hours' => $s['hours'], 'closed' => $s['closed_dates'], 'phone' => $s['phone'], 'now' => date('Y-m-d H:i')];
     ?>
 <script>window.RESTAURANT = <?= json_encode($data, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
 <script src="assets/web.js?v=<?= ASSET_V ?>" defer></script>

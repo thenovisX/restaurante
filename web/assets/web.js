@@ -180,6 +180,7 @@
   }
 
   function summary() {
+    if (B.pane === 0) { $('#bk-sum').textContent = ''; return; }
     var parts = [B.people + ' ' + (B.people === 1 ? T('persona') : T('personas'))];
     if (B.date) parts.push(longDay(B.date));
     if (B.time) parts.push(B.time);
@@ -187,13 +188,56 @@
   }
 
   function showPane(n) {
+    B.pane = n;
     $$('.bk-pane', dlg).forEach(function (p) { p.hidden = p.dataset.pane !== String(n); });
-    $('#bk-step').textContent = n <= 3 ? T('Paso %d de 3', n) : T('Hecho');
-    $('#bk-title').textContent = T(['', 'Reservar mesa', 'Elige la hora', 'Tus datos', 'Petición enviada'][n]);
+    $('#bk-step').textContent = n === 0 ? '' : n <= 3 ? T('Paso %d de 3', n) : T('Hecho');
+    $('#bk-title').textContent = T(['¿Cómo quieres reservar?', 'Reservar mesa', 'Elige la hora', 'Tus datos', 'Petición enviada'][n]);
     summary();
+    if (n === 0) updateCall();
     var focusable = $('.bk-pane:not([hidden]) button, .bk-pane:not([hidden]) input', dlg);
     if (n > 1 && focusable) focusable.focus({ preventScroll: true });
     if (n === 2) loadSlots();
+  }
+
+  /* ---------- ¿Está abierto ahora? (hora del restaurante, no la del móvil) ---------- */
+  var NOW0 = R.now && R.now.match(/(\d+)-(\d+)-(\d+) (\d+):(\d+)/);
+  var OFFSET = NOW0 ? Date.UTC(+NOW0[1], +NOW0[2] - 1, +NOW0[3], +NOW0[4], +NOW0[5]) - Date.now() : null;
+  function restNow() {
+    if (OFFSET === null) { var n = new Date(); return { day: iso(n), time: pad(n.getHours()) + ':' + pad(n.getMinutes()) }; }
+    var d = new Date(Date.now() + OFFSET);
+    return { day: d.getUTCFullYear() + '-' + pad(d.getUTCMonth() + 1) + '-' + pad(d.getUTCDate()), time: pad(d.getUTCHours()) + ':' + pad(d.getUTCMinutes()) };
+  }
+  function rangesOf(day) {
+    if (isClosed(day)) return [];
+    return (R.hours || {})[String(((parse(day).getDay() + 6) % 7) + 1)] || [];
+  }
+  function whenText(k, time, day) {
+    return k === 0 ? T('hoy a las %s', time) : k === 1 ? T('mañana a las %s', time) : T('el %s a las %s', DIAS_L[parse(day).getDay()], time);
+  }
+  function callStatus() {
+    var n = restNow(), r = rangesOf(n.day), i;
+    for (i = 0; i < r.length; i++) if (n.time >= r[i][0] && n.time < r[i][1]) return { open: true };
+    for (i = 0; i < r.length; i++) if (r[i][0] > n.time) return { open: false, next: whenText(0, r[i][0], n.day) };
+    for (var k = 1; k <= 14; k++) {
+      var day = addDays(n.day, k), rr = rangesOf(day);
+      if (rr.length) return { open: false, next: whenText(k, rr[0][0], day) };
+    }
+    return { open: false, next: '' };
+  }
+  function updateCall() {
+    var a = $('#bk-call'), txt = $('#bk-call-txt');
+    if (!a) return;
+    var st = callStatus();
+    a.classList.toggle('is-off', !st.open);
+    if (st.open) {
+      a.setAttribute('href', a.dataset.href);
+      a.removeAttribute('aria-disabled');
+      txt.textContent = T('Estamos abiertos ahora: %s', R.phone);
+    } else {
+      a.removeAttribute('href');
+      a.setAttribute('aria-disabled', 'true');
+      txt.textContent = st.next ? T('Ahora estamos cerrados. Podrás llamarnos %s.', st.next) : T('Ahora estamos cerrados.');
+    }
   }
 
   function renderDays() {
@@ -268,7 +312,7 @@
     $('#bk-date').max = addDays(R.today, R.daysAhead || 60);
     $('#bk-date').value = B.date;
     if (typeof dlg.showModal === 'function') dlg.showModal(); else dlg.setAttribute('open', '');
-    showPane(1);
+    showPane($('.bk-pane[data-pane="0"]', dlg) ? 0 : 1);
   }
 
   function resetBooking() {
@@ -291,6 +335,7 @@
     });
     dlg.addEventListener('click', function (e) {
       if (e.target === dlg || e.target.closest('[data-close]')) { dlg.close(); return; }
+      if (e.target.closest('.bk-opt.is-off')) { e.preventDefault(); return; }
       var day = e.target.closest('.day');
       if (day && !day.disabled) return pickDate(day.dataset.day);
       var slot = e.target.closest('.slot');
