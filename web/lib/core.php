@@ -56,7 +56,7 @@ function purge_old_reservations(bool $force = false): int
 }
 
 /** Actualiza la base de datos de instalaciones anteriores sin perder datos. */
-const SCHEMA_VERSION = 6;
+const SCHEMA_VERSION = 7;
 /** Versión de las condiciones y la privacidad: se guarda con cada aceptación. Súbela si cambias los textos. */
 const LEGAL_VERSION = '2026-10-22';
 function ensure_schema(): void
@@ -134,6 +134,10 @@ function ensure_schema(): void
         ] as $sql) {
             try { db()->exec($sql); } catch (Throwable $e) { /* ya existe */ }
         }
+    }
+    if ($v < 7) {
+        // v7: idiomas (la tabla translations la crea schema_sql) e idioma en el que reservó cada cliente
+        try { db()->exec("ALTER TABLE reservations ADD COLUMN lang CHAR(2) NOT NULL DEFAULT 'es'"); } catch (Throwable $e) { /* ya existe */ }
     }
     q("DELETE FROM settings WHERE k = '_schema'");
     q("INSERT INTO settings (k, v) VALUES ('_schema', ?)", [(string)SCHEMA_VERSION]);
@@ -225,6 +229,10 @@ const SETTINGS_DEFAULTS = [
     'owner_nif'     => '',
     'owner_registry'=> '',     // datos del Registro Mercantil si el titular es una sociedad (LSSI art. 10)
     // Envío de emails con una cuenta propia (Gmail u otro proveedor) en vez del correo del hosting
+    // Idiomas de la web y traducción automática de la carta y los textos del restaurante
+    'langs'         => ['es', 'en', 'pt', 'gl'],
+    'tr_provider'   => 'mymemory',  // mymemory (gratis, sin cuenta) o google (clave de API)
+    'tr_google_key' => '',          // guardada cifrada; nunca sale hacia la app
     'smtp_on'       => false,
     'smtp_host'     => 'smtp.gmail.com',
     'smtp_port'     => 465,
@@ -277,6 +285,20 @@ function settings_save(array $values): array
         if (!array_key_exists($k, SETTINGS_DEFAULTS)) continue;
         $def = SETTINGS_DEFAULTS[$k];
         if ($k === 'photos') continue; // las fotos van por su propia ruta
+        if ($k === 'langs') {
+            $clean[$k] = array_values(array_unique(array_merge(['es'], array_intersect(array_keys(LANGS), (array)$v))));
+            continue;
+        }
+        if ($k === 'tr_provider') {
+            $clean[$k] = $v === 'google' ? 'google' : 'mymemory';
+            continue;
+        }
+        if ($k === 'tr_google_key') {
+            $v = trim((string)$v);
+            if ($v === '') continue;
+            $clean[$k] = enc(mb_substr($v, 0, 200));
+            continue;
+        }
         if ($k === 'smtp_pass') {
             // Vacío = dejar la que había. Google la muestra con espacios: se quitan.
             $v = preg_replace('/\s+/', '', (string)$v);
@@ -360,8 +382,8 @@ const WEEKDAYS = ['1' => 'Lunes', '2' => 'Martes', '3' => 'Miércoles', '4' => '
 
 function ranges_text(array $ranges): string
 {
-    if (!$ranges) return 'Cerrado';
-    return implode(' y ', array_map(fn($r) => $r[0] . '–' . $r[1], $ranges));
+    if (!$ranges) return t('Cerrado');
+    return implode(' ' . t('y') . ' ', array_map(fn($r) => $r[0] . '–' . $r[1], $ranges));
 }
 
 /** Enlace completo a una red social a partir de lo que se escriba (usuario, @usuario o enlace). */
@@ -397,7 +419,7 @@ function str_in(array $in, string $key, int $max, bool $required = false, string
 {
     $v = trim((string)($in[$key] ?? ''));
     $v = preg_replace('/\s+/u', ' ', $v) ?? '';
-    if ($required && $v === '') throw new ValidationError('Falta: ' . ($label ?: $key));
+    if ($required && $v === '') throw new ValidationError(t('Falta: %s', t($label ?: $key)));
     return mb_substr($v, 0, $max);
 }
 
@@ -463,6 +485,8 @@ function settings_admin(): array
     $s = settings();
     $s['smtp_pass_set'] = $s['smtp_pass'] !== '';
     $s['smtp_pass'] = '';
+    $s['tr_google_key_set'] = $s['tr_google_key'] !== '';
+    $s['tr_google_key'] = '';
     $s['smtp_error'] = (string)(q("SELECT v FROM settings WHERE k = '_smtp_error'")->fetchColumn() ?: '');
     return $s;
 }
@@ -474,6 +498,13 @@ function mail_via_google(): bool
     return $s['smtp_on'] && (str_ends_with($s['smtp_host'], 'gmail.com') || preg_match('/@(gmail|googlemail)\.com$/', $s['smtp_user']));
 }
 
+/** Aviso al restaurante: siempre en español, aunque lo dispare un cliente que navega en otro idioma. */
+function restaurant_mail(string $subject, string $body): bool
+{
+    $s = settings();
+    return with_lang('es', fn() => send_mail($s['notify_email'] ?: $s['email'], $subject, $body));
+}
+
 function send_mail(string $to, string $subject, string $body, bool $throw = false): bool
 {
     if (!filter_var($to, FILTER_VALIDATE_EMAIL)) return false;
@@ -481,8 +512,8 @@ function send_mail(string $to, string $subject, string $body, bool $throw = fals
     // Identificación del remitente en todos los emails (LSSI-CE)
     $who = trim(($s['owner_name'] ?: $s['name']) . ($s['owner_nif'] ? ' · NIF ' . $s['owner_nif'] : ''));
     $addr = trim($s['address'] . ', ' . $s['city'], ', ');
-    $body .= "\n\n--\n" . $who . ($addr ? "\n" . $addr : '') . "\nEste email es solo sobre tu reserva o tu cuenta: no enviamos publicidad.\n"
-        . 'Privacidad: ' . base_url() . '/legal.php#privacidad';
+    $body .= "\n\n--\n" . $who . ($addr ? "\n" . $addr : '') . "\n" . t('Este email es solo sobre tu reserva o tu cuenta: no enviamos publicidad.') . "\n"
+        . t('Privacidad') . ': ' . base_url() . '/legal.php' . (lang() !== 'es' ? '?lang=' . lang() : '') . '#privacidad';
     $replyTo = filter_var($s['email'], FILTER_VALIDATE_EMAIL) ? $s['email'] : '';
 
     if ($s['smtp_on'] && $s['smtp_user'] !== '' && $s['smtp_pass'] !== '') {

@@ -3,16 +3,26 @@
   var R = window.RESTAURANT || {};
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var $$ = function (s, el) { return Array.prototype.slice.call((el || document).querySelectorAll(s)); };
-  var DIAS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
-  var DIAS_L = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-  var MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  /* Idioma: window.I18N trae las traducciones del idioma actual (vacío en español) */
+  var I = window.I18N || {};
+  var LANG = document.documentElement.lang.slice(0, 2);
+  function T(str) {
+    var x = I[str] || str, args = Array.prototype.slice.call(arguments, 1), k = 0;
+    return args.length ? x.replace(/%[sd]/g, function () { return String(args[k++]); }) : x;
+  }
+  var DIAS_L = I._days ? [I._days[6]].concat(I._days.slice(0, 6)) : ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+  var DIAS = I._days ? DIAS_L.map(function (d) { return d.slice(0, 3); }) : ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+  var MESES = I._months || ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
   var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   function pad(n) { return (n < 10 ? '0' : '') + n; }
   function iso(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
   function parse(s) { var p = s.split('-'); return new Date(+p[0], +p[1] - 1, +p[2], 12); }
   function addDays(s, n) { var d = parse(s); d.setDate(d.getDate() + n); return iso(d); }
-  function longDay(s) { var d = parse(s); return DIAS_L[d.getDay()] + ' ' + d.getDate() + ' de ' + MESES[d.getMonth()]; }
+  function longDay(s) {
+    var d = parse(s), dn = DIAS_L[d.getDay()], n = d.getDate(), m = MESES[d.getMonth()];
+    return LANG === 'en' ? dn + ' ' + n + ' ' + m : LANG === 'pt' ? dn + ', ' + n + ' de ' + m : dn + ' ' + n + ' de ' + m;
+  }
 
   function api(route, body) {
     var opts = { credentials: 'same-origin', headers: {} };
@@ -22,11 +32,11 @@
       opts.body = JSON.stringify(body);
     }
     return fetch('api/?r=' + route, opts).then(function (r) {
-      return r.json().catch(function () { return { ok: false, error: 'El servidor no responde bien. Inténtalo de nuevo.' }; });
+      return r.json().catch(function () { return { ok: false, error: T('El servidor no responde bien. Inténtalo de nuevo.') }; });
     }, function () {
-      return { ok: false, error: 'Sin conexión. Revisa internet e inténtalo de nuevo.' };
+      return { ok: false, error: T('Sin conexión. Revisa internet e inténtalo de nuevo.') };
     }).then(function (j) {
-      if (!j.ok) throw new Error(j.error || 'Algo ha fallado');
+      if (!j.ok) throw new Error(j.error || T('Algo ha fallado'));
       return j.data;
     });
   }
@@ -151,7 +161,7 @@
     if (!menu) return;
     menu.hidden = !open;
     toggle.setAttribute('aria-expanded', String(open));
-    toggle.setAttribute('aria-label', open ? 'Cerrar el menú' : 'Abrir el menú');
+    toggle.setAttribute('aria-label', open ? T('Cerrar el menú') : T('Abrir el menú'));
     document.body.classList.toggle('menu-open', open);
     if (hd) hd.classList.toggle('is-solid', open || window.scrollY > window.innerHeight * 0.6);
   }
@@ -170,7 +180,7 @@
   }
 
   function summary() {
-    var parts = [B.people + (B.people === 1 ? ' persona' : ' personas')];
+    var parts = [B.people + ' ' + (B.people === 1 ? T('persona') : T('personas'))];
     if (B.date) parts.push(longDay(B.date));
     if (B.time) parts.push(B.time);
     $('#bk-sum').textContent = parts.join(' · ');
@@ -178,8 +188,8 @@
 
   function showPane(n) {
     $$('.bk-pane', dlg).forEach(function (p) { p.hidden = p.dataset.pane !== String(n); });
-    $('#bk-step').textContent = n <= 3 ? 'Paso ' + n + ' de 3' : 'Hecho';
-    $('#bk-title').textContent = ['', 'Reservar mesa', 'Elige la hora', 'Tus datos', 'Petición enviada'][n];
+    $('#bk-step').textContent = n <= 3 ? T('Paso %d de 3', n) : T('Hecho');
+    $('#bk-title').textContent = T(['', 'Reservar mesa', 'Elige la hora', 'Tus datos', 'Petición enviada'][n]);
     summary();
     var focusable = $('.bk-pane:not([hidden]) button, .bk-pane:not([hidden]) input', dlg);
     if (n > 1 && focusable) focusable.focus({ preventScroll: true });
@@ -199,8 +209,8 @@
       b.dataset.day = day;
       b.disabled = isClosed(day);
       b.setAttribute('aria-checked', String(day === B.date));
-      b.setAttribute('aria-label', longDay(day) + (b.disabled ? ', cerrado' : ''));
-      b.innerHTML = '<small>' + (i === 0 ? 'hoy' : i === 1 ? 'mañana' : DIAS[d.getDay()]) + '</small><b>' + d.getDate() + '</b><small>' + MESES[d.getMonth()].slice(0, 3) + '</small>';
+      b.setAttribute('aria-label', longDay(day) + (b.disabled ? ', ' + T('cerrado') : ''));
+      b.innerHTML = '<small>' + (i === 0 ? T('hoy') : i === 1 ? T('mañana') : DIAS[d.getDay()]) + '</small><b>' + d.getDate() + '</b><small>' + MESES[d.getMonth()].slice(0, 3) + '</small>';
       box.appendChild(b);
     }
   }
@@ -216,7 +226,7 @@
   function slotButtons(list) {
     return '<div class="slot-grid">' + list.map(function (s) {
       var off = s.left < B.people;
-      return '<button type="button" class="slot" data-time="' + s.time + '" aria-pressed="' + (s.time === B.time) + '"' + (off ? ' disabled aria-label="' + s.time + ', completo"' : '') + '>' + s.time + '</button>';
+      return '<button type="button" class="slot" data-time="' + s.time + '" aria-pressed="' + (s.time === B.time) + '"' + (off ? ' disabled aria-label="' + s.time + ', ' + T('completo') + '"' : '') + '>' + s.time + '</button>';
     }).join('') + '</div>';
   }
 
@@ -224,18 +234,18 @@
     var box = $('#bk-slots');
     var free = B.slots.filter(function (s) { return s.left >= B.people; });
     if (!free.length) {
-      box.innerHTML = '<p class="slots-msg">' + (B.reason || ('No queda sitio para ' + B.people + ' personas ese día.')) + ' Prueba otro día' + (R.phone ? ' o llámanos.' : '.') + '</p>';
+      box.innerHTML = '<p class="slots-msg">' + (B.reason || T('No queda sitio para %d personas ese día.', B.people)) + ' ' + (R.phone ? T('Prueba otro día o llámanos.') : T('Prueba otro día.')) + '</p>';
     } else {
       var lunch = B.slots.filter(function (s) { return s.time < '17:00'; });
       var dinner = B.slots.filter(function (s) { return s.time >= '17:00'; });
-      box.innerHTML = (lunch.length ? '<h3>Comida</h3>' + slotButtons(lunch) : '') + (dinner.length ? '<h3>Cena</h3>' + slotButtons(dinner) : '');
+      box.innerHTML = (lunch.length ? '<h3>' + T('Comida') + '</h3>' + slotButtons(lunch) : '') + (dinner.length ? '<h3>' + T('Cena') + '</h3>' + slotButtons(dinner) : '');
     }
     $('#bk-to3').disabled = !B.time;
   }
 
   function loadSlots() {
     var box = $('#bk-slots');
-    box.innerHTML = '<p class="slots-msg">Buscando horas libres…</p>';
+    box.innerHTML = '<p class="slots-msg">' + T('Buscando horas libres…') + '</p>';
     $('#bk-to3').disabled = true;
     api('slots&date=' + encodeURIComponent(B.date)).then(function (d) {
       B.slots = d.slots;
@@ -268,7 +278,7 @@
     f.privacy.checked = false;
     $('#bk-err').textContent = '';
     $('#bk-send').disabled = false;
-    $('#bk-send').textContent = 'Enviar petición';
+    $('#bk-send').textContent = T('Enviar petición');
   }
 
   if (dlg) {
@@ -306,7 +316,7 @@
         e.target.classList.add('is-on');
         summary();
       } else if (e.target.id === 'bk-date' && e.target.value) {
-        if (isClosed(e.target.value)) { toast('Ese día el restaurante está cerrado'); e.target.value = B.date; return; }
+        if (isClosed(e.target.value)) { toast(T('Ese día el restaurante está cerrado')); e.target.value = B.date; return; }
         pickDate(e.target.value);
       }
     });
@@ -325,27 +335,27 @@
       if (!data.phone && R.customer) { $('#bk-fields').hidden = false; }
       if (!R.customer || !$('#bk-fields').hidden) {
         var miss = [];
-        if (!data.name) miss.push('tu nombre');
-        if (!data.phone) miss.push('un teléfono móvil');
-        if (miss.length) { err.textContent = 'Falta ' + miss.join(' y ') + '.'; $('#bk-fields').hidden = false; return; }
+        if (!data.name && !data.phone) { err.textContent = T('Faltan tu nombre y un teléfono móvil.'); $('#bk-fields').hidden = false; return; }
+        if (!data.name) { err.textContent = T('Falta tu nombre.'); $('#bk-fields').hidden = false; return; }
+        if (!data.phone) { err.textContent = T('Falta un teléfono móvil.'); $('#bk-fields').hidden = false; return; }
       }
-      if (!data.privacy) { err.textContent = 'Marca la casilla para aceptar las políticas.'; return; }
+      if (!data.privacy) { err.textContent = T('Marca la casilla para aceptar las políticas.'); return; }
       var btn = this;
       btn.disabled = true;
-      btn.textContent = 'Enviando…';
+      btn.textContent = T('Enviando…');
       api('reserve', data).then(function (r) {
-        $('#bk-done-t').textContent = 'Petición realizada';
+        $('#bk-done-t').textContent = T('Petición realizada');
         $('#bk-done-msg').textContent = r.message;
         var more = $('#bk-done-more');
-        var wait = 'Esperando confirmación. Mientras no toques el enlace del WhatsApp, la reserva queda pendiente.';
-        if (r.linked) more.innerHTML = 'Esperando confirmación. La verás en <a href="cuenta.php">tu cuenta</a>, donde también podrás cancelarla.';
-        else if (r.email) more.innerHTML = wait + ' Si creas una cuenta con el mismo email, también la verás allí.';
-        else more.innerHTML = wait + ' Como no has puesto email, esta reserva no aparecerá en ninguna cuenta.';
+        var wait = T('Esperando confirmación. Mientras no abras el enlace del WhatsApp y pulses «Confirmar mi reserva», la reserva queda pendiente.');
+        if (r.linked) more.innerHTML = T('Esperando confirmación. La verás en <a href="cuenta.php">tu cuenta</a>, donde también podrás cancelarla.');
+        else if (r.email) more.textContent = wait + ' ' + T('Si creas una cuenta con el mismo email, también la verás allí.');
+        else more.textContent = wait + ' ' + T('Como no has puesto email, esta reserva no aparecerá en ninguna cuenta.');
         showPane(4);
       }).catch(function (e) {
         err.textContent = e.message;
         btn.disabled = false;
-        btn.textContent = 'Enviar petición';
+        btn.textContent = T('Enviar petición');
       });
     });
 
@@ -372,7 +382,7 @@
       var btn = $('button[type=submit]', f), err = $('.form-err', f), label = btn.textContent;
       err.textContent = '';
       btn.disabled = true;
-      btn.textContent = 'Un momento…';
+      btn.textContent = T('Un momento…');
       api(f.dataset.api, data).then(function (r) {
         if (f.dataset.api === 'c_register' && r && r.pending) {
           f.hidden = true;
@@ -383,7 +393,7 @@
           return;
         }
         if (f.dataset.api === 'c_profile') {
-          toast('Datos guardados');
+          toast(T('Datos guardados'));
           btn.disabled = false;
           btn.textContent = label;
           $$('input[type=password]', f).forEach(function (i) { i.value = ''; });
@@ -401,7 +411,7 @@
   var resend = $('#acc-reenviar');
   if (resend) resend.addEventListener('click', function () {
     resend.disabled = true;
-    api('c_resend', { email: resend.dataset.email }).then(function () { toast('Email enviado otra vez'); }, function (e) { toast(e.message); })
+    api('c_resend', { email: resend.dataset.email }).then(function () { toast(T('Email enviado otra vez')); }, function (e) { toast(e.message); })
       .then(function () { setTimeout(function () { resend.disabled = false; }, 30000); });
   });
 
@@ -414,7 +424,7 @@
     b.addEventListener('click', function () {
       b.disabled = true;
       api('c_confirm', { id: +b.dataset.confirmRes }).then(function () {
-        toast('Reserva confirmada');
+        toast(T('Reserva confirmada'));
         setTimeout(function () { location.reload(); }, 700);
       }).catch(function (e) { toast(e.message); b.disabled = false; });
     });
@@ -422,10 +432,10 @@
 
   $$('[data-cancel]').forEach(function (b) {
     b.addEventListener('click', function () {
-      if (!confirm('¿Cancelar la reserva del ' + b.dataset.when + '?')) return;
+      if (!confirm(T('¿Cancelar la reserva del %s?', b.dataset.when))) return;
       b.disabled = true;
       api('c_cancel', { id: +b.dataset.cancel }).then(function () {
-        toast('Reserva cancelada');
+        toast(T('Reserva cancelada'));
         setTimeout(function () { location.reload(); }, 700);
       }).catch(function (e) { toast(e.message); b.disabled = false; });
     });
@@ -478,7 +488,7 @@
       var nums = hojas.filter(function (h) { return h.dataset.num; }).length;
       var txt = vis.map(function (k) {
         var hj = hojas[k];
-        return hj.dataset.num && !spread ? hj.dataset.label + ' · página ' + hj.dataset.num + ' de ' + nums : hj.dataset.label;
+        return hj.dataset.num && !spread ? T('%s · página %s de %s', hj.dataset.label, hj.dataset.num, nums) : hj.dataset.label;
       });
       pagina.textContent = txt.join(' y ');
       flechas[0].disabled = cur === 0;

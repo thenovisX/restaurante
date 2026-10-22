@@ -7,6 +7,8 @@
  */
 (function () {
   'use strict';
+  // Traducciones del idioma actual (las pone page_start en window.I18N)
+  function L(x) { return (window.I18N || {})[x] || x; }
   var T = window.SITE_TRACKING || {};
   var NAME = 'cookie_consent';
   var VERSION = 1;
@@ -101,19 +103,20 @@
     box.setAttribute('aria-labelledby', 'ck-t');
     box.innerHTML =
       '<p class="ck-t" id="ck-t">Cookies</p>' +
-      '<p class="ck-txt">Usamos cookies necesarias para que la web funcione y, si nos das permiso, cookies de análisis para saber cómo se usa la web y mejorarla' +
-      (T.pixel || T.gtm ? ', y de publicidad para medir nuestros anuncios' : '') +
-      '. Puedes cambiar tu elección cuando quieras. <a href="legal.php#cookies">Más información</a>.</p>' +
+      '<p class="ck-txt">' + L(T.pixel || T.gtm
+        ? 'Usamos cookies necesarias para que la web funcione y, si nos das permiso, cookies de análisis para saber cómo se usa la web y mejorarla, y de publicidad para medir nuestros anuncios.'
+        : 'Usamos cookies necesarias para que la web funcione y, si nos das permiso, cookies de análisis para saber cómo se usa la web y mejorarla.') +
+      ' ' + L('Puedes cambiar tu elección cuando quieras.') + ' <a href="legal.php#cookies">' + L('Más información') + '</a>.</p>' +
       '<div class="ck-opts"' + (settings ? '' : ' hidden') + '>' +
-        '<label class="ck-opt"><span><strong>Necesarias</strong><small>Mantienen tu sesión y recuerdan esta elección. Siempre activas.</small></span><input type="checkbox" checked disabled></label>' +
-        '<label class="ck-opt"><span><strong>Análisis</strong><small>Estadísticas de visitas (Google Analytics).</small></span><input type="checkbox" name="analytics"' + (c.analytics ? ' checked' : '') + '></label>' +
-        '<label class="ck-opt"><span><strong>Publicidad</strong><small>' + (navigator.globalPrivacyControl === true ? 'Desactivada: tu navegador pide no compartir datos (GPC).' : 'Medir anuncios en Google, Instagram o Facebook. Implica compartir datos con esas empresas.') + '</small></span><input type="checkbox" name="marketing"' + (c.marketing && navigator.globalPrivacyControl !== true ? ' checked' : '') + (navigator.globalPrivacyControl === true ? ' disabled' : '') + '></label>' +
+        '<label class="ck-opt"><span><strong>' + L('Necesarias') + '</strong><small>' + L('Mantienen tu sesión y recuerdan esta elección. Siempre activas.') + '</small></span><input type="checkbox" checked disabled></label>' +
+        '<label class="ck-opt"><span><strong>' + L('Análisis') + '</strong><small>' + L('Estadísticas de visitas (Google Analytics).') + '</small></span><input type="checkbox" name="analytics"' + (c.analytics ? ' checked' : '') + '></label>' +
+        '<label class="ck-opt"><span><strong>' + L('Publicidad') + '</strong><small>' + (navigator.globalPrivacyControl === true ? L('Desactivada: tu navegador pide no compartir datos (GPC).') : L('Medir anuncios en Google, Instagram o Facebook. Implica compartir datos con esas empresas.')) + '</small></span><input type="checkbox" name="marketing"' + (c.marketing && navigator.globalPrivacyControl !== true ? ' checked' : '') + (navigator.globalPrivacyControl === true ? ' disabled' : '') + '></label>' +
       '</div>' +
       '<div class="ck-btns">' +
-        '<button type="button" class="btn btn-rubor" data-ck="reject">Rechazar todas</button>' +
-        '<button type="button" class="btn btn-ghost" data-ck="config"' + (settings ? ' hidden' : '') + '>Configurar</button>' +
-        '<button type="button" class="btn btn-ghost" data-ck="save"' + (settings ? '' : ' hidden') + '>Guardar elección</button>' +
-        '<button type="button" class="btn btn-rubor" data-ck="accept">Aceptar todas</button>' +
+        '<button type="button" class="btn btn-rubor" data-ck="reject">' + L('Rechazar todas') + '</button>' +
+        '<button type="button" class="btn btn-ghost" data-ck="config"' + (settings ? ' hidden' : '') + '>' + L('Configurar') + '</button>' +
+        '<button type="button" class="btn btn-ghost" data-ck="save"' + (settings ? '' : ' hidden') + '>' + L('Guardar elección') + '</button>' +
+        '<button type="button" class="btn btn-rubor" data-ck="accept">' + L('Aceptar todas') + '</button>' +
       '</div>';
     document.body.appendChild(box);
     box.addEventListener('click', function (e) {
