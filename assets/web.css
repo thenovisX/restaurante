@@ -918,3 +918,8 @@ html, body { max-width: 100%; }
 .lb-x:hover, .lb-nav:hover, .lb-x:focus-visible, .lb-nav:focus-visible { border-color: #fff; outline: none; }
 .lb-one .lb-nav { display: none; }
 @media (max-width: 600px) { .lb-nav { top: auto; bottom: 10px; transform: none; } .lb-prev { left: calc(50% - 60px); } .lb-next { right: calc(50% - 60px); } .lb-in { padding-bottom: 76px; } }
+
+/* Número de personas: grande y claro */
+#bk-people { gap: 10px; }
+#bk-people span, #bk-people.chips .chip-more select { min-width: 58px; height: 58px; font-size: 1.4rem; font-family: var(--display, inherit); }
+#bk-people input:checked + span { transform: scale(1.08); box-shadow: 0 0 0 3px rgba(242, 236, 228, .25); }

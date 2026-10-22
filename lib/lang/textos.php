@@ -362,6 +362,8 @@ return [
     'Reservar online' => ['en' => 'Book online', 'pt' => 'Reservar online', 'gl' => 'Reservar en liña'],
     'Elige día y hora y te confirmamos por WhatsApp.' => ['en' => 'Pick a day and time and we will confirm by WhatsApp.', 'pt' => 'Escolha o dia e a hora e confirmamos por WhatsApp.', 'gl' => 'Escolle día e hora e confirmámoste por WhatsApp.'],
     'Llamar por teléfono' => ['en' => 'Call us', 'pt' => 'Ligar por telefone', 'gl' => 'Chamar por teléfono'],
+    'Escribir por WhatsApp' => ['en' => 'Message us on WhatsApp', 'pt' => 'Escrever por WhatsApp', 'gl' => 'Escribir por WhatsApp'],
+    'Pregúntanos o reserva por mensaje.' => ['en' => 'Ask us or book by message.', 'pt' => 'Pergunte-nos ou reserve por mensagem.', 'gl' => 'Pregúntanos ou reserva por mensaxe.'],
     'Estamos abiertos ahora: %s' => ['en' => 'We are open now: %s', 'pt' => 'Estamos abertos agora: %s', 'gl' => 'Estamos abertos agora: %s'],
     'Ahora estamos cerrados.' => ['en' => 'We are closed right now.', 'pt' => 'Neste momento estamos fechados.', 'gl' => 'Agora estamos pechados.'],
     'Ahora estamos cerrados. Podrás llamarnos %s.' => ['en' => 'We are closed right now. You can call us %s.', 'pt' => 'Neste momento estamos fechados. Poderá ligar-nos %s.', 'gl' => 'Agora estamos pechados. Poderás chamarnos %s.'],

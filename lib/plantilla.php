@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/tema.php';
 
-const ASSET_V = '29';
+const ASSET_V = '30';
 
 // Idioma de la visita (las páginas públicas cargan este archivo antes de pintar nada)
 detect_lang();
