@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/tema.php';
 
-const ASSET_V = '33';
+const ASSET_V = '34';
 
 // Idioma de la visita (las páginas públicas cargan este archivo antes de pintar nada)
 detect_lang();
@@ -205,7 +205,7 @@ function site_footer(): void
       </div>
       <div>
         <h2><?= t('Más') ?></h2>
-        <p><a href="cuenta.php"><?= t('Mi cuenta') ?></a><br><?= food_links('', true, '<br>') ?><br><a href="reservar.php#politicas"><?= t('Políticas de reserva') ?></a><br><a href="legal.php#aviso"><?= t('Aviso legal') ?></a><br><a href="legal.php#condiciones"><?= t('Condiciones de uso') ?></a><br><a href="legal.php#privacidad"><?= t('Privacidad') ?></a><br><a href="legal.php#cookies"><?= t('Cookies') ?></a><br><a href="legal.php#cookies" data-cookies><?= t('Configurar cookies') ?></a></p>
+        <p><a href="cuenta.php"><?= t('Mi cuenta') ?></a><br><?= food_links('', true, '<br>') ?><br><a href="reservar.php#politicas"><?= t('Políticas de reserva') ?></a><br><a href="legal.php#aviso"><?= t('Aviso legal') ?></a><br><a href="legal.php#condiciones"><?= t('Condiciones de uso') ?></a><br><a href="legal.php#privacidad"><?= t('Privacidad') ?></a><br><a href="borrar-datos.php"><?= t('Borrar mis datos') ?></a><br><a href="legal.php#cookies"><?= t('Cookies') ?></a><br><a href="legal.php#cookies" data-cookies><?= t('Configurar cookies') ?></a></p>
       </div>
     </div>
     <p class="ft-legal">© <?= date('Y') ?> <?= h($s['name']) ?>.<?php $cr = photo_credits(); if ($cr): ?> <?= t('Fotos de') ?>

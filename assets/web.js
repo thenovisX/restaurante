@@ -41,6 +41,25 @@
     });
   }
 
+  // Borrar mis datos (políticas y borrar-datos.php)
+  document.addEventListener('submit', function (e) {
+    var f = e.target.closest && e.target.closest('form[data-erase]');
+    if (!f) return;
+    e.preventDefault();
+    var btn = f.querySelector('button[type=submit]'), msg = f.querySelector('.erase-msg');
+    btn.disabled = true;
+    msg.classList.remove('is-err');
+    api('erase_request', { contact: f.contact.value, website: f.website.value }).then(function (d) {
+      msg.textContent = d.message || '';
+      f.contact.value = '';
+    }, function (err) {
+      msg.textContent = err.message;
+      msg.classList.add('is-err');
+    }).then(function () { btn.disabled = false; });
+  });
+  // Abrir «Borrar todos mis datos» si se llega con #borrar-datos
+  if (location.hash === '#borrar-datos') { var bd = document.getElementById('borrar-datos'); if (bd) bd.open = true; }
+
   function toast(msg) {
     var t = document.createElement('div');
     t.className = 'toast';

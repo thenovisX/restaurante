@@ -56,7 +56,7 @@ function purge_old_reservations(bool $force = false): int
 }
 
 /** Actualiza la base de datos de instalaciones anteriores sin perder datos. */
-const SCHEMA_VERSION = 7;
+const SCHEMA_VERSION = 8;
 /** Versión de las condiciones y la privacidad: se guarda con cada aceptación. Súbela si cambias los textos. */
 const LEGAL_VERSION = '2026-10-22';
 function ensure_schema(): void
@@ -139,6 +139,7 @@ function ensure_schema(): void
         // v7: idiomas (la tabla translations la crea schema_sql) e idioma en el que reservó cada cliente
         try { db()->exec("ALTER TABLE reservations ADD COLUMN lang CHAR(2) NOT NULL DEFAULT 'es'"); } catch (Throwable $e) { /* ya existe */ }
     }
+    // v8: peticiones de borrado de datos (la tabla erase_requests la crea schema_sql)
     q("DELETE FROM settings WHERE k = '_schema'");
     q("INSERT INTO settings (k, v) VALUES ('_schema', ?)", [(string)SCHEMA_VERSION]);
 }

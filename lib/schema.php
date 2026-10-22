@@ -26,6 +26,8 @@ function schema_sql(bool $sqlite): array
             verified_at DATETIME NULL, verify_hash VARCHAR(64) NOT NULL DEFAULT '', verify_expires DATETIME NULL)$tail",
         "CREATE TABLE IF NOT EXISTS audit_log (id $ai, at DATETIME NOT NULL, customer_id INT NOT NULL DEFAULT 0, event VARCHAR(40) NOT NULL,
             detail VARCHAR(255) NOT NULL DEFAULT '', ip VARCHAR(512) NOT NULL DEFAULT '', ua VARCHAR(255) NOT NULL DEFAULT '')$tail",
+        "CREATE TABLE IF NOT EXISTS erase_requests (id $ai, kind VARCHAR(10) NOT NULL, contact VARCHAR(512) NOT NULL, token_hash CHAR(64) NOT NULL DEFAULT '',
+            status VARCHAR(10) NOT NULL DEFAULT 'nueva', ip VARCHAR(64) NOT NULL DEFAULT '', created_at DATETIME NOT NULL, expires_at DATETIME NULL)$tail",
         'CREATE INDEX idx_res_date ON reservations (rdate)',
         'CREATE INDEX idx_dish_cat ON dishes (category_id)',
         'CREATE INDEX idx_res_customer ON reservations (customer_id)',
