@@ -368,4 +368,7 @@ return [
     'hoy a las %s' => ['en' => 'today at %s', 'pt' => 'hoje às %s', 'gl' => 'hoxe ás %s'],
     'mañana a las %s' => ['en' => 'tomorrow at %s', 'pt' => 'amanhã às %s', 'gl' => 'mañá ás %s'],
     'el %s a las %s' => ['en' => 'on %s at %s', 'pt' => '%s às %s', 'gl' => 'o %s ás %s'],
+    'Ampliar foto' => ['en' => 'Enlarge photo', 'pt' => 'Ampliar foto', 'gl' => 'Ampliar foto'],
+    'Anterior' => ['en' => 'Previous', 'pt' => 'Anterior', 'gl' => 'Anterior'],
+    'Siguiente' => ['en' => 'Next', 'pt' => 'Seguinte', 'gl' => 'Seguinte'],
 ];
