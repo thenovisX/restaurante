@@ -21,8 +21,8 @@ echo json_encode([
         ['src' => 'icon.php?s=512&m=1', 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'maskable'],
     ],
     'shortcuts' => [
-        ['name' => 'Reservar mesa', 'url' => './?app=1#reservar'],
+        ['name' => 'Reservar mesa', 'url' => './reservar.php?app=1#reservar'],
         ['name' => 'Mis reservas', 'url' => './cuenta.php'],
-        ['name' => 'La carta', 'url' => './?app=1#carta'],
+        ['name' => 'La carta', 'url' => './carta.php'],
     ],
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);

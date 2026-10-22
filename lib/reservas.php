@@ -193,7 +193,7 @@ function whatsapp_text(array $r, string $url): string
     $first = explode(' ', trim($r['name']))[0];
     return "Hola $first, confirma tu reserva en {$s['name']} para el " . fmt_date_es($r['date']) . " a las {$r['time']} ("
         . $r['people'] . ($r['people'] === 1 ? ' persona' : ' personas') . "). Abre este enlace y pulsa «Confirmar mi reserva»:\n$url\n\n"
-        . 'Si te has equivocado en algún dato, vuelve a hacer la reserva en la web: ' . base_url() . '/#reservar';
+        . 'Si te has equivocado en algún dato, vuelve a hacer la reserva en la web: ' . base_url() . '/reservar.php';
 }
 
 /** Reserva con lo que necesita el panel: enlace de confirmación y enlace de WhatsApp listo para enviar. */
