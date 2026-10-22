@@ -1,6 +1,10 @@
 <?php
 // Textos que usa el JavaScript de la web (assets/web.js y assets/consent.js). Se mandan traducidos en window.I18N.
 return [
+    'Ampliar foto',
+    'Anterior',
+    'Siguiente',
+    'Cerrar',
     'Estamos abiertos ahora: %s',
     'Ahora estamos cerrados.',
     'Ahora estamos cerrados. Podrás llamarnos %s.',
