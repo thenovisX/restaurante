@@ -218,7 +218,9 @@ const SETTINGS_DEFAULTS = [
     'ribbon'        => '',     // frases de la cinta, separadas por comas (si no, sale la frase corta)
     'footer_title'  => '¿Cenamos?',
     'photos'        => [],     // fotos propias de la web: clave => uploads/…
-    'daily_menu'    => [],     // menú del día (ver daily_menu() en carta.php); se guarda con su propia ruta
+    'daily_menu'    => [],     // antiguo menú del día (ahora va en menus)
+    'menus'         => [],     // menús con precio cerrado (ver menus_all() en carta.php); se guardan con su propia ruta
+    'carta_on'      => true,   // ¿sale la carta principal en la web? (se cambia desde la pestaña Carta)
     // SEO y estadísticas (solo se cargan si el visitante acepta las cookies)
     'seo_description' => '',   // texto que sale en Google bajo el nombre
     'ga_id'         => '',     // Google Analytics 4: G-XXXXXXX
@@ -285,7 +287,7 @@ function settings_save(array $values): array
     foreach ($values as $k => $v) {
         if (!array_key_exists($k, SETTINGS_DEFAULTS)) continue;
         $def = SETTINGS_DEFAULTS[$k];
-        if ($k === 'photos' || $k === 'daily_menu') continue; // van por su propia ruta
+        if (in_array($k, ['photos', 'daily_menu', 'menus', 'carta_on'], true)) continue; // van por su propia ruta
         if ($k === 'langs') {
             $clean[$k] = array_values(array_unique(array_merge(['es'], array_intersect(array_keys(LANGS), (array)$v))));
             continue;

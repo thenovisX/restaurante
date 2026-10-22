@@ -274,18 +274,19 @@ function web_photos_info(): array
     return $o;
 }
 
-/* ---------- Menú del día ---------- */
+/* ---------- Menús (menú del día, degustación, infantil…) y carta principal ---------- */
 
-/**
- * El menú del día: un precio cerrado con varios apartados (primero, segundo, postre, café…) y en cada uno
- * los platos a elegir. Un plato puede llevar suplemento («+5 €»). Se activa y desactiva desde la app.
+/*
+ * Cada menú tiene un precio cerrado y varios apartados (primero, segundo, postre, café…) con los platos
+ * a elegir. Un plato puede llevar suplemento («+5 €»). Cada menú se activa y desactiva por separado desde la app,
+ * y la carta principal también (setting carta_on).
  */
-function daily_menu(): array
+function menu_norm(array $m): array
 {
-    $m = (array)(settings()['daily_menu'] ?? []);
     return [
+        'id'      => preg_replace('/[^a-z0-9]/', '', (string)($m['id'] ?? '')) ?: substr(sha1(json_encode($m)), 0, 8),
         'on'      => (bool)($m['on'] ?? false),
-        'title'   => (string)($m['title'] ?? 'Menú del día') ?: 'Menú del día',
+        'title'   => (string)($m['title'] ?? '') ?: 'Menú del día',
         'price'   => (float)($m['price'] ?? 0),
         'days'    => array_values(array_map('intval', (array)($m['days'] ?? [1, 2, 3, 4, 5]))),
         'note'    => (string)($m['note'] ?? ''),
@@ -296,15 +297,35 @@ function daily_menu(): array
                 'desc'  => (string)($d['desc'] ?? ''),
                 'extra' => (float)($d['extra'] ?? 0),
             ], (array)($c['dishes'] ?? []))),
-        ], (array)($m['courses'] ?? [
-            ['name' => 'Primero', 'dishes' => []],
-            ['name' => 'Segundo', 'dishes' => []],
-            ['name' => 'Postre', 'dishes' => []],
-        ]))),
+        ], (array)($m['courses'] ?? []))),
     ];
 }
 
-function daily_menu_save(array $in): array
+/** Todos los menús, en orden (para la app). */
+function menus_all(): array
+{
+    $s = settings();
+    $list = (array)($s['menus'] ?? []);
+    // Antes solo había un menú del día (setting daily_menu)
+    if (!$list && !empty($s['daily_menu'])) $list = [$s['daily_menu'] + ['id' => 'dia']];
+    return array_values(array_map('menu_norm', $list));
+}
+
+function menus_store(array $list): void
+{
+    q("DELETE FROM settings WHERE k = 'menus'");
+    q("INSERT INTO settings (k, v) VALUES ('menus', ?)", [json_encode(array_values($list), JSON_UNESCAPED_UNICODE)]);
+    settings(true);
+}
+
+function menu_find(array $list, string $id): int
+{
+    foreach ($list as $i => $m) if ($m['id'] === $id) return $i;
+    throw new ValidationError('Ese menú ya no existe');
+}
+
+/** Crea (sin id) o guarda un menú. Devuelve el menú guardado. */
+function menu_save(array $in): array
 {
     $money = function ($v, string $what): float {
         $v = round((float)str_replace(',', '.', (string)$v), 2);
@@ -312,7 +333,10 @@ function daily_menu_save(array $in): array
         return $v;
     };
     $txt = fn($v, int $max) => mb_substr(trim((string)$v), 0, $max);
+    $list = menus_all();
+    $id = preg_replace('/[^a-z0-9]/', '', (string)($in['id'] ?? ''));
     $m = [
+        'id'    => $id ?: bin2hex(random_bytes(4)),
         'on'    => filter_var($in['on'] ?? false, FILTER_VALIDATE_BOOLEAN),
         'title' => $txt($in['title'] ?? '', 80) ?: 'Menú del día',
         'price' => $money($in['price'] ?? 0, 'menú'),
@@ -338,39 +362,80 @@ function daily_menu_save(array $in): array
         if (!array_filter($m['courses'], fn($c) => $c['dishes'])) throw new ValidationError('Añade al menos un plato para activar el menú');
         if (!$m['days']) throw new ValidationError('Elige qué días se sirve el menú');
     }
-    q("DELETE FROM settings WHERE k = 'daily_menu'");
-    q("INSERT INTO settings (k, v) VALUES ('daily_menu', ?)", [json_encode($m, JSON_UNESCAPED_UNICODE)]);
-    settings(true);
-    return daily_menu();
+    if ($id) {
+        $list[menu_find($list, $id)] = $m;
+    } else {
+        if (count($list) >= 20) throw new ValidationError('Como mucho 20 menús');
+        $list[] = $m;
+    }
+    menus_store($list);
+    return menu_norm($m);
 }
 
 /** Solo activar o desactivar (el interruptor de la app). */
-function daily_menu_toggle(bool $on): array
+function menu_toggle(string $id, bool $on): array
 {
-    return daily_menu_save(['on' => $on] + daily_menu());
+    $list = menus_all();
+    return menu_save(['on' => $on] + $list[menu_find($list, $id)]);
+}
+
+function menu_delete(string $id): void
+{
+    $list = menus_all();
+    array_splice($list, menu_find($list, $id), 1);
+    menus_store($list);
+}
+
+function menu_move(string $id, int $dir): void
+{
+    $list = menus_all();
+    $i = menu_find($list, $id);
+    $j = $i + ($dir < 0 ? -1 : 1);
+    if (!isset($list[$j])) return;
+    [$list[$i], $list[$j]] = [$list[$j], $list[$i]];
+    menus_store($list);
+}
+
+/** ¿Sale la carta principal en la web? */
+function carta_on(): bool
+{
+    return (bool)(settings()['carta_on'] ?? true);
+}
+
+function carta_toggle(bool $on): bool
+{
+    q("DELETE FROM settings WHERE k = 'carta_on'");
+    q("INSERT INTO settings (k, v) VALUES ('carta_on', ?)", [json_encode($on)]);
+    settings(true);
+    return $on;
 }
 
 /**
- * El menú para la web, traducido, o null si está desactivado.
- * 'today' dice si hoy se sirve y 'days_text' los días («de lunes a viernes»).
+ * Los menús activos para la web, traducidos. Cada uno lleva además 'today' (¿se sirve hoy?),
+ * 'every_day' (todos los días) y 'days_text' («de lunes a viernes»).
  */
-function daily_menu_public(): ?array
+function menus_public(): array
 {
-    $m = daily_menu();
-    if (!$m['on']) return null;
-    $m['courses'] = array_values(array_filter($m['courses'], fn($c) => $c['dishes']));
-    if (!$m['courses']) return null;
-    $m['title'] = tr($m['title']);
-    $m['note'] = tr($m['note']);
-    foreach ($m['courses'] as &$c) {
-        $c['name'] = tr($c['name']);
-        foreach ($c['dishes'] as &$d) { $d['name'] = tr($d['name']); $d['desc'] = tr($d['desc']); }
-        unset($d);
+    $out = [];
+    $closedToday = in_array(today(), settings()['closed_dates'], true);
+    foreach (menus_all() as $m) {
+        if (!$m['on']) continue;
+        $m['courses'] = array_values(array_filter($m['courses'], fn($c) => $c['dishes']));
+        if (!$m['courses']) continue;
+        $m['title'] = tr($m['title']);
+        $m['note'] = tr($m['note']);
+        foreach ($m['courses'] as &$c) {
+            $c['name'] = tr($c['name']);
+            foreach ($c['dishes'] as &$d) { $d['name'] = tr($d['name']); $d['desc'] = tr($d['desc']); }
+            unset($d);
+        }
+        unset($c);
+        $m['today'] = in_array((int)date('N'), $m['days'], true) && !$closedToday;
+        $m['every_day'] = count($m['days']) === 7;
+        $m['days_text'] = days_text($m['days']);
+        $out[] = $m;
     }
-    unset($c);
-    $m['today'] = in_array((int)date('N'), $m['days'], true) && !in_array(today(), settings()['closed_dates'], true);
-    $m['days_text'] = days_text($m['days']);
-    return $m;
+    return $out;
 }
 
 /** «de lunes a viernes», «todos los días», «martes, jueves y sábado». */

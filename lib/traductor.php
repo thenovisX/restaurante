@@ -28,15 +28,15 @@ function translatable_texts(): array
         $add($d['name'], 'Plato');
         $add($d['description'], 'Descripción de «' . $d['name'] . '»');
     }
-    $dm = daily_menu();
-    if ($dm['on']) {
-        $add($dm['title'], 'Menú del día');
-        $add($dm['note'], 'Menú del día (nota)');
+    foreach (menus_all() as $dm) {
+        if (!$dm['on']) continue;
+        $add($dm['title'], 'Nombre de menú');
+        $add($dm['note'], 'Nota de «' . $dm['title'] . '»');
         foreach ($dm['courses'] as $c) {
-            $add($c['name'], 'Apartado del menú del día');
+            $add($c['name'], 'Apartado de «' . $dm['title'] . '»');
             foreach ($c['dishes'] as $d) {
-                $add($d['name'], 'Plato del menú del día');
-                $add($d['desc'], 'Descripción de «' . $d['name'] . '» (menú del día)');
+                $add($d['name'], 'Plato de «' . $dm['title'] . '»');
+                $add($d['desc'], 'Descripción de «' . $d['name'] . '» (' . $dm['title'] . ')');
             }
         }
     }

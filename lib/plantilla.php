@@ -5,10 +5,19 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/tema.php';
 
-const ASSET_V = '31';
+const ASSET_V = '32';
 
 // Idioma de la visita (las páginas públicas cargan este archivo antes de pintar nada)
 detect_lang();
+
+/** Texto del enlace a carta.php: «Carta», o «Menús» si la carta está desactivada y hay menús. */
+function carta_label(bool $long = false): string
+{
+    static $menus = null;
+    if (carta_on()) return $long ? t('La carta') : t('Carta');
+    $menus ??= (bool)menus_public();
+    return $menus ? t('Menús') : ($long ? t('La carta') : t('Carta'));
+}
 
 function tel_href(string $t): string
 {
@@ -130,7 +139,7 @@ function site_header(?array $customer, bool $overHero = false): void
   <a class="hd-brand" href="./" aria-label="<?= h($s['name']) ?>, <?= t('inicio') ?>"><?= h($s['name']) ?></a>
   <nav class="hd-nav" aria-label="<?= t('Principal') ?>">
     <a href="./#nosotros"><?= t('Nosotros') ?></a>
-    <a href="carta.php"<?= $page === 'carta.php' ? ' aria-current="page"' : '' ?>><?= t('Carta') ?></a>
+    <a href="carta.php"<?= $page === 'carta.php' ? ' aria-current="page"' : '' ?>><?= carta_label() ?></a>
     <a href="reservar.php"<?= $page === 'reservar.php' ? ' aria-current="page"' : '' ?>><?= t('Reservas') ?></a>
     <a href="./#app"><?= t('App') ?></a>
   </nav>
@@ -144,7 +153,7 @@ function site_header(?array $customer, bool $overHero = false): void
   <?= lang_switcher('langs-menu') ?>
   <nav aria-label="<?= t('Menú') ?>">
     <a href="./#nosotros"><?= t('Nosotros') ?></a>
-    <a href="carta.php"><?= t('Carta') ?></a>
+    <a href="carta.php"><?= carta_label() ?></a>
     <a href="reservar.php"><?= t('Reservas y políticas') ?></a>
     <a href="reservar.php" data-book><?= t('Reservar mesa') ?></a>
     <a href="./#app"><?= t('App') ?></a>
@@ -189,7 +198,7 @@ function site_footer(): void
       </div>
       <div>
         <h2><?= t('Más') ?></h2>
-        <p><a href="cuenta.php"><?= t('Mi cuenta') ?></a><br><a href="carta.php"><?= t('La carta') ?></a><br><a href="reservar.php#politicas"><?= t('Políticas de reserva') ?></a><br><a href="legal.php#aviso"><?= t('Aviso legal') ?></a><br><a href="legal.php#condiciones"><?= t('Condiciones de uso') ?></a><br><a href="legal.php#privacidad"><?= t('Privacidad') ?></a><br><a href="legal.php#cookies"><?= t('Cookies') ?></a><br><a href="legal.php#cookies" data-cookies><?= t('Configurar cookies') ?></a></p>
+        <p><a href="cuenta.php"><?= t('Mi cuenta') ?></a><br><a href="carta.php"><?= carta_label(true) ?></a><br><a href="reservar.php#politicas"><?= t('Políticas de reserva') ?></a><br><a href="legal.php#aviso"><?= t('Aviso legal') ?></a><br><a href="legal.php#condiciones"><?= t('Condiciones de uso') ?></a><br><a href="legal.php#privacidad"><?= t('Privacidad') ?></a><br><a href="legal.php#cookies"><?= t('Cookies') ?></a><br><a href="legal.php#cookies" data-cookies><?= t('Configurar cookies') ?></a></p>
       </div>
     </div>
     <p class="ft-legal">© <?= date('Y') ?> <?= h($s['name']) ?>.<?php $cr = photo_credits(); if ($cr): ?> <?= t('Fotos de') ?>
