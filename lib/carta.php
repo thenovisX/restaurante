@@ -293,9 +293,12 @@ function menu_norm(array $m): array
         'courses' => array_values(array_map(fn($c) => [
             'name'   => (string)($c['name'] ?? ''),
             'dishes' => array_values(array_map(fn($d) => [
-                'name'  => (string)($d['name'] ?? ''),
-                'desc'  => (string)($d['desc'] ?? ''),
-                'extra' => (float)($d['extra'] ?? 0),
+                'name'      => (string)($d['name'] ?? ''),
+                'desc'      => (string)($d['desc'] ?? ''),
+                'extra'     => (float)($d['extra'] ?? 0),
+                'allergens' => array_values(array_intersect(array_keys(ALLERGENS), (array)($d['allergens'] ?? []))),
+                'photo'     => (string)($d['photo'] ?? ''),
+                'photo_url' => ($d['photo'] ?? '') === '' ? '' : base_url() . '/' . $d['photo'],
             ], (array)($c['dishes'] ?? []))),
         ], (array)($m['courses'] ?? []))),
     ];
@@ -351,7 +354,14 @@ function menu_save(array $in): array
         foreach (array_slice((array)($c['dishes'] ?? []), 0, 30) as $d) {
             $dn = $txt($d['name'] ?? '', 120);
             if ($dn === '') continue;
-            $dishes[] = ['name' => $dn, 'desc' => $txt($d['desc'] ?? '', 200), 'extra' => $money($d['extra'] ?? 0, $dn)];
+            $photo = (string)($d['photo'] ?? '');
+            if (!preg_match('#^uploads/menu-[a-z0-9-]+\.jpg$#', $photo) || !is_file(dirname(__DIR__) . '/' . $photo)) $photo = '';
+            $al = $d['allergens'] ?? [];
+            if (is_string($al)) $al = $al === '' ? [] : explode(',', $al);
+            $dishes[] = [
+                'name' => $dn, 'desc' => $txt($d['desc'] ?? '', 200), 'extra' => $money($d['extra'] ?? 0, $dn),
+                'allergens' => array_values(array_intersect(array_keys(ALLERGENS), (array)$al)), 'photo' => $photo,
+            ];
         }
         if ($name === '' && !$dishes) continue;
         if ($name === '') throw new ValidationError('Ponle nombre a cada apartado del menú (Primero, Segundo…)');
@@ -363,13 +373,54 @@ function menu_save(array $in): array
         if (!$m['days']) throw new ValidationError('Elige qué días se sirve el menú');
     }
     if ($id) {
-        $list[menu_find($list, $id)] = $m;
+        $i = menu_find($list, $id);
+        $old = $list[$i];
+        $list[$i] = $m;
     } else {
         if (count($list) >= 20) throw new ValidationError('Como mucho 20 menús');
         $list[] = $m;
     }
     menus_store($list);
+    if (!empty($old)) menu_photos_cleanup(menu_photos($old), menu_photos($m));
     return menu_norm($m);
+}
+
+/** Fotos que usa un menú. */
+function menu_photos(array $m): array
+{
+    $o = [];
+    foreach ($m['courses'] as $c) foreach ($c['dishes'] as $d) if (!empty($d['photo'])) $o[] = $d['photo'];
+    return $o;
+}
+
+/** Borra las fotos que ya no usa ningún menú. */
+function menu_photos_cleanup(array $before, array $after = []): void
+{
+    $used = [];
+    foreach (menus_all() as $mm) foreach (menu_photos($mm) as $f) $used[$f] = true;
+    foreach (array_diff($before, $after) as $f) if (empty($used[$f])) remove_upload($f);
+}
+
+/** Sube la foto de un plato de un menú; se guarda en el menú al pulsar «Guardar». Devuelve la ruta y la URL. */
+function menu_photo_upload(?array $file): array
+{
+    if (!$file || ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) throw new ValidationError('No ha llegado ninguna foto');
+    $path = store_image($file, 'menu', 1200);
+    return ['photo' => $path, 'photo_url' => base_url() . '/' . $path];
+}
+
+/** ¿Sale el botón «Ver menús» en la portada? */
+function menus_button(): bool
+{
+    return (bool)(settings()['menus_button'] ?? true);
+}
+
+function menus_button_toggle(bool $on): bool
+{
+    q("DELETE FROM settings WHERE k = 'menus_button'");
+    q("INSERT INTO settings (k, v) VALUES ('menus_button', ?)", [json_encode($on)]);
+    settings(true);
+    return $on;
 }
 
 /** Solo activar o desactivar (el interruptor de la app). */
@@ -382,8 +433,9 @@ function menu_toggle(string $id, bool $on): array
 function menu_delete(string $id): void
 {
     $list = menus_all();
-    array_splice($list, menu_find($list, $id), 1);
+    $old = array_splice($list, menu_find($list, $id), 1)[0];
     menus_store($list);
+    menu_photos_cleanup(menu_photos($old));
 }
 
 function menu_move(string $id, int $dir): void
@@ -426,7 +478,7 @@ function menus_public(): array
         $m['note'] = tr($m['note']);
         foreach ($m['courses'] as &$c) {
             $c['name'] = tr($c['name']);
-            foreach ($c['dishes'] as &$d) { $d['name'] = tr($d['name']); $d['desc'] = tr($d['desc']); }
+            foreach ($c['dishes'] as &$d) { $d['name'] = tr($d['name']); $d['desc'] = tr($d['desc']); unset($d['photo']); $d['photo'] = $d['photo_url']; unset($d['photo_url']); }
             unset($d);
         }
         unset($c);

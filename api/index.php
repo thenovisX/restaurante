@@ -148,7 +148,15 @@ try {
             out(true);
 
         case 'admin_menu':
-            out(menu_data(true) + ['menus' => menus_all(), 'carta_on' => carta_on()]);
+            out(menu_data(true) + ['menus' => menus_all(), 'carta_on' => carta_on(), 'menus_button' => menus_button()]);
+        case 'menu_photo':
+            only_post();
+            require_perm($user, 'carta');
+            out(menu_photo_upload($_FILES['photo'] ?? null));
+        case 'menus_button_toggle':
+            only_post();
+            require_perm($user, 'carta');
+            out(['menus_button' => menus_button_toggle(filter_var($in['on'] ?? false, FILTER_VALIDATE_BOOLEAN))]);
         case 'menu_save':
             only_post();
             require_perm($user, 'carta');

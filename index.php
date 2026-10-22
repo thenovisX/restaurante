@@ -46,7 +46,7 @@ page_start($s['name'] . ' · ' . tr($s['tagline']), '', 'home');
         'opens' => $r[0], 'closes' => $r[1],
     ], $s['hours'][$d] ?? []), array_keys(WEEKDAYS))),
     'sameAs' => array_values(array_filter([social_url('instagram', $s['instagram']), social_url('facebook', $s['facebook']), social_url('tiktok', $s['tiktok']), social_url('tripadvisor', $s['tripadvisor'])])),
-    'hasMenu' => base_url() . '/carta.php',
+    'hasMenu' => base_url() . (carta_on() ? '/carta.php' : '/menus.php'),
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG) ?></script>
 
 <?php site_header($customer, true); ?>
@@ -62,7 +62,8 @@ page_start($s['name'] . ' · ' . tr($s['tagline']), '', 'home');
       <p class="hero-lead"><?= h(tr($s['tagline'])) ?></p>
       <div class="hero-actions">
         <a class="btn btn-rubor" href="reservar.php" data-book><?= t('Reservar mesa') ?></a>
-        <a class="btn btn-line" href="carta.php"><?= t('Ver la carta') ?></a>
+        <?php if ($cartaOn): ?><a class="btn btn-line" href="carta.php"><?= t('Ver la carta') ?></a><?php endif; ?>
+        <?php if ($menus && menus_button()): ?><a class="btn btn-line" href="menus.php"><?= t('Ver menús') ?></a><?php endif; ?>
       </div>
     </div>
     <h1 class="hero-brand<?= mb_strlen($brand) > 9 ? ' is-long' : '' ?>" id="hero-t" style="--brand-size: <?= $brandSize ?>vw" aria-label="<?= h($s['name']) ?>"><?php
@@ -107,9 +108,9 @@ page_start($s['name'] . ' · ' . tr($s['tagline']), '', 'home');
     if ($cartaOn) $cards[] = ['carta.php', t('La carta'), count($menu['categories']) ? h(t('Hojéala como en la mesa:')) . ' ' . h(implode(', ', array_map('tr', array_slice(array_column($menu['categories'], 'name'), 0, 3)))) . (count($menu['categories']) > 3 ? '…' : '') : t('Platos, precios y alérgenos'), ''];
     if (count($menus) === 1) {
         $m = $menus[0];
-        $cards[] = ['carta.php#menu-' . $m['id'], h($m['title']), '<strong class="go-precio">' . euros($m['price']) . ' €</strong> · ' . h($m['days_text']) . '. ' . ($m['every_day'] ? t('Mira qué incluye.') : ($m['today'] ? t('Mira qué hay hoy.') : t('Hoy no hay menú.'))), 'go-mdia'];
+        $cards[] = ['menus.php#menu-' . $m['id'], h($m['title']), '<strong class="go-precio">' . euros($m['price']) . ' €</strong> · ' . h($m['days_text']) . '. ' . ($m['every_day'] ? t('Mira qué incluye.') : ($m['today'] ? t('Mira qué hay hoy.') : t('Hoy no hay menú.'))), 'go-mdia'];
     } elseif ($menus) {
-        $cards[] = ['carta.php#menus', t('Menús'), implode(' · ', array_map(fn($m) => h($m['title']) . ' <strong class="go-precio">' . euros($m['price']) . ' €</strong>', $menus)), 'go-mdia'];
+        $cards[] = ['menus.php', t('Menús'), implode(' · ', array_map(fn($m) => h($m['title']) . ' <strong class="go-precio">' . euros($m['price']) . ' €</strong>', $menus)), 'go-mdia'];
     }
     $cards[] = ['reservar.php', t('Reservar'), t('Elige día, hora y cuántos venís. Cancelar es siempre gratis.'), ''];
     ?>

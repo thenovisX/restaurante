@@ -9,6 +9,9 @@ echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc><?= htmlspecialchars($b . '/') ?></loc><lastmod><?= $hoy ?></lastmod><changefreq>weekly</changefreq><priority>1.0</priority></url>
   <url><loc><?= htmlspecialchars($b . '/carta.php') ?></loc><lastmod><?= $hoy ?></lastmod><changefreq>weekly</changefreq><priority>0.9</priority></url>
+<?php if (menus_public()): ?>
+  <url><loc><?= htmlspecialchars($b . '/menus.php') ?></loc><lastmod><?= $hoy ?></lastmod><changefreq>daily</changefreq><priority>0.9</priority></url>
+<?php endif; ?>
   <url><loc><?= htmlspecialchars($b . '/reservar.php') ?></loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc><?= htmlspecialchars($b . '/legal.php') ?></loc><changefreq>yearly</changefreq><priority>0.2</priority></url>
 </urlset>
