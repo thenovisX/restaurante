@@ -8,13 +8,17 @@ if (!installed()) { header('Location: install.php'); exit; }
 $s = settings();
 $customer = current_customer();
 $menu = menu_data(false);
-$dm = daily_menu_public();
-page_start(t('La carta') . ' · ' . $s['name'], t('Carta de %s: platos, precios y alérgenos.', $s['name']), 'page-sub page-carta');
+$menus = menus_public();
+$cartaOn = carta_on();
+page_start(($cartaOn || !$menus ? t('La carta') : t('Menús')) . ' · ' . $s['name'], t('Carta de %s: platos, precios y alérgenos.', $s['name']), 'page-sub page-carta');
 site_header($customer);
 ?>
 <main id="main">
-  <?php if ($dm) include __DIR__ . '/lib/menu-dia.php'; ?>
-  <?php include __DIR__ . '/lib/carta-libro.php'; ?>
+  <?php if ($menus) include __DIR__ . '/lib/menus.php'; ?>
+  <?php if ($cartaOn) include __DIR__ . '/lib/carta-libro.php'; ?>
+  <?php if (!$cartaOn && !$menus): ?>
+    <section class="carta"><p class="wrap muted"><?= t('Estamos preparando la carta. Pregúntanos por los platos del día.') ?></p></section>
+  <?php endif; ?>
   <section class="sub-cta">
     <div class="wrap sub-cta-in">
       <p><?= t('¿Te apetece? Reserva mesa en un minuto.') ?></p>

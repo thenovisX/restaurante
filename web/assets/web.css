@@ -951,7 +951,13 @@ html, body { max-width: 100%; }
 .mdia-desc { color: var(--tinta-2); font-size: .92rem; line-height: 1.4; }
 .mdia-nota { margin: 22px auto 0; max-width: 42ch; font-size: .95rem; color: var(--tinta); border-top: 1px dashed rgba(34, 29, 23, .3); padding-top: 18px; }
 .mdia-alg { margin: 12px 0 0; font-size: .76rem; color: var(--tinta-2); }
-.go-grid.has-3 { grid-template-columns: repeat(3, 1fr); }
-.go-grid.has-3 .go-t { font-size: clamp(2.2rem, 4.2vw, 3.8rem); }
+.go-grid.go-n3 { grid-template-columns: repeat(3, 1fr); }
+.go-grid.go-n3 .go-t { font-size: clamp(2.2rem, 4.2vw, 3.8rem); }
+.go-grid.go-n1 { grid-template-columns: 1fr; }
+.mdia-in.is-varios { gap: 28px; }
+.mdia-nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.mdia-nav a { padding: 8px 16px; border: 1px solid var(--linea-2); border-radius: 999px; font-size: .95rem; }
+.mdia-nav a:hover { border-color: var(--hueso); }
+.mdia-hoja { scroll-margin-top: 90px; }
 .go-precio { color: var(--rubor); font-weight: 700; }
-@media (max-width: 960px) { .go-grid.has-3 { grid-template-columns: 1fr; } }
+@media (max-width: 960px) { .go-grid.go-n3 { grid-template-columns: 1fr; } }

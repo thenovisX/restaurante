@@ -383,3 +383,7 @@ a { color: inherit; }
 .icon-mini { width: 36px; height: 36px; flex: none; border-radius: 10px; border: 1px solid var(--linea); background: var(--papel); font-size: 1.1rem; font-weight: 700; color: inherit; }
 .icon-mini:disabled { opacity: .35; }
 .icon-mini.danger { color: var(--pimenton); }
+.sec-t { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 8px 0 8px; }
+.sec-t h2 { margin: 0; font-size: 1.1rem; }
+.dm-card .actions-row { display: flex; gap: 6px; align-items: center; }
+.carta-card { margin-bottom: 18px; }

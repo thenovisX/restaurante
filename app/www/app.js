@@ -732,7 +732,7 @@
     const editMenu = can('carta');
     if (editMenu) setFab('Nuevo plato', () => editDish(null));
     const cats = S.menu.categories;
-    const dmCard = dailyCard(editMenu);
+    const dmCard = menusBlock(editMenu);
     if (!cats.length) {
       return dmCard + (editMenu ? `<div class="empty"><p>La carta está vacía. Empieza creando una sección, por ejemplo «Entrantes».</p><button class="btn btn-main btn-sm" data-cat-new>Crear sección</button></div>` : '<div class="empty"><p>La carta está vacía.</p></div>');
     }
@@ -765,7 +765,7 @@
     return html;
   }
 
-  /* ---------- Menú del día ---------- */
+  /* ---------- Menús (del día, degustación…) y carta principal ---------- */
   const DM_DAYS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
   const DM_DAY_NAMES = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
   function dmDaysText(days) {
@@ -776,34 +776,56 @@
     const n = d.map((x) => DM_DAY_NAMES[x - 1]);
     return n.length > 1 ? n.slice(0, -1).join(', ') + ' y ' + n[n.length - 1] : n[0];
   }
-  function dailyCard(editMenu) {
-    const m = S.menu.daily;
-    if (!m) return '';
-    const nd = m.courses.reduce((a, c) => a + c.dishes.length, 0);
-    const sum = nd ? m.courses.filter((c) => c.dishes.length).map((c) => `<b>${esc(c.name)}</b>: ${c.dishes.map((d) => esc(d.name) + (d.extra > 0 ? ` <span class="dm-sup">+${euro(d.extra)}</span>` : '')).join(', ')}`).join('<br>') : 'Todavía no tiene platos.';
-    return `<section class="card dm-card${m.on ? ' is-on' : ''}">
-      <div class="dm-head">
-        <div><h2>${esc(m.title || 'Menú del día')}</h2>
-        <p class="dm-meta">${m.price > 0 ? euro(m.price) : 'Sin precio'} · ${esc(dmDaysText(m.days))} · <b>${m.on ? 'sale en la web' : 'no sale en la web'}</b></p></div>
-        <label class="sw" title="Mostrar en la web"><input type="checkbox" data-dm-toggle ${m.on ? 'checked' : ''} ${editMenu ? '' : 'disabled'} aria-label="Mostrar el menú del día en la web"><span></span></label>
-      </div>
-      <p class="dm-sum">${sum}</p>
-      ${editMenu ? '<button class="btn btn-line btn-sm" type="button" data-dm-edit>Editar menú del día</button>' : ''}
-    </section>`;
+  function menusBlock(editMenu) {
+    const ms = S.menu.menus || [];
+    const card = (m, i) => {
+      const nd = m.courses.reduce((a, c) => a + c.dishes.length, 0);
+      const sum = nd ? m.courses.filter((c) => c.dishes.length).map((c) => `<b>${esc(c.name)}</b>: ${c.dishes.map((d) => esc(d.name) + (d.extra > 0 ? ` <span class="dm-sup">+${euro(d.extra)}</span>` : '')).join(', ')}`).join('<br>') : 'Todavía no tiene platos.';
+      return `<section class="card dm-card${m.on ? ' is-on' : ''}">
+        <div class="dm-head">
+          <div><h2>${esc(m.title || 'Menú')}</h2>
+          <p class="dm-meta">${m.price > 0 ? euro(m.price) : 'Sin precio'} · ${esc(dmDaysText(m.days))} · <b>${m.on ? 'sale en la web' : 'no sale en la web'}</b></p></div>
+          <label class="sw" title="Mostrar en la web"><input type="checkbox" data-menu-toggle="${esc(m.id)}" ${m.on ? 'checked' : ''} ${editMenu ? '' : 'disabled'} aria-label="Mostrar «${esc(m.title)}» en la web"><span></span></label>
+        </div>
+        <p class="dm-sum">${sum}</p>
+        ${editMenu ? `<div class="actions-row"><button class="btn btn-line btn-sm" type="button" data-menu-edit="${esc(m.id)}">Editar menú</button>${ms.length > 1 ? `<button class="icon-mini" type="button" data-menu-move="${esc(m.id)}:-1" aria-label="Subir menú" ${i === 0 ? 'disabled' : ''}>↑</button><button class="icon-mini" type="button" data-menu-move="${esc(m.id)}:1" aria-label="Bajar menú" ${i === ms.length - 1 ? 'disabled' : ''}>↓</button>` : ''}</div>` : ''}
+      </section>`;
+    };
+    return `<div class="sec-t"><h2>Menús</h2>${editMenu ? '<button class="link-btn" type="button" data-menu-new>+ Nuevo menú</button>' : ''}</div>
+      ${ms.length ? ms.map(card).join('') : '<p class="help" style="color:var(--granito);margin:0 0 12px">Sin menús. Crea uno: menú del día, degustación, infantil…</p>'}
+      <section class="card dm-card carta-card${S.menu.carta_on ? ' is-on' : ''}">
+        <div class="dm-head">
+          <div><h2>Carta principal</h2><p class="dm-meta"><b>${S.menu.carta_on ? 'sale en la web' : 'no sale en la web'}</b></p></div>
+          <label class="sw" title="Mostrar la carta en la web"><input type="checkbox" data-carta-toggle ${S.menu.carta_on ? 'checked' : ''} ${editMenu ? '' : 'disabled'} aria-label="Mostrar la carta principal en la web"><span></span></label>
+        </div>
+        ${S.menu.carta_on ? '' : '<p class="dm-sum">Los platos se quedan guardados; vuelve a activarla cuando quieras.</p>'}
+      </section>`;
   }
-  async function toggleDaily(input) {
+  async function toggleMenu(input) {
+    const id = input.dataset.menuToggle;
     try {
-      S.menu.daily = await api('daily_menu_toggle', { body: { on: input.checked } });
-      toast(input.checked ? 'El menú del día ya sale en la web' : 'Menú del día quitado de la web');
+      await api('menu_toggle', { body: { id, on: input.checked } });
+      toast(input.checked ? 'El menú ya sale en la web' : 'Menú quitado de la web');
       render();
     } catch (err) {
       input.checked = !input.checked;
       toast(err.message, 'err');
-      if (/precio|plato|días/i.test(err.message)) editDaily();
+      if (/precio|plato|días/i.test(err.message)) editMenuSheet(S.menu.menus.find((m) => m.id === id));
     }
   }
-  function editDaily() {
-    const m = JSON.parse(JSON.stringify(S.menu.daily));
+  async function toggleCarta(input) {
+    try {
+      await api('carta_toggle', { body: { on: input.checked } });
+      toast(input.checked ? 'La carta vuelve a salir en la web' : 'Carta quitada de la web');
+      render();
+    } catch (err) { input.checked = !input.checked; toast(err.message, 'err'); }
+  }
+  function editMenuSheet(orig) {
+    const isNew = !orig;
+    const m = isNew
+      ? { id: '', on: false, title: (S.menu.menus || []).length ? '' : 'Menú del día', price: 0, days: [1, 2, 3, 4, 5, 6, 7], note: '', courses: [{ name: 'Primero', dishes: [] }, { name: 'Segundo', dishes: [] }, { name: 'Postre', dishes: [] }] }
+      : JSON.parse(JSON.stringify(orig));
+    m.courses.forEach((c) => { if (!c.dishes.length) c.dishes.push({ name: '', extra: 0, desc: '' }); });
     const money = (v) => (v ? Number(v).toFixed(2).replace('.', ',').replace(',00', '') : '');
     const courseHtml = (c, i) => `
       <div class="dm-course" data-ci="${i}">
@@ -822,11 +844,11 @@
           </div>`).join('')}
         <button type="button" class="link-btn" data-d-add="${i}">+ Añadir plato</button>
       </div>`;
-    openSheet('Menú del día', `
+    openSheet(isNew ? 'Nuevo menú' : 'Editar menú', `
       <form class="form" id="dm-edit" novalidate>
         <label class="switch-row">Mostrar en la web <span class="sw"><input type="checkbox" name="on" ${m.on ? 'checked' : ''}><span></span></span></label>
         <div class="row">
-          <label>Nombre <input name="title" value="${esc(m.title)}" maxlength="80" placeholder="Menú del día"></label>
+          <label>Nombre <input name="title" value="${esc(m.title)}" maxlength="80" placeholder="Menú del día, Degustación…" required></label>
           <label>Precio (€) <input name="price" inputmode="decimal" value="${money(m.price)}" placeholder="14,50"></label>
         </div>
         <div class="field">Días que se sirve
@@ -838,7 +860,7 @@
           <button type="button" class="btn btn-quiet btn-sm" data-c-add>+ Añadir apartado</button>
         </div>
         <label>Nota <span class="help">(opcional)</span><textarea name="note" rows="2" maxlength="300" placeholder="Incluye pan, bebida y café. Solo al mediodía.">${esc(m.note)}</textarea></label>
-        <div class="actions"><button class="btn btn-main" type="submit">Guardar menú</button></div>
+        <div class="actions"><button class="btn btn-main" type="submit">${isNew ? 'Crear menú' : 'Guardar menú'}</button>${isNew ? '' : '<button type="button" class="btn btn-danger" data-menu-del>Borrar menú</button>'}</div>
       </form>`, (body) => {
       const f = $('#dm-edit', body);
       const box = $('#dm-courses', body);
@@ -875,17 +897,24 @@
         const btn = $('button[type=submit]', f);
         busy(btn, true);
         try {
-          S.menu.daily = await api('daily_menu_save', { body: {
-            on: f.on.checked, title: f.title.value, price: f.price.value, note: f.note.value,
+          const saved = await api('menu_save', { body: {
+            id: m.id, on: f.on.checked, title: f.title.value, price: f.price.value, note: f.note.value,
             days: $$('input[name=days]:checked', f).map((x) => Number(x.value)), courses: m.courses,
           } });
           closeSheet();
-          toast(S.menu.daily.on ? 'Menú del día guardado y en la web' : 'Menú del día guardado (no sale en la web)');
+          toast(saved.on ? 'Menú guardado y en la web' : 'Menú guardado (no sale en la web)');
           render();
         } catch (err) { toast(err.message, 'err'); busy(btn, false); }
       });
+      const del = $('[data-menu-del]', body);
+      if (del) del.addEventListener('click', async () => {
+        if (!confirm(`¿Borrar el menú «${orig.title}»? Si solo no lo sirves estos días, mejor usa el interruptor.`)) return;
+        try { await api('menu_delete', { body: { id: m.id } }); closeSheet(); toast('Menú borrado'); render(); }
+        catch (err) { toast(err.message, 'err'); }
+      });
     });
   }
+
 
   function findDish(id) {
     for (const c of S.menu.categories) for (const d of c.dishes) if (d.id === id) return d;
@@ -1500,7 +1529,11 @@
     const dish = t.closest('[data-dish]');
     if (dish) return can('carta') ? editDish(findDish(Number(dish.dataset.dish))) : null;
     if (t.closest('[data-cat-new]')) return editCategory(null);
-    if (t.closest('[data-dm-edit]')) return editDaily();
+    if (t.closest('[data-menu-new]')) return editMenuSheet(null);
+    const me = t.closest('[data-menu-edit]');
+    if (me) return editMenuSheet(S.menu.menus.find((m) => m.id === me.dataset.menuEdit));
+    const mm = t.closest('[data-menu-move]');
+    if (mm) { const [id, dir] = mm.dataset.menuMove.split(':'); return api('menu_move', { body: { id, dir: Number(dir) } }).then(render).catch((err) => toast(err.message, 'err')); }
     const cat = t.closest('[data-cat]');
     if (cat) return editCategory(S.menu.categories.find((c) => c.id === Number(cat.dataset.cat)));
   }
@@ -1547,8 +1580,9 @@
   }
 
   async function onViewChange(e) {
-    const dmt = e.target.closest('[data-dm-toggle]');
-    if (dmt) return toggleDaily(dmt);
+    const mt = e.target.closest('[data-menu-toggle]');
+    if (mt) return toggleMenu(mt);
+    if (e.target.closest('[data-carta-toggle]')) return toggleCarta(e.target.closest('[data-carta-toggle]'));
     const tg = e.target.closest('[data-toggle]');
     if (!tg) { if (e.target.closest('form[data-form]')) onViewInput(e); return; }
     const id = Number(tg.dataset.toggle);

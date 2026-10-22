@@ -35,7 +35,7 @@ try {
         case 'info':
             out(public_info());
         case 'menu':
-            out(menu_data(false) + ['daily' => daily_menu_public()]);
+            out(menu_data(false) + ['carta_on' => carta_on(), 'menus' => menus_public()]);
         case 'slots':
             out(day_slots((string)($_GET['date'] ?? '')));
         case 'reserve':
@@ -148,19 +148,33 @@ try {
             out(true);
 
         case 'admin_menu':
-            out(menu_data(true) + ['daily' => daily_menu()]);
-        case 'daily_menu_save':
+            out(menu_data(true) + ['menus' => menus_all(), 'carta_on' => carta_on()]);
+        case 'menu_save':
             only_post();
             require_perm($user, 'carta');
-            $res = daily_menu_save($in);
+            $res = menu_save($in);
             tr_after_save();
             out($res);
-        case 'daily_menu_toggle':
+        case 'menu_toggle':
             only_post();
             require_perm($user, 'carta');
-            $res = daily_menu_toggle(filter_var($in['on'] ?? false, FILTER_VALIDATE_BOOLEAN));
+            $res = menu_toggle((string)($in['id'] ?? ''), filter_var($in['on'] ?? false, FILTER_VALIDATE_BOOLEAN));
             tr_after_save();
             out($res);
+        case 'menu_delete':
+            only_post();
+            require_perm($user, 'carta');
+            menu_delete((string)($in['id'] ?? ''));
+            out(true);
+        case 'menu_move':
+            only_post();
+            require_perm($user, 'carta');
+            menu_move((string)($in['id'] ?? ''), (int)($in['dir'] ?? 1));
+            out(true);
+        case 'carta_toggle':
+            only_post();
+            require_perm($user, 'carta');
+            out(['carta_on' => carta_toggle(filter_var($in['on'] ?? false, FILTER_VALIDATE_BOOLEAN))]);
         case 'category_save':
             only_post();
             require_perm($user, 'carta');
