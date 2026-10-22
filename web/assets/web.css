@@ -923,3 +923,35 @@ html, body { max-width: 100%; }
 #bk-people { gap: 10px; }
 #bk-people span, #bk-people.chips .chip-more select { min-width: 58px; height: 58px; font-size: 1.4rem; font-family: var(--display, inherit); }
 #bk-people input:checked + span { transform: scale(1.08); box-shadow: 0 0 0 3px rgba(242, 236, 228, .25); }
+
+/* ---------- Menú del día ---------- */
+.mdia { padding: clamp(64px, 9vw, 120px) 0 0; }
+.mdia-in { display: grid; justify-items: center; }
+.mdia-hoja {
+  position: relative; width: min(620px, 100%); padding: clamp(34px, 6vw, 56px) clamp(26px, 6vw, 60px) clamp(30px, 5vw, 46px);
+  background-color: var(--papel); background-image: var(--grano), radial-gradient(120% 90% at 50% 40%, transparent 55%, rgba(120, 95, 60, .16) 100%);
+  color: var(--tinta); border-radius: 4px; box-shadow: 0 30px 60px -30px rgba(0, 0, 0, .95); text-align: center;
+}
+.mdia-hoja::after { content: ""; position: absolute; inset: 14px; border: 1px solid rgba(34, 29, 23, .14); pointer-events: none; }
+.mdia-t { font-family: var(--display); font-weight: 400; font-size: clamp(2.3rem, 7vw, 3.4rem); line-height: 1; margin: 16px 0 0; letter-spacing: -.01em; }
+.mdia-precio { font-family: var(--display); font-weight: 600; font-size: clamp(2.6rem, 9vw, 3.8rem); line-height: 1; margin: 14px 0 0; color: var(--lacre); font-variant-numeric: lining-nums; }
+.mdia-precio small { font-size: .5em; font-weight: 500; }
+.mdia-dias { margin: 12px 0 0; color: var(--tinta-2); display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px 12px; }
+.mdia-hoy { font-size: .78rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 4px 10px; border-radius: 999px; border: 1px solid rgba(34, 29, 23, .25); }
+.mdia-hoy.is-on { background: var(--tinta); color: var(--papel); border-color: var(--tinta); }
+.mdia-hoja .hoja-orn { margin: 22px 0 6px; }
+.mdia-curso { padding: 16px 0 6px; }
+.mdia-curso + .mdia-curso { border-top: 1px solid rgba(34, 29, 23, .12); }
+.mdia-curso h3 { margin: 0; font-family: var(--sans); font-size: .8rem; font-weight: 700; letter-spacing: .26em; text-transform: uppercase; color: var(--lacre); }
+.mdia-elige { margin: 2px 0 0; font-size: .82rem; font-style: italic; color: var(--tinta-2); }
+.mdia-curso ul { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 10px; }
+.mdia-curso li { display: grid; gap: 2px; }
+.mdia-plato { font-family: var(--display); font-size: 1.3rem; line-height: 1.25; font-weight: 500; }
+.mdia-sup { display: inline-block; vertical-align: .15em; margin-left: 4px; font-family: var(--sans); font-size: .72rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--lacre); color: var(--papel); white-space: nowrap; }
+.mdia-desc { color: var(--tinta-2); font-size: .92rem; line-height: 1.4; }
+.mdia-nota { margin: 22px auto 0; max-width: 42ch; font-size: .95rem; color: var(--tinta); border-top: 1px dashed rgba(34, 29, 23, .3); padding-top: 18px; }
+.mdia-alg { margin: 12px 0 0; font-size: .76rem; color: var(--tinta-2); }
+.go-grid.has-3 { grid-template-columns: repeat(3, 1fr); }
+.go-grid.has-3 .go-t { font-size: clamp(2.2rem, 4.2vw, 3.8rem); }
+.go-precio { color: var(--rubor); font-weight: 700; }
+@media (max-width: 960px) { .go-grid.has-3 { grid-template-columns: 1fr; } }

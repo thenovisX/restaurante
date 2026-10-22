@@ -373,4 +373,13 @@ return [
     'Ampliar foto' => ['en' => 'Enlarge photo', 'pt' => 'Ampliar foto', 'gl' => 'Ampliar foto'],
     'Anterior' => ['en' => 'Previous', 'pt' => 'Anterior', 'gl' => 'Anterior'],
     'Siguiente' => ['en' => 'Next', 'pt' => 'Seguinte', 'gl' => 'Seguinte'],
+    'Hoy hay menú' => ['en' => 'Served today', 'pt' => 'Hoje há menu', 'gl' => 'Hoxe hai menú'],
+    'Hoy no hay menú' => ['en' => 'Not served today', 'pt' => 'Hoje não há menu', 'gl' => 'Hoxe non hai menú'],
+    'Hoy no hay menú.' => ['en' => 'Not served today.', 'pt' => 'Hoje não há menu.', 'gl' => 'Hoxe non hai menú.'],
+    'Mira qué hay hoy.' => ['en' => "See what's on today.", 'pt' => 'Veja o que há hoje.', 'gl' => 'Mira que hai hoxe.'],
+    'a elegir' => ['en' => 'choose one', 'pt' => 'à escolha', 'gl' => 'a escoller'],
+    'Suplemento' => ['en' => 'Supplement', 'pt' => 'Suplemento', 'gl' => 'Suplemento'],
+    'Pregúntanos por los alérgenos de los platos del menú.' => ['en' => 'Ask us about allergens in the set menu dishes.', 'pt' => 'Pergunte-nos pelos alergénios dos pratos do menu.', 'gl' => 'Pregúntanos polos alérxenos dos pratos do menú.'],
+    'todos los días' => ['en' => 'every day', 'pt' => 'todos os dias', 'gl' => 'todos os días'],
+    'de %s a %s' => ['en' => '%s to %s', 'pt' => 'de %s a %s', 'gl' => 'de %s a %s'],
 ];

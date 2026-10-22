@@ -11,6 +11,7 @@ if (!installed()) {
 $s = settings();
 $customer = current_customer();
 $menu = menu_data(false);
+$dm = daily_menu_public();
 $todayClosed = in_array(today(), $s['closed_dates'], true);
 $todayRanges = $todayClosed ? [] : ($s['hours'][date('N')] ?? []);
 
@@ -99,15 +100,23 @@ page_start($s['name'] . ' · ' . tr($s['tagline']), '', 'home');
   </section>
 
   <section class="go" aria-label="<?= t('La carta y las reservas') ?>">
-    <div class="wrap go-grid">
+    <div class="wrap go-grid<?= $dm ? ' has-3' : '' ?>">
       <a class="go-card" href="carta.php">
         <span class="go-k">01</span>
         <span class="go-t"><?= t('La carta') ?></span>
         <span class="go-d"><?= count($menu['categories']) ? h(t('Hojéala como en la mesa:')) . ' ' . h(implode(', ', array_map('tr', array_slice(array_column($menu['categories'], 'name'), 0, 3)))) . (count($menu['categories']) > 3 ? '…' : '') : t('Platos, precios y alérgenos') ?></span>
         <span class="go-a" aria-hidden="true">→</span>
       </a>
-      <a class="go-card" href="reservar.php">
+      <?php if ($dm): ?>
+      <a class="go-card go-mdia" href="carta.php#menu-dia">
         <span class="go-k">02</span>
+        <span class="go-t"><?= h($dm['title']) ?></span>
+        <span class="go-d"><strong class="go-precio"><?= euros($dm['price']) ?> €</strong> · <?= h($dm['days_text']) ?>. <?= $dm['today'] ? t('Mira qué hay hoy.') : t('Hoy no hay menú.') ?></span>
+        <span class="go-a" aria-hidden="true">→</span>
+      </a>
+      <?php endif; ?>
+      <a class="go-card" href="reservar.php">
+        <span class="go-k"><?= $dm ? '03' : '02' ?></span>
         <span class="go-t"><?= t('Reservar') ?></span>
         <span class="go-d"><?= t('Elige día, hora y cuántos venís. Cancelar es siempre gratis.') ?></span>
         <span class="go-a" aria-hidden="true">→</span>

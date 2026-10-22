@@ -35,7 +35,7 @@ try {
         case 'info':
             out(public_info());
         case 'menu':
-            out(menu_data(false));
+            out(menu_data(false) + ['daily' => daily_menu_public()]);
         case 'slots':
             out(day_slots((string)($_GET['date'] ?? '')));
         case 'reserve':
@@ -148,7 +148,19 @@ try {
             out(true);
 
         case 'admin_menu':
-            out(menu_data(true));
+            out(menu_data(true) + ['daily' => daily_menu()]);
+        case 'daily_menu_save':
+            only_post();
+            require_perm($user, 'carta');
+            $res = daily_menu_save($in);
+            tr_after_save();
+            out($res);
+        case 'daily_menu_toggle':
+            only_post();
+            require_perm($user, 'carta');
+            $res = daily_menu_toggle(filter_var($in['on'] ?? false, FILTER_VALIDATE_BOOLEAN));
+            tr_after_save();
+            out($res);
         case 'category_save':
             only_post();
             require_perm($user, 'carta');
