@@ -147,9 +147,19 @@ a { color: inherit; }
 
 /* ---------- Carta ---------- */
 .toolbar { display: flex; gap: 8px; margin-bottom: 8px; }
-.mcat { margin-top: 20px; }
-.mcat-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
-.mcat-head h2 { margin: 0; font-size: 1.1rem; }
+.mcat { margin-top: 10px; background: var(--papel); border-radius: 16px; border: 1px solid var(--linea); }
+.mcat-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px; cursor: pointer; list-style: none; min-height: 56px; }
+.mcat-head::-webkit-details-marker { display: none; }
+.mcat-head h2 { margin: 0; font-size: 1.1rem; flex: 1; min-width: 0; }
+.mcat-n { color: var(--granito); font-size: .88rem; white-space: nowrap; }
+.mcat-n b { color: var(--pimenton); font-weight: 600; }
+.mcat-chev { width: 10px; height: 10px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg) translate(-2px, -2px); transition: transform .2s; flex: none; }
+.mcat[open] .mcat-chev { transform: rotate(-135deg) translate(-2px, -2px); }
+.mcat[open] > .mcat-head { border-bottom: 1px solid var(--linea); }
+.mcat-body { padding: 4px 8px 8px; }
+.mcat-body .mdish { background: var(--fondo); }
+.mcat-tools { display: flex; justify-content: flex-end; }
+.mcat-all { display: flex; justify-content: flex-end; margin: 4px 0 -4px; }
 .link-btn { border: 0; background: none; color: var(--mar-2); font-weight: 600; text-decoration: underline; padding: 8px; }
 .mdish { display: flex; align-items: center; gap: 12px; background: var(--papel); border-radius: 14px; padding: 10px; margin-bottom: 6px; }
 .mdish.off .md-name, .mdish.off .md-meta { opacity: .5; }
