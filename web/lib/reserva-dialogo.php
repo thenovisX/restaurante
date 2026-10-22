@@ -2,6 +2,8 @@
 /* Ventana de reserva en 3 pasos. La controla assets/web.js. */
 $s = settings();
 $c = current_customer();
+$wa = wa_number($s['whatsapp']);
+$hayOpc = $s['phone'] || $wa;
 ?>
 <dialog class="bk" id="bk" aria-labelledby="bk-title">
   <form class="bk-in" id="bk-form" method="dialog" novalidate>
@@ -14,17 +16,25 @@ $c = current_customer();
       <button class="bk-close" type="button" data-close aria-label="<?= t('Cerrar') ?>">×</button>
     </header>
 
-    <?php if ($s['phone']): ?>
+    <?php if ($hayOpc): ?>
     <section class="bk-pane" data-pane="0" hidden>
       <div class="bk-opts">
         <button class="bk-opt" type="button" data-next="1">
           <b><?= t('Reservar online') ?></b>
           <span><?= t('Elige día y hora y te confirmamos por WhatsApp.') ?></span>
         </button>
+        <?php if ($s['phone']): ?>
         <a class="bk-opt" id="bk-call" href="<?= h(tel_href($s['phone'])) ?>" data-href="<?= h(tel_href($s['phone'])) ?>">
           <b><?= t('Llamar por teléfono') ?></b>
           <span id="bk-call-txt"><?= h($s['phone']) ?></span>
         </a>
+        <?php endif; ?>
+        <?php if ($wa): ?>
+        <a class="bk-opt" href="https://wa.me/<?= h($wa) ?>" target="_blank" rel="noopener">
+          <b><?= t('Escribir por WhatsApp') ?></b>
+          <span><?= t('Pregúntanos o reserva por mensaje.') ?></span>
+        </a>
+        <?php endif; ?>
       </div>
     </section>
     <?php endif; ?>
@@ -46,7 +56,7 @@ $c = current_customer();
         <div class="days" id="bk-days" role="radiogroup" aria-label="<?= t('Día') ?>"></div>
         <label class="bk-other"><?= t('Otra fecha') ?> <input type="date" id="bk-date"></label>
       </fieldset>
-      <div class="bk-nav"><?php if ($s['phone']): ?><button class="btn btn-ghost" type="button" data-next="0"><?= t('Atrás') ?></button><?php endif; ?><button class="btn btn-rubor" type="button" data-next="2"><?= t('Ver horas libres') ?></button></div>
+      <div class="bk-nav"><?php if ($hayOpc): ?><button class="btn btn-ghost" type="button" data-next="0"><?= t('Atrás') ?></button><?php endif; ?><button class="btn btn-rubor" type="button" data-next="2"><?= t('Ver horas libres') ?></button></div>
     </section>
 
     <section class="bk-pane" data-pane="2" hidden>
