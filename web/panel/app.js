@@ -742,11 +742,15 @@
     html += `<div class="toolbar">${editMenu ? '<button class="btn btn-quiet btn-sm" data-cat-new>Nueva sección</button>' : ''}${S.base ? `<a class="btn btn-quiet btn-sm" href="${esc(S.base)}/#carta" target="_blank" rel="noopener">Ver en la web</a>` : ''}</div>`;
     html += dmCard;
     html += `<label class="search">${ICON.search}<input type="search" id="carta-q" placeholder="Buscar plato" autocomplete="off" enterkeyhint="search"></label>`;
+    if (cats.length > 1) html += `<div class="mcat-all"><button class="link-btn" type="button" data-cats-all>${cats.every((c) => catOpen().has(c.id)) ? 'Cerrar todas' : 'Abrir todas'}</button></div>`;
     if (cats.length > 1) html += `<nav class="jump" aria-label="Ir a una sección">${cats.map((c) => `<a href="#mcat-${c.id}" data-jump="${c.id}">${esc(c.name)} <span>${c.dishes.length}</span></a>`).join('')}</nav>`;
     if (off) html += `<p class="alert">${off} ${off === 1 ? 'plato está marcado' : 'platos están marcados'} como agotado y no ${off === 1 ? 'sale' : 'salen'} en la web.</p>`;
     html += '<p class="help" style="margin:4px 0 0;color:var(--granito)">El interruptor quita o pone un plato en la web al momento (por ejemplo, si se acaba).</p>';
     for (const c of cats) {
-      html += `<section class="mcat" id="mcat-${c.id}"><div class="mcat-head"><h2>${esc(c.name)}</h2>${editMenu ? `<button class="link-btn" data-cat="${c.id}">Editar sección</button>` : ''}</div>`;
+      const coff = c.dishes.filter((d) => !d.available).length;
+      html += `<details class="mcat" id="mcat-${c.id}" data-cat-id="${c.id}"${catOpen().has(c.id) ? ' open' : ''}>
+        <summary class="mcat-head"><h2>${esc(c.name)}</h2><span class="mcat-n">${c.dishes.length} ${c.dishes.length === 1 ? 'plato' : 'platos'}${coff ? ` · <b>${coff} agotado${coff === 1 ? '' : 's'}</b>` : ''}</span><span class="mcat-chev" aria-hidden="true"></span></summary>
+        <div class="mcat-body">${editMenu ? `<div class="mcat-tools"><button class="link-btn" data-cat="${c.id}">Editar sección</button></div>` : ''}`;
       if (!c.dishes.length) html += '<p class="help" style="color:var(--granito)">Sin platos todavía.</p>';
       for (const d of c.dishes) {
         const al = d.allergens.map((k) => names[k]).filter(Boolean);
@@ -760,10 +764,31 @@
           <label class="sw" title="Disponible"><input type="checkbox" data-toggle="${d.id}" ${d.available ? 'checked' : ''} ${editMenu ? '' : 'disabled'} aria-label="${esc(d.name)} disponible"><span></span></label>
         </div>`;
       }
-      html += '</section>';
+      html += '</div></details>';
     }
     return html;
   }
+
+  /* Secciones de la carta abiertas (se recuerdan en este móvil) */
+  let catOpenSet = null;
+  function catOpen() {
+    if (!catOpenSet) {
+      try { catOpenSet = new Set(JSON.parse(localStorage.getItem('cartaAbiertas') || '[]')); } catch (e) { catOpenSet = new Set(); }
+    }
+    return catOpenSet;
+  }
+  function catOpenSave() {
+    try { localStorage.setItem('cartaAbiertas', JSON.stringify([...catOpen()])); } catch (e) { /* sin almacenamiento */ }
+  }
+  document.addEventListener('toggle', (e) => {
+    const d = e.target;
+    if (!d.matches || !d.matches('details.mcat') || d.dataset.searching) return;
+    const id = Number(d.dataset.catId);
+    if (d.open) catOpen().add(id); else catOpen().delete(id);
+    catOpenSave();
+    const all = $('[data-cats-all]');
+    if (all) all.textContent = $$('details.mcat').every((x) => x.open) ? 'Cerrar todas' : 'Abrir todas';
+  }, true);
 
   /* ---------- Menús (del día, degustación…) y carta principal ---------- */
   const DM_DAYS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
@@ -1523,7 +1548,12 @@
     const hd = t.closest('[data-hoy-day]');
     if (hd) { S.hoyDay = hd.dataset.hoyDay; setTitle(S.hoyDay === todayISO() ? 'Hoy' : 'Reservas'); if (can('reservas')) setFab('Nueva reserva', () => editReservation(null, S.hoyDay)); return renderHoyBody($('#view')); }
     const jp = t.closest('[data-jump]');
-    if (jp) { e.preventDefault(); const el = $('#mcat-' + jp.dataset.jump); if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - $('.bar').offsetHeight - 8, behavior: 'smooth' }); return; }
+    if (t.closest('[data-cats-all]')) {
+      const ds = $$('details.mcat'); const open = !ds.every((x) => x.open);
+      ds.forEach((d) => { d.open = open; });
+      return;
+    }
+    if (jp) { e.preventDefault(); const el = $('#mcat-' + jp.dataset.jump); if (el) el.open = true; if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - $('.bar').offsetHeight - 8, behavior: 'smooth' }); return; }
     const gt = t.closest('[data-goto-tab]');
     if (gt) return go(gt.dataset.gotoTab);
     const st = t.closest('[data-status]');
@@ -1591,6 +1621,10 @@
         let n = 0;
         $$('.mdish', sec).forEach((d) => { const on = !q || d.dataset.name.includes(q); d.hidden = !on; if (on) n++; });
         sec.hidden = !!q && n === 0;
+        // Al buscar se abren las secciones con resultados; al borrar la búsqueda vuelven como estaban
+        sec.dataset.searching = '1';
+        sec.open = q ? n > 0 : catOpen().has(Number(sec.dataset.catId));
+        setTimeout(() => { delete sec.dataset.searching; }, 0);
       });
       const j = $('.jump', $('#view'));
       if (j) j.hidden = !!q;
