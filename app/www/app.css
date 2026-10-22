@@ -414,3 +414,12 @@ a { color: inherit; }
 .dm-dish > [data-d-del] { grid-column: 4; grid-row: 1; }
 .dm-dish > .dm-ddesc { grid-row: 2; }
 .dm-dish > .dm-alg { grid-row: 3; }
+/* Clientes con cuenta y peticiones de borrado */
+.er-box { background: #FFF4E5; border: 1px solid #F0C987; border-radius: 14px; padding: 12px; margin-bottom: 12px; }
+.er-t { margin: 0 0 4px; font-weight: 700; }
+.er-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 0; border-top: 1px solid #F0C987; }
+.er-row span:first-child { display: grid; }
+.er-row small { color: var(--granito); }
+.er-btns { display: flex; gap: 6px; }
+.cus-list { display: grid; gap: 0; }
+.rej-slots span { padding: 6px 14px; font-variant-numeric: tabular-nums; }

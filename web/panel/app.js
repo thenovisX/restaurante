@@ -148,12 +148,21 @@
     try {
       if (LocalNotif) {
         await LocalNotif.schedule({
-          notifications: list.map((r, i) => ({ id: r.id, title: { confirmada: 'Reserva confirmada', cancelada: 'Reserva cancelada' }[r.status] || 'Petición de reserva', body: lines[i] })),
+          notifications: list.map((r, i) => ({ id: (r.id * 10 + ({ pendiente: 1, confirmada: 2, cancelada: 3 }[r.status] || 0)) % 2147483647, title: { confirmada: 'Reserva confirmada', cancelada: 'Reserva cancelada' }[r.status] || 'Petición de reserva', body: lines[i] })),
         });
       } else if ('Notification' in window && Notification.permission === 'granted' && navigator.serviceWorker) {
         const reg = await navigator.serviceWorker.ready;
-        list.forEach((r, i) => reg.showNotification('Nueva reserva', { body: lines[i], tag: 'res-' + r.id, icon: 'icons/icon-192.png' }));
+        list.forEach((r, i) => reg.showNotification({ confirmada: 'Reserva confirmada', cancelada: 'Reserva cancelada' }[r.status] || 'Petición de reserva', { body: lines[i], tag: 'res-' + r.id + '-' + r.status, icon: 'icons/icon-192.png' }));
       }
+    } catch (e) { /* sin permiso */ }
+  }
+
+  async function notifyErase(n) {
+    const body = n === 1 ? 'Un cliente pide borrar sus datos. Mándale el enlace desde Ajustes → Clientes con cuenta.' : `${n} clientes piden borrar sus datos. Ajustes → Clientes con cuenta.`;
+    toast(body, 'new');
+    try {
+      if (LocalNotif) await LocalNotif.schedule({ notifications: [{ id: 2000000000 + (Date.now() % 100000000), title: 'Borrar datos', body }] });
+      else if ('Notification' in window && Notification.permission === 'granted' && navigator.serviceWorker) (await navigator.serviceWorker.ready).showNotification('Borrar datos', { body, tag: 'borrar', icon: 'icons/icon-192.png' });
     } catch (e) { /* sin permiso */ }
   }
 
@@ -165,6 +174,11 @@
       S.lastId = c.last_id;
       LS.set('lastId', String(c.last_id));
       setBadge(c.pending);
+      // Peticiones para borrar datos (solo las ve el administrador)
+      if (isAdmin() && typeof c.erase === 'number') {
+        if (S.eraseN !== undefined && c.erase > S.eraseN) notifyErase(c.erase);
+        S.eraseN = c.erase;
+      }
       if (isNew) {
         notifyNew(c.new);
         if (S.tab === 'hoy' || S.tab === 'cal' || S.tab === 'pet') render();
@@ -645,7 +659,8 @@
       </div>`, (body) => {
       $$('[data-wa-send]', body).forEach((a) => a.addEventListener('click', () => { markSent(r.id); closeSheet(); }));
       $$('[data-s]', body).forEach((b) => b.addEventListener('click', async () => {
-        const q2 = { rechazada: `¿Rechazar la reserva de ${r.name}?`, cancelada: `¿Cancelar la reserva de ${r.name}?` }[b.dataset.s];
+        if (b.dataset.s === 'rechazada') { rejectFlow(r); return; }
+        const q2 = { cancelada: `¿Cancelar la reserva de ${r.name}?` }[b.dataset.s];
         if (q2 && !confirm(q2 + (r.email ? ' Le llegará un email avisándole.' : ''))) return;
         busy(b, true, '…');
         try { await setStatus(r.id, b.dataset.s); closeSheet(); } catch (err) { toast(err.message, 'err'); busy(b, false); }
@@ -657,6 +672,46 @@
         try { await api('reservation_delete', { body: { id: r.id } }); closeSheet(); toast('Reserva borrada'); render(); }
         catch (err) { toast(err.message, 'err'); }
       });
+    });
+  }
+
+  /* Rechazar: se puede mandar un WhatsApp al cliente con las horas libres de ese día (o decirle que esperamos verle otro día) */
+  async function rejectFlow(r) {
+    let info;
+    try { info = await api('reject_info&id=' + r.id); } catch (err) { toast(err.message, 'err'); return; }
+    const sel = new Set(info.slots.slice(0, 4));
+    const compose = () => (sel.size ? info.text_slots.replace('{horas}', [...sel].sort().join(', ')) : info.text_none);
+    openSheet(`Rechazar la reserva de ${r.name}`, `
+      <form class="form" id="rej" novalidate>
+        <p class="help" style="margin:0">${r.people} ${r.people === 1 ? 'persona' : 'personas'} · ${esc(fmtDay(r.date))} a las ${esc(r.time)}</p>
+        ${info.wa_number ? `
+          <div class="field">Horas libres ese día para ${r.people} ${r.people === 1 ? 'persona' : 'personas'}
+            ${info.slots.length ? `<div class="chips rej-slots">${info.slots.map((h) => `<label><input type="checkbox" value="${h}" ${sel.has(h) ? 'checked' : ''}><span>${h}</span></label>`).join('')}</div>
+              <p class="help">Marca las que quieras ofrecerle. Si no marcas ninguna, el mensaje le dice que esperas verle otro día.</p>`
+            : '<p class="help">No queda sitio a horas cercanas. El mensaje le dirá que esperas verle otro día.</p>'}
+          </div>
+          <label>Mensaje de WhatsApp${r.lang && r.lang !== 'es' ? ` <span class="help">(en ${{ en: 'inglés', pt: 'portugués', gl: 'gallego' }[r.lang] || r.lang}, su idioma)</span>` : ''}<textarea name="msg" rows="6">${esc(compose())}</textarea></label>
+          <div class="actions">
+            <a class="btn b-wa" id="rej-wa" href="#" target="_blank" rel="noopener">${ICON.wa}<span>Rechazar y enviar WhatsApp</span></a>
+            <button class="btn btn-quiet" type="button" data-rej-only>Rechazar sin enviar mensaje</button>
+          </div>` : `
+          <p class="help">Esta reserva no tiene teléfono: no se le puede mandar WhatsApp.</p>
+          <div class="actions"><button class="btn btn-danger" type="button" data-rej-only>Rechazar</button></div>`}
+        ${r.email ? '<p class="help">Además le llega un email avisándole.</p>' : ''}
+      </form>`, (body) => {
+      const f = $('#rej', body);
+      const wa = $('#rej-wa', body);
+      const sync = () => { if (wa) wa.href = 'https://wa.me/' + info.wa_number + '?text=' + encodeURIComponent(f.msg.value); };
+      sync();
+      if (f.msg) f.msg.addEventListener('input', sync);
+      $$('.rej-slots input', body).forEach((cb) => cb.addEventListener('change', () => {
+        if (cb.checked) sel.add(cb.value); else sel.delete(cb.value);
+        f.msg.value = compose();
+        sync();
+      }));
+      const done = async () => { try { await setStatus(r.id, 'rechazada'); closeSheet(); } catch (err) { toast(err.message, 'err'); } };
+      if (wa) wa.addEventListener('click', () => { setTimeout(done, 300); });
+      $('[data-rej-only]', body).addEventListener('click', () => { if (confirm(`¿Rechazar la reserva de ${r.name} sin mandarle mensaje?`)) done(); });
     });
   }
 
@@ -1288,8 +1343,10 @@
         <p class="help">Todos los usuarios pueden ver las reservas y la carta. Tú decides quién puede cambiar cada cosa.</p>
         <div id="users-box"><p class="help">Cargando…</p></div>
         <button class="btn btn-line btn-sm" type="button" data-user-new>Nuevo usuario</button>`) : ''}
-      ${sec('avisos', 'Avisos de reservas nuevas', 'Notificaciones en este móvil', `
-        <p class="help">Con la app abierta (o en segundo plano) revisa cada 30 segundos si hay reservas nuevas. Además, cada reserva llega por email a «${esc(s.notify_email || s.email || 'el email de avisos')}».</p>
+      ${isAdmin() ? sec('clientes', 'Clientes con cuenta', 'Cuentas creadas en la web y peticiones para borrar datos', `
+        <div id="cus-box"><p class="help">Cargando…</p></div>`) : ''}
+      ${sec('avisos', 'Avisos de reservas', 'Nuevas, confirmadas y canceladas, en este móvil', `
+        <p class="help">Con la app abierta (o en segundo plano) revisa cada 30 segundos si hay reservas nuevas, reservas que el cliente ha confirmado y reservas que el cliente ha cancelado, y te avisa con una notificación. Además, cada reserva llega por email a «${esc(s.notify_email || s.email || 'el email de avisos')}».</p>
         <button class="btn btn-line btn-sm" type="button" data-notif>Activar avisos en este móvil</button>`)}
       ${sec('password', 'Contraseña', 'Cambiar la contraseña de la app', `
         <form class="form" data-form="password" novalidate>
@@ -1344,6 +1401,7 @@
     }));
     $$('form[data-form]', view).forEach((f) => f.addEventListener('submit', (e) => saveSettingsForm(e, f)));
     if ($('#users-box', view)) loadUsers();
+    if ($('#cus-box', view)) loadCustomers();
     if ($('#tr-status', view)) loadTrStatus();
     const trRun = $('[data-tr-run]', view);
     if (trRun) trRun.addEventListener('click', async () => {
@@ -1422,6 +1480,79 @@
 
   /* ---------- Usuarios (solo administradores) ---------- */
   const PERM_LABEL = { reservas: 'Reservas', carta: 'Carta', ajustes: 'Ajustes' };
+  /* ---------- Clientes con cuenta y peticiones de borrado ---------- */
+  async function loadCustomers() {
+    const box = $('#cus-box');
+    if (!box) return;
+    try {
+      const d = await api('customers');
+      S.customers = d.customers;
+      const fd = (v) => (v ? fmtShort(v.slice(0, 10)) : '');
+      let html = '';
+      if (d.erase.length) {
+        html += `<div class="er-box"><p class="er-t">Piden borrar sus datos (${d.erase.length})</p>
+          <p class="help">Escribieron su teléfono en la web. Mándales el enlace por WhatsApp: cuando lo abran y pulsen «Borrar mis datos», se borra todo (cuenta y reservas).</p>
+          ${d.erase.map((r) => `<div class="er-row"><span><b>${esc(r.phone)}</b><small>${esc(fd(r.created_at))} ${esc(r.created_at.slice(11, 16))}</small></span>
+            <span class="er-btns"><button class="btn btn-sm b-wa" type="button" data-er-wa="${r.id}">${ICON.wa}<span>Enviar enlace</span></button><button class="btn btn-sm btn-quiet" type="button" data-er-no="${r.id}">Descartar</button></span></div>`).join('')}
+        </div>`;
+      }
+      html += `<p class="help">${d.customers.length} ${d.customers.length === 1 ? 'cuenta' : 'cuentas'}. Cada cliente puede borrar su cuenta desde «Mi cuenta» o pedir el borrado de todos sus datos en la web (Políticas → Borrar todos mis datos).</p>`;
+      if (d.customers.length > 5) html += `<label class="search">${ICON.search}<input type="search" id="cus-q" placeholder="Buscar por nombre, email o teléfono" autocomplete="off"></label>`;
+      html += '<div class="cus-list">' + (d.customers.map((c) => `<button type="button" class="user-row cus-row" data-cus="${c.id}" data-q="${esc((c.name + ' ' + c.email + ' ' + c.phone).toLowerCase())}">
+          <span class="user-main"><b>${esc(c.name)}</b><small>${esc(c.email)}${c.phone ? ' · ' + esc(c.phone) : ''}</small></span>
+          <span class="user-tags"><i class="tag">${c.reservations} ${c.reservations === 1 ? 'reserva' : 'reservas'}</i>${c.verified ? '' : '<i class="tag tag-ver">sin activar</i>'}</span>
+        </button>`).join('') || '<p class="help">Todavía nadie ha creado una cuenta.</p>') + '</div>';
+      box.innerHTML = html;
+      const q = $('#cus-q', box);
+      if (q) q.addEventListener('input', () => { const v = q.value.trim().toLowerCase(); $$('.cus-row', box).forEach((b) => { b.hidden = !!v && !b.dataset.q.includes(v); }); });
+      $$('[data-cus]', box).forEach((b) => b.addEventListener('click', () => showCustomer(S.customers.find((c) => c.id === Number(b.dataset.cus)))));
+      $$('[data-er-wa]', box).forEach((b) => b.addEventListener('click', async () => {
+        busy(b, true, 'Preparando…');
+        try {
+          // Se prepara el enlace y el botón pasa a abrir WhatsApp con el mensaje listo
+          const r = await api('erase_whatsapp', { body: { id: Number(b.dataset.erWa) } });
+          const a = document.createElement('a');
+          a.className = 'btn btn-sm b-wa';
+          a.href = r.wa_url; a.target = '_blank'; a.rel = 'noopener';
+          a.innerHTML = `${ICON.wa}<span>Abrir WhatsApp</span>`;
+          a.addEventListener('click', () => setTimeout(loadCustomers, 800));
+          b.replaceWith(a);
+        } catch (err) { toast(err.message, 'err'); busy(b, false); }
+      }));
+      $$('[data-er-no]', box).forEach((b) => b.addEventListener('click', async () => {
+        if (!confirm('¿Descartar esta petición? No se borrará nada.')) return;
+        try { await api('erase_dismiss', { body: { id: Number(b.dataset.erNo) } }); toast('Petición descartada'); loadCustomers(); }
+        catch (err) { toast(err.message, 'err'); }
+      }));
+    } catch (err) { box.innerHTML = `<p class="err-box">${esc(err.message)}</p>`; }
+  }
+
+  function showCustomer(c) {
+    const fd = (v) => (v ? `${fmtShort(v.slice(0, 10))} ${v.slice(11, 16)}` : '—');
+    openSheet(c.name, `
+      <dl class="detail">
+        <dt>Email</dt><dd>${esc(c.email)}${c.verified ? '' : ' <span class="help">(sin activar)</span>'}</dd>
+        ${c.phone ? `<dt>Teléfono</dt><dd>${esc(c.phone)}</dd>` : ''}
+        <dt>Cuenta creada</dt><dd>${esc(fd(c.created_at))}</dd>
+        <dt>Última vez que entró</dt><dd>${esc(fd(c.last_login))}</dd>
+        <dt>Reservas</dt><dd>${c.reservations}${c.last_reservation ? ` · la última para el ${esc(fmtShort(c.last_reservation))}` : ''}</dd>
+      </dl>
+      <div class="actions">
+        <div class="actions-row">
+          ${c.phone ? `<a class="btn btn-line" href="${esc(telHref(c.phone))}">Llamar</a><a class="btn btn-line" href="${esc(waHref(c.phone))}" target="_blank" rel="noopener">WhatsApp</a>` : ''}
+          <a class="btn btn-line" href="mailto:${esc(c.email)}">Email</a>
+        </div>
+        <button class="btn btn-danger" type="button" data-cus-del>Borrar cuenta</button>
+        <p class="help">Borra la cuenta (nombre, email, teléfono y contraseña). Sus reservas se quedan, pero ya no estarán unidas a ninguna cuenta.</p>
+      </div>`, (body) => {
+      $('[data-cus-del]', body).addEventListener('click', async () => {
+        if (!confirm(`¿Borrar la cuenta de ${c.name}? No se puede deshacer.`)) return;
+        try { await api('customer_delete', { body: { id: c.id } }); closeSheet(); toast('Cuenta borrada'); loadCustomers(); }
+        catch (err) { toast(err.message, 'err'); }
+      });
+    });
+  }
+
   async function loadUsers() {
     const box = $('#users-box');
     try {
@@ -1560,7 +1691,7 @@
     if (st) {
       e.stopPropagation();
       const rr = S.res[Number(st.dataset.id)];
-      if (st.dataset.status === 'rechazada' && !confirm(`¿Rechazar la reserva de ${rr ? rr.name : 'este cliente'}?${rr && rr.email ? ' Le llegará un email avisándole.' : ''}`)) return;
+      if (st.dataset.status === 'rechazada' && rr) { rejectFlow(rr); return; }
       busy(st, true, '…');
       setStatus(Number(st.dataset.id), st.dataset.status).catch((err) => { toast(err.message, 'err'); busy(st, false); });
       return;

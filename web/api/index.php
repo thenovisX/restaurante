@@ -41,6 +41,9 @@ try {
         case 'reserve':
             only_post(); same_origin_only();
             out(create_public_reservation($in), 201);
+        case 'erase_request':
+            only_post(); same_origin_only();
+            out(erase_request($in));
         case 'login':
             only_post();
             out(login($in));
@@ -93,6 +96,26 @@ try {
             out(true);
         case 'me':
             out(['user' => $user['username'], 'restaurant' => settings()['name'], 'today' => today(), 'me' => user_out($user)]);
+        case 'customers':
+            require_admin($user);
+            out(['customers' => customers_list(), 'erase' => erase_pending()]);
+        case 'customer_delete':
+            only_post();
+            require_admin($user);
+            customer_delete_admin($id);
+            out(true);
+        case 'erase_whatsapp':
+            only_post();
+            require_admin($user);
+            out(erase_whatsapp($id));
+        case 'erase_dismiss':
+            only_post();
+            require_admin($user);
+            erase_dismiss($id);
+            out(true);
+        case 'reject_info':
+            require_perm($user, 'reservas');
+            out(reject_info((int)($_GET['id'] ?? 0)));
         case 'users':
             require_admin($user);
             out(['users' => users_list(), 'perms' => PERMS]);

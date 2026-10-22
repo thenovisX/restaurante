@@ -23,7 +23,7 @@ function fmt_date_es(string $date): string
  * Horas disponibles de un día con las plazas libres en cada una.
  * $ignoreRules = true lo usa el panel: deja apuntar reservas aunque esté lleno o fuera de plazo.
  */
-function day_slots(string $date, bool $ignoreRules = false): array
+function day_slots(string $date, bool $ignoreRules = false, int $excludeId = 0): array
 {
     if (!is_date($date)) throw new ValidationError('Fecha no válida');
     $s = settings();
@@ -46,7 +46,7 @@ function day_slots(string $date, bool $ignoreRules = false): array
 
     // Reservas del día que ocupan sitio: [inicio en segundos, personas]
     $ph = implode(',', array_fill(0, count(RES_ACTIVE), '?'));
-    $rows = q("SELECT rtime, SUM(people) AS p FROM reservations WHERE rdate = ? AND status IN ($ph) GROUP BY rtime", array_merge([$date], RES_ACTIVE))->fetchAll();
+    $rows = q("SELECT rtime, SUM(people) AS p FROM reservations WHERE rdate = ? AND id <> ? AND status IN ($ph) GROUP BY rtime", array_merge([$date, $excludeId], RES_ACTIVE))->fetchAll();
     $booked = array_map(fn($r) => [strtotime("$date {$r['rtime']}"), (int)$r['p']], $rows);
     // Tiempo de mesa: una reserva ocupa su sitio desde su hora hasta que pasa este tiempo (0 = solo su hora)
     $dur = max(0, (int)$s['table_minutes']) * 60;
@@ -326,7 +326,7 @@ function changes(int $since): array
     if ($since > 0) {
         $new = array_map('res_admin', q("SELECT * FROM reservations WHERE seq > ? AND deleted = 0 AND source = 'web' AND (status IN ('pendiente', 'confirmada') OR (status = 'cancelada' AND cancel_by = 'cliente')) ORDER BY seq", [$since])->fetchAll());
     }
-    return ['last_id' => $last, 'pending' => $pending, 'waiting' => $waiting, 'new' => $new];
+    return ['last_id' => $last, 'pending' => $pending, 'waiting' => $waiting, 'new' => $new, 'erase' => erase_pending_count()];
 }
 
 function set_reservation_status(int $id, string $status): array
@@ -402,4 +402,39 @@ function notify_customer(array $r): void
         ];
         if (isset($msgs[$r['status']])) send_mail($r['email'], ...$msgs[$r['status']]);
     });
+}
+
+/**
+ * Para rechazar una reserva con un WhatsApp: las horas de ese día en las que sí cabe ese grupo, cerca de la hora
+ * que pidió (2 horas antes o después), y los textos del mensaje en el idioma del cliente.
+ * 'text_slots' lleva {horas} donde van las horas que el restaurante elija; 'text_none' es para cuando no hay sitio.
+ */
+function reject_info(int $id): array
+{
+    $row = q('SELECT * FROM reservations WHERE id = ?', [$id])->fetch();
+    if (!$row) throw new ValidationError('La reserva no existe');
+    $r = res_out($row);
+    $slots = [];
+    try {
+        $day = day_slots($r['date'], false, $id);
+        $want = strtotime($r['date'] . ' ' . $r['time']);
+        foreach ($day['slots'] as $sl) {
+            $t = strtotime($r['date'] . ' ' . $sl['time']);
+            if ($sl['time'] !== $r['time'] && $sl['left'] >= $r['people'] && abs($t - $want) <= 2 * 3600) $slots[] = $sl['time'];
+        }
+    } catch (Throwable $e) { /* día sin horario */ }
+    $texts = with_lang($r['lang'] ?: 'es', function () use ($r) {
+        $s = settings();
+        $first = explode(' ', trim($r['name']))[0];
+        $people = $r['people'] . ' ' . ($r['people'] === 1 ? t('persona') : t('personas'));
+        $lq = lang() !== 'es' ? '?lang=' . lang() : '';
+        $sorry = t('Hola %s, somos %s. Lo sentimos: no tenemos mesa para %s el %s a las %s.', $first, $s['name'], $people, fmt_date_l($r['date']), $r['time']);
+        return [
+            'text_slots' => $sorry . ' ' . t('Ese día sí tenemos sitio a estas horas: %s. Si te va bien alguna, haz la reserva en la web:', '{horas}') . ' ' . base_url() . '/reservar.php' . $lq,
+            'text_none'  => $sorry . ' ' . t('Ese día ya no nos queda sitio. Esperamos verte otro día; puedes reservar en la web:') . ' ' . base_url() . '/reservar.php' . $lq,
+        ];
+    });
+    $n = preg_replace('/\D/', '', $r['phone']);
+    if (strlen($n) === 9) $n = '34' . $n;
+    return ['slots' => $slots, 'wa_number' => $r['phone'] !== '' ? $n : ''] + $texts;
 }

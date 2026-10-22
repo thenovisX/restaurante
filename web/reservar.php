@@ -66,6 +66,10 @@ site_header($customer);
           <summary><?= t('Tus datos') ?></summary>
           <p><?= t('Usamos tus datos solo para gestionar tus reservas y se guardan cifrados. El nombre, el teléfono y el email de cada reserva se borran solos 24 horas después. No los cedemos a nadie ni te enviamos publicidad. Lee la <a href="legal.php#privacidad">política de privacidad</a>.') ?></p>
         </details>
+        <details id="borrar-datos">
+          <summary><?= t('Borrar todos mis datos') ?></summary>
+          <?php include __DIR__ . '/lib/borrar-form.php'; ?>
+        </details>
       </div>
     </div>
   </section>

@@ -974,3 +974,16 @@ html, body { max-width: 100%; }
 /* Con tres botones en la portada (reservar, carta, menús): reservar ocupa la fila entera en el móvil */
 .hero-actions .btn { white-space: nowrap; }
 @media (max-width: 560px) { .hero-actions .btn:first-child:nth-last-child(3) { flex-basis: 100%; } }
+
+/* ---------- Borrar mis datos ---------- */
+.erase { display: grid; gap: 10px; margin-top: 8px; }
+.erase label { font-weight: 600; }
+.erase-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.erase-row input { flex: 1 1 220px; min-height: 48px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--linea-2); background: transparent; color: inherit; font: inherit; }
+.erase-row input:focus { outline: 2px solid var(--rubor); outline-offset: 2px; }
+.erase-help { margin: 0; color: var(--ceniza); font-size: .92rem; }
+.erase-msg { margin: 0; color: var(--ok); }
+.erase-msg:empty { display: none; }
+.erase-msg.is-err { color: var(--error); }
+.erase-sum { margin: 18px 0; padding-left: 1.2em; font-size: 1.1rem; }
+.confirmar .erase { max-width: 560px; margin-top: 24px; }
