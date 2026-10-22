@@ -961,3 +961,16 @@ html, body { max-width: 100%; }
 .mdia-hoja { scroll-margin-top: 90px; }
 .go-precio { color: var(--rubor); font-weight: 700; }
 @media (max-width: 960px) { .go-grid.go-n3 { grid-template-columns: 1fr; } }
+.mdia-head { margin-bottom: clamp(28px, 4vw, 48px); text-align: center; display: grid; justify-items: center; gap: 12px; }
+.mdia-head .title { margin: 0; }
+.page-menus main > section.mdia:first-child { padding-top: calc(var(--hd-h) + clamp(40px, 7vw, 90px)); }
+.mdia-curso li.con-foto { justify-items: center; }
+.mdia-foto { width: 84px; height: 84px; object-fit: cover; border-radius: 50%; margin-bottom: 6px; cursor: zoom-in; box-shadow: 0 0 0 3px var(--papel), 0 0 0 4px rgba(34, 29, 23, .2); }
+.mdia-al { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; margin-top: 4px; }
+.mdia-leyenda { width: min(620px, 100%); color: var(--ceniza); }
+.mdia-leyenda summary { cursor: pointer; padding: 8px 0; }
+.mdia-leyenda ul { list-style: none; padding: 0; margin: 8px 0 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; }
+.mdia-leyenda li { display: flex; align-items: center; gap: 8px; }
+/* Con tres botones en la portada (reservar, carta, menús): reservar ocupa la fila entera en el móvil */
+.hero-actions .btn { white-space: nowrap; }
+@media (max-width: 560px) { .hero-actions .btn:first-child:nth-last-child(3) { flex-basis: 100%; } }

@@ -793,6 +793,7 @@
     };
     return `<div class="sec-t"><h2>Menús</h2>${editMenu ? '<button class="link-btn" type="button" data-menu-new>+ Nuevo menú</button>' : ''}</div>
       ${ms.length ? ms.map(card).join('') : '<p class="help" style="color:var(--granito);margin:0 0 12px">Sin menús. Crea uno: menú del día, degustación, infantil…</p>'}
+      ${ms.length ? `<label class="switch-row dm-btn-row">Botón «Ver menús» en la portada <span class="sw"><input type="checkbox" data-menus-btn ${S.menu.menus_button ? 'checked' : ''} ${editMenu ? '' : 'disabled'}><span></span></span></label>` : ''}
       <section class="card dm-card carta-card${S.menu.carta_on ? ' is-on' : ''}">
         <div class="dm-head">
           <div><h2>Carta principal</h2><p class="dm-meta"><b>${S.menu.carta_on ? 'sale en la web' : 'no sale en la web'}</b></p></div>
@@ -836,11 +837,16 @@
           <button type="button" class="icon-mini danger" data-c-del="${i}" aria-label="Quitar apartado">×</button>
         </div>
         ${c.dishes.map((d, j) => `
-          <div class="dm-dish" data-di="${j}">
+          <div class="dm-dish" data-di="${j}" data-photo="${esc(d.photo || '')}" data-photo-url="${esc(d.photo_url || '')}">
+            <label class="dm-ph" title="${d.photo ? 'Cambiar foto' : 'Añadir foto'}">${d.photo_url ? `<img src="${esc(d.photo_url)}" alt="">` : ICON.plate}<input type="file" accept="image/*" data-d-photo="${i}:${j}" aria-label="Foto de ${esc(d.name || 'este plato')}"></label>${d.photo ? `<button type="button" class="dm-ph-del" data-d-nophoto="${i}:${j}" aria-label="Quitar foto">×</button>` : ''}
             <input class="dm-dname" value="${esc(d.name)}" placeholder="Nombre del plato" maxlength="120" aria-label="Plato">
             <label class="dm-extra"><span>+€</span><input class="dm-dextra" inputmode="decimal" value="${money(d.extra)}" placeholder="0" aria-label="Suplemento en euros"></label>
             <button type="button" class="icon-mini danger" data-d-del="${i}:${j}" aria-label="Quitar plato">×</button>
             <input class="dm-ddesc" value="${esc(d.desc)}" placeholder="Descripción (opcional)" maxlength="200" aria-label="Descripción">
+            <details class="dm-alg"${(d.allergens || []).length ? ' open' : ''}>
+              <summary>Alérgenos${(d.allergens || []).length ? ` (${d.allergens.length})` : ''}</summary>
+              <div class="chips">${S.menu.allergens.map((a) => `<label><input type="checkbox" value="${a.key}" ${(d.allergens || []).includes(a.key) ? 'checked' : ''}><span>${alIcon(a.key, 20)}${esc(a.name)}</span></label>`).join('')}</div>
+            </details>
           </div>`).join('')}
         <button type="button" class="link-btn" data-d-add="${i}">+ Añadir plato</button>
       </div>`;
@@ -867,7 +873,11 @@
       const read = () => {
         m.courses = $$('.dm-course', box).map((cb) => ({
           name: $('.dm-cname', cb).value,
-          dishes: $$('.dm-dish', cb).map((db) => ({ name: $('.dm-dname', db).value, extra: $('.dm-dextra', db).value.replace(',', '.') || 0, desc: $('.dm-ddesc', db).value })),
+          dishes: $$('.dm-dish', cb).map((db) => ({
+            name: $('.dm-dname', db).value, extra: $('.dm-dextra', db).value.replace(',', '.') || 0, desc: $('.dm-ddesc', db).value,
+            photo: db.dataset.photo, photo_url: db.dataset.photoUrl,
+            allergens: $$('.dm-alg input:checked', db).map((x) => x.value),
+          })),
         }));
       };
       const draw = (focus) => {
@@ -879,6 +889,7 @@
         const t = e.target;
         let k;
         if (t.closest('[data-c-add]')) { read(); m.courses.push({ name: '', dishes: [{ name: '', extra: 0, desc: '' }] }); draw(`[data-ci="${m.courses.length - 1}"] .dm-cname`); return; }
+        if ((k = t.closest('[data-d-nophoto]'))) { e.preventDefault(); read(); const [i, j] = k.dataset.dNophoto.split(':').map(Number); Object.assign(m.courses[i].dishes[j], { photo: '', photo_url: '' }); draw(); return; }
         if ((k = t.closest('[data-d-add]'))) { read(); const i = +k.dataset.dAdd; m.courses[i].dishes.push({ name: '', extra: 0, desc: '' }); draw(`[data-ci="${i}"] [data-di="${m.courses[i].dishes.length - 1}"] .dm-dname`); return; }
         if ((k = t.closest('[data-d-del]'))) { read(); const [i, j] = k.dataset.dDel.split(':').map(Number); m.courses[i].dishes.splice(j, 1); draw(); return; }
         if ((k = t.closest('[data-c-del]'))) {
@@ -890,6 +901,22 @@
           read(); const up = 'cUp' in k.dataset; const i = +(up ? k.dataset.cUp : k.dataset.cDown); const j = up ? i - 1 : i + 1;
           [m.courses[i], m.courses[j]] = [m.courses[j], m.courses[i]]; draw(); return;
         }
+      });
+      body.addEventListener('change', async (e) => {
+        const inp = e.target.closest('[data-d-photo]');
+        if (!inp || !inp.files[0]) return;
+        const [i, j] = inp.dataset.dPhoto.split(':').map(Number);
+        const lab = inp.closest('.dm-ph');
+        lab.classList.add('is-busy');
+        try {
+          const fd = new FormData();
+          fd.append('photo', await shrinkImage(inp.files[0], 1200), 'foto.jpg');
+          const r = await api('menu_photo', { form: fd });
+          read();
+          Object.assign(m.courses[i].dishes[j], r);
+          draw();
+          toast('Foto añadida. Pulsa «Guardar menú» para que se quede.');
+        } catch (err) { lab.classList.remove('is-busy'); toast(err.message, 'err'); }
       });
       f.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -1582,6 +1609,8 @@
   async function onViewChange(e) {
     const mt = e.target.closest('[data-menu-toggle]');
     if (mt) return toggleMenu(mt);
+    const mb = e.target.closest('[data-menus-btn]');
+    if (mb) return api('menus_button_toggle', { body: { on: mb.checked } }).then(() => { toast(mb.checked ? 'El botón «Ver menús» sale en la portada' : 'Botón «Ver menús» quitado de la portada'); S.menu.menus_button = mb.checked; }).catch((err) => { mb.checked = !mb.checked; toast(err.message, 'err'); });
     if (e.target.closest('[data-carta-toggle]')) return toggleCarta(e.target.closest('[data-carta-toggle]'));
     const tg = e.target.closest('[data-toggle]');
     if (!tg) { if (e.target.closest('form[data-form]')) onViewInput(e); return; }

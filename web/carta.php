@@ -8,15 +8,15 @@ if (!installed()) { header('Location: install.php'); exit; }
 $s = settings();
 $customer = current_customer();
 $menu = menu_data(false);
-$menus = menus_public();
 $cartaOn = carta_on();
-page_start(($cartaOn || !$menus ? t('La carta') : t('Menús')) . ' · ' . $s['name'], t('Carta de %s: platos, precios y alérgenos.', $s['name']), 'page-sub page-carta');
+// Carta desactivada: si hay menús, a su página
+if (!$cartaOn && menus_public()) { header('Location: menus.php', true, 302); exit; }
+page_start(t('La carta') . ' · ' . $s['name'], t('Carta de %s: platos, precios y alérgenos.', $s['name']), 'page-sub page-carta');
 site_header($customer);
 ?>
 <main id="main">
-  <?php if ($menus) include __DIR__ . '/lib/menus.php'; ?>
   <?php if ($cartaOn) include __DIR__ . '/lib/carta-libro.php'; ?>
-  <?php if (!$cartaOn && !$menus): ?>
+  <?php if (!$cartaOn): ?>
     <section class="carta"><p class="wrap muted"><?= t('Estamos preparando la carta. Pregúntanos por los platos del día.') ?></p></section>
   <?php endif; ?>
   <section class="sub-cta">

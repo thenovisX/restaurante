@@ -384,4 +384,8 @@ return [
     'Pregúntanos por los alérgenos de los platos del menú.' => ['en' => 'Ask us about allergens in the set menu dishes.', 'pt' => 'Pergunte-nos pelos alergénios dos pratos do menu.', 'gl' => 'Pregúntanos polos alérxenos dos pratos do menú.'],
     'todos los días' => ['en' => 'every day', 'pt' => 'todos os dias', 'gl' => 'todos os días'],
     'de %s a %s' => ['en' => '%s to %s', 'pt' => 'de %s a %s', 'gl' => 'de %s a %s'],
+    'Menús de %s: precio, platos a elegir y suplementos.' => ['en' => '%s set menus: price, dishes to choose from and supplements.', 'pt' => 'Menus de %s: preço, pratos à escolha e suplementos.', 'gl' => 'Menús de %s: prezo, pratos a escoller e suplementos.'],
+    'Precio cerrado y platos a elegir en cada apartado. Si un plato lleva suplemento, se indica a su lado.' => ['en' => 'Fixed price, with dishes to choose from in each course. If a dish has a supplement, it is shown next to it.', 'pt' => 'Preço fechado e pratos à escolha em cada parte. Se um prato tiver suplemento, aparece ao lado.', 'gl' => 'Prezo pechado e pratos a escoller en cada apartado. Se un prato leva suplemento, indícase ao seu carón.'],
+    'Qué significa cada icono de alérgenos' => ['en' => 'What each allergen icon means', 'pt' => 'O que significa cada ícone de alergénios', 'gl' => 'Que significa cada icona de alérxenos'],
+    'Ver menús' => ['en' => 'See set menus', 'pt' => 'Ver menus', 'gl' => 'Ver menús'],
 ];
