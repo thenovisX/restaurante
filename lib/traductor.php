@@ -28,6 +28,18 @@ function translatable_texts(): array
         $add($d['name'], 'Plato');
         $add($d['description'], 'Descripción de «' . $d['name'] . '»');
     }
+    $dm = daily_menu();
+    if ($dm['on']) {
+        $add($dm['title'], 'Menú del día');
+        $add($dm['note'], 'Menú del día (nota)');
+        foreach ($dm['courses'] as $c) {
+            $add($c['name'], 'Apartado del menú del día');
+            foreach ($c['dishes'] as $d) {
+                $add($d['name'], 'Plato del menú del día');
+                $add($d['desc'], 'Descripción de «' . $d['name'] . '» (menú del día)');
+            }
+        }
+    }
     $add($s['tagline'], 'Frase corta');
     $add($s['description'], 'Presentación');
     $add($s['footer_title'], 'Título del pie');

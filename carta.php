@@ -8,10 +8,12 @@ if (!installed()) { header('Location: install.php'); exit; }
 $s = settings();
 $customer = current_customer();
 $menu = menu_data(false);
+$dm = daily_menu_public();
 page_start(t('La carta') . ' · ' . $s['name'], t('Carta de %s: platos, precios y alérgenos.', $s['name']), 'page-sub page-carta');
 site_header($customer);
 ?>
 <main id="main">
+  <?php if ($dm) include __DIR__ . '/lib/menu-dia.php'; ?>
   <?php include __DIR__ . '/lib/carta-libro.php'; ?>
   <section class="sub-cta">
     <div class="wrap sub-cta-in">
