@@ -14,6 +14,21 @@ $c = current_customer();
       <button class="bk-close" type="button" data-close aria-label="<?= t('Cerrar') ?>">×</button>
     </header>
 
+    <?php if ($s['phone']): ?>
+    <section class="bk-pane" data-pane="0" hidden>
+      <div class="bk-opts">
+        <button class="bk-opt" type="button" data-next="1">
+          <b><?= t('Reservar online') ?></b>
+          <span><?= t('Elige día y hora y te confirmamos por WhatsApp.') ?></span>
+        </button>
+        <a class="bk-opt" id="bk-call" href="<?= h(tel_href($s['phone'])) ?>" data-href="<?= h(tel_href($s['phone'])) ?>">
+          <b><?= t('Llamar por teléfono') ?></b>
+          <span id="bk-call-txt"><?= h($s['phone']) ?></span>
+        </a>
+      </div>
+    </section>
+    <?php endif; ?>
+
     <section class="bk-pane" data-pane="1">
       <fieldset>
         <legend><?= t('¿Cuántos sois?') ?></legend>
@@ -31,7 +46,7 @@ $c = current_customer();
         <div class="days" id="bk-days" role="radiogroup" aria-label="<?= t('Día') ?>"></div>
         <label class="bk-other"><?= t('Otra fecha') ?> <input type="date" id="bk-date"></label>
       </fieldset>
-      <div class="bk-nav"><button class="btn btn-rubor" type="button" data-next="2"><?= t('Ver horas libres') ?></button></div>
+      <div class="bk-nav"><?php if ($s['phone']): ?><button class="btn btn-ghost" type="button" data-next="0"><?= t('Atrás') ?></button><?php endif; ?><button class="btn btn-rubor" type="button" data-next="2"><?= t('Ver horas libres') ?></button></div>
     </section>
 
     <section class="bk-pane" data-pane="2" hidden>

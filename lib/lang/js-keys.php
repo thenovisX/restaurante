@@ -1,6 +1,13 @@
 <?php
 // Textos que usa el JavaScript de la web (assets/web.js y assets/consent.js). Se mandan traducidos en window.I18N.
 return [
+    'Estamos abiertos ahora: %s',
+    'Ahora estamos cerrados.',
+    'Ahora estamos cerrados. Podrás llamarnos %s.',
+    'hoy a las %s',
+    'mañana a las %s',
+    'el %s a las %s',
+    '¿Cómo quieres reservar?',
     'El servidor no responde bien. Inténtalo de nuevo.',
     'Sin conexión. Revisa internet e inténtalo de nuevo.',
     'Algo ha fallado',
