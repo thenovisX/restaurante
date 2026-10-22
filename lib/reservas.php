@@ -30,18 +30,18 @@ function day_slots(string $date, bool $ignoreRules = false): array
     $res = ['date' => $date, 'open' => false, 'reason' => '', 'slots' => []];
 
     if (!$ignoreRules) {
-        if ($date < today()) return ['reason' => 'Esa fecha ya ha pasado'] + $res;
+        if ($date < today()) return ['reason' => t('Esa fecha ya ha pasado')] + $res;
         $limit = date('Y-m-d', strtotime('+' . (int)$s['days_ahead'] . ' days'));
-        if ($date > $limit) return ['reason' => 'Solo se puede reservar con ' . $s['days_ahead'] . ' días de antelación como máximo'] + $res;
+        if ($date > $limit) return ['reason' => t('Solo se puede reservar con %d días de antelación como máximo', (int)$s['days_ahead'])] + $res;
     }
-    if (in_array($date, $s['closed_dates'], true)) return ['reason' => 'Ese día el restaurante está cerrado'] + $res;
+    if (in_array($date, $s['closed_dates'], true)) return ['reason' => t('Ese día el restaurante está cerrado')] + $res;
 
     $ranges = $s['hours'][date('N', strtotime($date))] ?? [];
-    if (!$ranges) return ['reason' => 'Ese día el restaurante cierra'] + $res;
+    if (!$ranges) return ['reason' => t('Ese día el restaurante cierra')] + $res;
     // Con horario de cocina, solo se puede reservar mientras la cocina está abierta
     if ($s['kitchen_on']) {
         $ranges = $s['kitchen_hours'][date('N', strtotime($date))] ?? [];
-        if (!$ranges) return ['reason' => 'Ese día la cocina no abre'] + $res;
+        if (!$ranges) return ['reason' => t('Ese día la cocina no abre')] + $res;
     }
 
     // Reservas del día que ocupan sitio: [inicio en segundos, personas]
@@ -75,7 +75,7 @@ function day_slots(string $date, bool $ignoreRules = false): array
         }
     }
     $res['open'] = (bool)array_filter($res['slots'], fn($x) => $x['left'] > 0);
-    if (!$res['open']) $res['reason'] = $res['slots'] ? 'No quedan mesas libres ese día' : 'Ya no se puede reservar para hoy';
+    if (!$res['open']) $res['reason'] = $res['slots'] ? t('No quedan mesas libres ese día') : t('Ya no se puede reservar para hoy');
     return $res;
 }
 
@@ -124,11 +124,11 @@ function create_public_reservation(array $in): array
     foreach ($slots['slots'] as $x) if ($x['time'] === $d['rtime']) $slot = $x;
     if (!$slot) {
         $pdo->rollBack();
-        throw new ValidationError($slots['reason'] ?: 'Esa hora no está disponible');
+        throw new ValidationError($slots['reason'] ?: t('Esa hora no está disponible'));
     }
     if ($slot['left'] < $d['people']) {
         $pdo->rollBack();
-        throw new ValidationError($slot['left'] > 0 ? "A esa hora solo quedan {$slot['left']} plazas" : 'Esa hora ya está completa, prueba otra');
+        throw new ValidationError($slot['left'] > 0 ? t('A esa hora solo quedan %d plazas', $slot['left']) : t('Esa hora ya está completa, prueba otra'));
     }
 
     $s = settings();
@@ -139,18 +139,17 @@ function create_public_reservation(array $in): array
     if (!$cid && $d['email'] !== '') {
         $cid = (int)(q('SELECT id FROM customers WHERE email_idx = ? AND verified_at IS NOT NULL', [email_idx($d['email'])])->fetchColumn() ?: 0);
     }
-    q('INSERT INTO reservations (name, phone, email, email_idx, rdate, rtime, people, notes, status, source, ip, created_at, updated_at, customer_id, verify_token, seq)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', [
+    q('INSERT INTO reservations (name, phone, email, email_idx, rdate, rtime, people, notes, status, source, ip, created_at, updated_at, customer_id, verify_token, seq, lang)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', [
         enc($d['name']), enc($d['phone']), enc($d['email']), email_idx($d['email']), $d['rdate'], $d['rtime'], $d['people'], enc($d['notes']),
-        $status, 'web', $ip, now(), now(), $cid, enc($token), next_seq(),
+        $status, 'web', $ip, now(), now(), $cid, enc($token), next_seq(), lang(),
     ]);
     $id = (int)$pdo->lastInsertId();
     $pdo->commit();
     audit('reserva', $cid, "Reserva #$id: acepta políticas de reserva y privacidad, versión " . LEGAL_VERSION);
 
     $when = fmt_date_es($d['rdate']) . ' a las ' . $d['rtime'];
-    send_mail(
-        $s['notify_email'] ?: $s['email'],
+    restaurant_mail(
         "Petición de reserva: {$d['name']}, {$d['people']} pers., $when",
         "Nueva petición de reserva desde la web\n\nNombre: {$d['name']}\nDía: $when\nPersonas: {$d['people']}\n\n"
         . "Confírmala desde la pestaña Peticiones de la app: allí están el teléfono y las notas, y se abrirá WhatsApp con el mensaje para el cliente.\n"
@@ -160,13 +159,13 @@ function create_public_reservation(array $in): array
     return [
         'id' => $id,
         'status' => $status,
-        'when' => $when,
         'people' => $d['people'],
         'account' => (bool)$customer,
         'linked' => $cid > 0,
         'email' => $d['email'] !== '',
-        'message' => "Hemos recibido tu petición para el $when ($d[people] " . ($d['people'] === 1 ? 'persona' : 'personas') . "). "
-            . 'El restaurante la revisará y te enviará un WhatsApp al ' . $d['phone'] . ' con un enlace para confirmarla.',
+        'when' => fmt_date_l($d['rdate']) . ' · ' . $d['rtime'],
+        'message' => t('Hemos recibido tu petición para el %s a las %s (%s).', fmt_date_l($d['rdate']), $d['rtime'], $d['people'] . ' ' . ($d['people'] === 1 ? t('persona') : t('personas')))
+            . ' ' . t('El restaurante la revisará y te enviará un WhatsApp al %s con un enlace para confirmarla.', $d['phone']),
     ];
 }
 
@@ -189,11 +188,16 @@ function confirm_url(array $row): string
 /** Texto del WhatsApp que el restaurante envía al cliente. */
 function whatsapp_text(array $r, string $url): string
 {
-    $s = settings();
-    $first = explode(' ', trim($r['name']))[0];
-    return "Hola $first, confirma tu reserva en {$s['name']} para el " . fmt_date_es($r['date']) . " a las {$r['time']} ("
-        . $r['people'] . ($r['people'] === 1 ? ' persona' : ' personas') . "). Abre este enlace y pulsa «Confirmar mi reserva»:\n$url\n\n"
-        . 'Si te has equivocado en algún dato, vuelve a hacer la reserva en la web: ' . base_url() . '/reservar.php';
+    // En el idioma en el que reservó el cliente
+    return with_lang($r['lang'] ?? 'es', function () use ($r, $url) {
+        $s = settings();
+        $first = explode(' ', trim($r['name']))[0];
+        $people = $r['people'] . ' ' . ($r['people'] === 1 ? t('persona') : t('personas'));
+        $lq = lang() !== 'es' ? '?lang=' . lang() : '';
+        return t('Hola %s, confirma tu reserva en %s para el %s a las %s (%s). Abre este enlace y pulsa «Confirmar mi reserva»:', $first, $s['name'], fmt_date_l($r['date']), $r['time'], $people)
+            . "\n$url" . ($lq ? '&lang=' . lang() : '') . "\n\n"
+            . t('Si te has equivocado en algún dato, vuelve a hacer la reserva en la web:') . ' ' . base_url() . '/reservar.php' . $lq;
+    });
 }
 
 /** Reserva con lo que necesita el panel: enlace de confirmación y enlace de WhatsApp listo para enviar. */
@@ -245,7 +249,7 @@ function confirm_by_customer(int $id, string $token): array
     audit('reserva_confirmada_cliente', (int)$row['customer_id'], "Reserva #$id confirmada desde el enlace");
     $r = get_reservation($id);
     $s = settings();
-    send_mail($s['notify_email'] ?: $s['email'], "Reserva confirmada por el cliente: {$r['name']}, " . fmt_date_es($r['date']) . " {$r['time']}",
+    restaurant_mail("Reserva confirmada por el cliente: {$r['name']}, " . fmt_date_es($r['date']) . " {$r['time']}",
         "{$r['name']} ha confirmado su reserva desde el enlace del WhatsApp.\n\nDía: " . fmt_date_es($r['date']) . " a las {$r['time']}\nPersonas: {$r['people']}");
     notify_customer($r);
     return ['confirmada', $r];
@@ -266,6 +270,7 @@ function res_out(array $r): array
         'status' => $r['status'], 'source' => $r['source'], 'created_at' => $r['created_at'],
         'customer' => (int)($r['customer_id'] ?? 0) > 0,
         'cancel_by' => (string)($r['cancel_by'] ?? ''),   // cliente o restaurante
+        'lang' => (string)($r['lang'] ?? 'es'),           // idioma en el que reservó
     ];
 }
 
@@ -374,7 +379,7 @@ function cancel_by_link(int $id, string $token): array
     audit('reserva_cancelada_cliente', (int)$row['customer_id'], "Reserva #$id cancelada desde el enlace");
     $r = get_reservation($id);
     $s = settings();
-    send_mail($s['notify_email'] ?: $s['email'], "Reserva cancelada por el cliente: {$r['name']}, " . fmt_date_es($r['date']) . " {$r['time']}",
+    restaurant_mail("Reserva cancelada por el cliente: {$r['name']}, " . fmt_date_es($r['date']) . " {$r['time']}",
         "{$r['name']} ha cancelado su reserva desde el enlace.\n\nDía: " . fmt_date_es($r['date']) . " a las {$r['time']}\nPersonas: {$r['people']}");
     notify_customer($r);
     return ['cancelada', $r];
@@ -383,14 +388,18 @@ function cancel_by_link(int $id, string $token): array
 function notify_customer(array $r): void
 {
     if ($r['email'] === '' || $r['source'] !== 'web') return;
-    $s = settings();
-    $when = fmt_date_es($r['date']) . ' a las ' . $r['time'];
-    $tel = $s['phone'] ? "\nSi necesitas cambiar algo, llámanos al {$s['phone']}." : '';
-    $msgs = [
-        'esperando'  => ["Confirma tu reserva en {$s['name']}", "Hola {$r['name']}:\n\nTenemos mesa para {$r['people']} personas el $when. Para confirmarla, abre este enlace y pulsa «Confirmar mi reserva»:\n\n" . confirm_url(q('SELECT * FROM reservations WHERE id = ?', [$r['id']])->fetch()) . "\n\nTambién te lo hemos enviado por WhatsApp. Si te has equivocado en algún dato, vuelve a hacer la reserva en la web.\n\n{$s['name']}"],
-        'confirmada' => ["Reserva confirmada en {$s['name']}", "Hola {$r['name']}:\n\nTu reserva para {$r['people']} personas el $when está confirmada. ¡Te esperamos!$tel\n\n{$s['name']}\n{$s['address']}"],
-        'rechazada'  => ["No podemos atender tu reserva en {$s['name']}", "Hola {$r['name']}:\n\nLo sentimos, no tenemos mesa para {$r['people']} personas el $when.$tel\n\n{$s['name']}"],
-        'cancelada'  => ["Reserva cancelada en {$s['name']}", "Hola {$r['name']}:\n\nTu reserva del $when ha quedado cancelada.$tel\n\n{$s['name']}"],
-    ];
-    if (isset($msgs[$r['status']])) send_mail($r['email'], ...$msgs[$r['status']]);
+    // En el idioma en el que reservó el cliente
+    with_lang($r['lang'] ?? 'es', function () use ($r) {
+        $s = settings();
+        $when = t('%s a las %s', fmt_date_l($r['date']), $r['time']);
+        $tel = $s['phone'] ? "\n" . t('Si necesitas cambiar algo, llámanos al %s.', $s['phone']) : '';
+        $hi = t('Hola %s:', $r['name']) . "\n\n";
+        $msgs = [
+            'esperando'  => [t('Confirma tu reserva en %s', $s['name']), $hi . t('Tenemos mesa para %d personas el %s. Para confirmarla, abre este enlace y pulsa «Confirmar mi reserva»:', $r['people'], $when) . "\n\n" . confirm_url(q('SELECT * FROM reservations WHERE id = ?', [$r['id']])->fetch()) . (lang() !== 'es' ? '&lang=' . lang() : '') . "\n\n" . t('También te lo hemos enviado por WhatsApp. Si te has equivocado en algún dato, vuelve a hacer la reserva en la web.') . "\n\n{$s['name']}"],
+            'confirmada' => [t('Reserva confirmada en %s', $s['name']), $hi . t('Tu reserva para %d personas el %s está confirmada. ¡Te esperamos!', $r['people'], $when) . "$tel\n\n{$s['name']}\n{$s['address']}"],
+            'rechazada'  => [t('No podemos atender tu reserva en %s', $s['name']), $hi . t('Lo sentimos, no tenemos mesa para %d personas el %s.', $r['people'], $when) . "$tel\n\n{$s['name']}"],
+            'cancelada'  => [t('Reserva cancelada en %s', $s['name']), $hi . t('Tu reserva del %s ha quedado cancelada.', $when) . "$tel\n\n{$s['name']}"],
+        ];
+        if (isset($msgs[$r['status']])) send_mail($r['email'], ...$msgs[$r['status']]);
+    });
 }

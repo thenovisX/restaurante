@@ -628,6 +628,7 @@
         <dt>Hora</dt><dd>${esc(r.time)}${endTime(r) ? ` · mesa ocupada hasta las ${endTime(r)}` : ''}</dd>
         <dt>Personas</dt><dd>${r.people}</dd>
         <dt>Estado</dt><dd><span class="chip chip-${r.status}">${STATUS[r.status]}</span></dd>
+        ${r.lang && r.lang !== 'es' ? `<dt>Idioma</dt><dd>${{ en: 'Inglés', pt: 'Portugués', gl: 'Gallego' }[r.lang] || r.lang} <span class="help">(el WhatsApp y los emails le llegan en su idioma)</span></dd>` : ''}
         ${r.phone ? `<dt>Teléfono</dt><dd>${esc(r.phone)}</dd>` : '<dt>Datos</dt><dd>Borrados (pasaron 24 h)</dd>'}
         ${r.email ? `<dt>Email</dt><dd>${esc(r.email)}</dd>` : ''}
         ${r.notes ? `<dt>Notas</dt><dd>${esc(r.notes)}</dd>` : ''}
@@ -1038,6 +1039,22 @@
           <p class="help">Salen en el aviso legal y al pie de los emails. Para que el aviso legal esté completo hace falta también el email de contacto.</p>
           <button class="btn btn-main" type="submit">Guardar</button>
         </form>`)}
+      ${sec('idiomas', 'Idiomas de la web', 'Español, inglés, portugués y gallego; la carta se traduce sola', `
+        <form class="form" data-form="idiomas" novalidate>
+          <p class="help">La web sale con banderas para cambiar de idioma. Los textos de la web ya están traducidos; la carta, la frase corta, la presentación y las políticas se traducen solas cada vez que las cambias. El nombre, la dirección, el teléfono y los emails no se traducen.</p>
+          ${[['en', 'Inglés'], ['pt', 'Portugués'], ['gl', 'Gallego']].map(([k, n]) => `<label class="switch-row">${n} <span class="sw"><input type="checkbox" name="langs" value="${k}" ${(s.langs || []).includes(k) ? 'checked' : ''}><span></span></span></label>`).join('')}
+          <div id="tr-status" class="tr-status"><p class="help">Comprobando traducciones…</p></div>
+          <div class="actions-row"><button class="btn btn-line btn-sm" type="button" data-tr-run>Traducir ahora</button><button class="btn btn-quiet btn-sm" type="button" data-tr-list>Revisar traducciones</button></div>
+          <details class="adv"><summary>Traductor automático</summary>
+            <label>Traductor <select name="tr_provider">
+              <option value="mymemory" ${s.tr_provider !== 'google' ? 'selected' : ''}>MyMemory (gratis, sin cuenta)</option>
+              <option value="google" ${s.tr_provider === 'google' ? 'selected' : ''}>Google Translate (con clave)</option>
+            </select></label>
+            <p class="help">MyMemory es gratis y traduce unos 50.000 caracteres al día, de sobra para una carta. Google traduce mejor y regala 500.000 caracteres al mes: crea una clave de «Cloud Translation API» en console.cloud.google.com.</p>
+            <label>Clave de Google <input name="tr_google_key" type="password" autocomplete="off" placeholder="${s.tr_google_key_set ? 'Guardada (escribe otra para cambiarla)' : 'AIza…'}"></label>
+          </details>
+          <button class="btn btn-main" type="submit">Guardar</button>
+        </form>`)}
       ${sec('correo', 'Envío de emails', s.smtp_on ? `Activado con ${esc(s.smtp_user)}` : 'Conectar tu Gmail para enviar los emails', `
         <form class="form" data-form="correo" novalidate>
           <p class="help">Los emails a los clientes (activar la cuenta, confirmación de la reserva…) salen por defecto del correo del hosting y a veces acaban en spam. Con tu Gmail llegan mejor.</p>
@@ -1122,6 +1139,16 @@
     }));
     $$('form[data-form]', view).forEach((f) => f.addEventListener('submit', (e) => saveSettingsForm(e, f)));
     if ($('#users-box', view)) loadUsers();
+    if ($('#tr-status', view)) loadTrStatus();
+    const trRun = $('[data-tr-run]', view);
+    if (trRun) trRun.addEventListener('click', async () => {
+      busy(trRun, true, 'Traduciendo…');
+      try { const r = await api('tr_run', { body: {} }); toast(r.done ? `${r.done} textos traducidos` : (r.error ? 'El traductor no responde ahora' : 'Ya estaba todo traducido')); renderTrStatus(r); }
+      catch (err) { toast(err.message, 'err'); }
+      busy(trRun, false);
+    });
+    const trList = $('[data-tr-list]', view);
+    if (trList) trList.addEventListener('click', () => reviewTranslations());
     const un = $('[data-user-new]', view);
     if (un) un.addEventListener('click', () => editUser(null));
     const mt = $('[data-mail-test]', view);
@@ -1143,6 +1170,50 @@
       logoutLocal();
     });
   };
+
+  /* ---------- Idiomas: estado y revisión de las traducciones ---------- */
+  const LANG_NAME = { en: 'Inglés', pt: 'Portugués', gl: 'Gallego' };
+  function renderTrStatus(st) {
+    const box = $('#tr-status');
+    if (!box) return;
+    const ls = Object.keys(st.langs || {});
+    box.innerHTML = !ls.length ? '<p class="help">Solo está activado el español.</p>'
+      : `<p class="help">Textos del restaurante traducidos (carta, frase, presentación, políticas):</p>`
+        + ls.map((l) => `<div class="tr-bar"><span>${LANG_NAME[l]}</span><i style="--p:${st.total ? Math.round(st.langs[l] / st.total * 100) : 100}%"></i><b>${st.langs[l]} de ${st.total}</b></div>`).join('')
+        + (st.error ? `<p class="err-box">Último aviso del traductor: ${esc(st.error)}</p>` : '')
+        + (ls.some((l) => st.langs[l] < st.total) && !st.error ? '<p class="help">Lo que falta se traduce solo en unos minutos mientras la app está abierta. Hasta entonces sale en español.</p>' : '');
+  }
+  async function loadTrStatus() {
+    try { renderTrStatus(await api('tr_status')); } catch (e) { /* sin estado */ }
+  }
+  async function reviewTranslations() {
+    let d;
+    try { d = await api('tr_list'); } catch (err) { toast(err.message, 'err'); return; }
+    if (!d.items.length) { toast('Todavía no hay textos que traducir'); return; }
+    openSheet('Revisar traducciones', `
+      <p class="help">Corrige lo que quieras: lo que cambies a mano ya no se vuelve a traducir solo. Se guarda al salir de cada casilla.</p>
+      <label class="search">${ICON.search}<input type="search" id="tr-q" placeholder="Buscar texto" autocomplete="off"></label>
+      <div class="tr-list">${d.items.map((it) => `<div class="tr-item" data-src="${esc(norm(it.src))}">
+        <p class="tr-src"><small>${esc(it.where)}</small>${esc(it.src)}</p>
+        ${d.langs.map((l) => `<label>${LANG_NAME[l]}${it.tr[l] && it.tr[l].manual ? ' <span class="tag">corregida</span>' : ''}
+          <textarea rows="${it.src.length > 60 ? 3 : 1}" data-h="${it.h}" data-l="${l}" placeholder="Sin traducir todavía">${esc(it.tr[l] ? it.tr[l].txt : '')}</textarea></label>`).join('')}
+      </div>`).join('')}</div>`, (body) => {
+      $('#tr-q', body).addEventListener('input', (e) => {
+        const q = norm(e.target.value.trim());
+        $$('.tr-item', body).forEach((it) => { it.hidden = !!q && !it.dataset.src.includes(q); });
+      });
+      $$('textarea[data-h]', body).forEach((ta) => {
+        ta.dataset.orig = ta.value;
+        ta.addEventListener('change', async () => {
+          try {
+            await api('tr_save', { body: { h: ta.dataset.h, lang: ta.dataset.l, txt: ta.value } });
+            ta.dataset.orig = ta.value;
+            toast('Traducción guardada');
+          } catch (err) { toast(err.message, 'err'); ta.value = ta.dataset.orig; }
+        });
+      });
+    });
+  }
 
   /* ---------- Usuarios (solo administradores) ---------- */
   const PERM_LABEL = { reservas: 'Reservas', carta: 'Carta', ajustes: 'Ajustes' };
@@ -1244,6 +1315,8 @@
       }
       body = kind === 'cocina' ? { kitchen_hours: hours, kitchen_on: $('[name=kitchen_on]', f).checked } : { hours };
       if (kind === 'cocina' && body.kitchen_on && !Object.values(hours).some((x) => x.length)) { toast('Marca al menos un día con la cocina abierta', 'err'); return; }
+    } else if (kind === 'idiomas') {
+      body = { langs: ['es'].concat($$('[name=langs]:checked', f).map((x) => x.value)), tr_provider: f.tr_provider.value, tr_google_key: f.tr_google_key.value };
     } else {
       $$('input[name], textarea[name], select[name]', f).forEach((el) => { body[el.name] = el.type === 'checkbox' ? el.checked : el.value; });
     }
@@ -1256,6 +1329,7 @@
       if (btn.dataset.orig) { btn.dataset.label = btn.dataset.orig; delete btn.dataset.orig; }
       toast(kind === 'correo' ? 'Guardado' : 'Guardado. Ya se ve en la web.');
       if (kind === 'correo') { const pw = $('[name=smtp_pass]', f); if (pw) { pw.value = ''; pw.placeholder = 'Guardada (escribe otra para cambiarla)'; } }
+      if (kind === 'idiomas') { f.tr_google_key.value = ''; if (S.settings.tr_google_key_set) f.tr_google_key.placeholder = 'Guardada (escribe otra para cambiarla)'; loadTrStatus(); }
     } catch (err) { toast(err.message, 'err'); }
     busy(btn, false);
   }

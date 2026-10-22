@@ -865,3 +865,26 @@ html, body { max-width: 100%; }
 .sub-cta { padding: 0 0 clamp(64px, 9vw, 110px); }
 .sub-cta-in { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 16px 24px; text-align: center; }
 .sub-cta-in p { margin: 0; font-family: var(--display); font-size: clamp(1.5rem, 3vw, 2.2rem); }
+
+/* ---------- Idiomas: banderas circulares ---------- */
+.langs { display: flex; align-items: center; gap: 4px; }
+.lang { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; opacity: .5; transition: opacity .2s, transform .2s; }
+.lang:hover, .lang:focus-visible { opacity: .9; transform: scale(1.08); }
+.lang.is-on { opacity: 1; }
+.flag-c { display: block; width: 24px; height: 24px; border-radius: 50%; overflow: hidden; box-shadow: 0 0 0 1px rgba(255, 255, 255, .28); }
+.lang.is-on .flag-c { box-shadow: 0 0 0 2px var(--noche), 0 0 0 3.5px var(--hueso); }
+.flag-c .flag { display: block; width: 100%; height: 100%; }
+.langs-menu { display: none; }
+@media (max-width: 640px) {
+  .langs-hd { gap: 0; }
+  .lang { width: 30px; height: 30px; }
+  .flag-c { width: 22px; height: 22px; }
+}
+/* Pantallas muy estrechas: las banderas pasan al menú, en grande */
+@media (max-width: 360px) {
+  .langs-hd { display: none; }
+  .langs-menu { display: flex; gap: 12px; margin-bottom: 24px; }
+  .langs-menu .lang { width: 46px; height: 46px; }
+  .langs-menu .flag-c { width: 36px; height: 36px; }
+}
+.hd-brand { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

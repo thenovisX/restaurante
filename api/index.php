@@ -26,6 +26,7 @@ $r = (string)($_GET['r'] ?? '');
 $in = input();
 $id = (int)($in['id'] ?? $_GET['id'] ?? 0);
 
+detect_lang(); // los mensajes para el cliente salen en su idioma
 try {
     /* ---------- Públicas ---------- */
     switch ($r) {
@@ -85,6 +86,7 @@ try {
 
     /* ---------- Gestión (requieren sesión) ---------- */
     $user = require_auth();
+    lang('es'); // el panel va en español
     switch ($r) {
         case 'logout':
             logout();
@@ -112,7 +114,23 @@ try {
         case 'month':
             out(month_summary((string)($_GET['month'] ?? date('Y-m'))));
         case 'changes':
+            // Mientras el panel está abierto, se va traduciendo poco a poco lo que falte de la carta
+            try { translate_pending(3); } catch (Throwable $e) { /* se reintenta luego */ }
             out(changes((int)($_GET['since'] ?? 0)));
+        case 'tr_status':
+            out(translation_status());
+        case 'tr_run':
+            only_post();
+            require_perm($user, 'carta');
+            $n = translate_pending(20, true);
+            out(['done' => $n] + translation_status());
+        case 'tr_list':
+            out(['items' => translations_list(), 'langs' => array_values(array_diff(langs_on(), ['es']))]);
+        case 'tr_save':
+            only_post();
+            require_perm($user, 'carta');
+            translation_save($in);
+            out(true);
         case 'slots_admin':
             out(day_slots((string)($_GET['date'] ?? ''), true));
         case 'reservation_status':
@@ -134,7 +152,9 @@ try {
         case 'category_save':
             only_post();
             require_perm($user, 'carta');
-            out(save_category($in));
+            $res = save_category($in);
+            tr_after_save();
+            out($res);
         case 'category_delete':
             only_post();
             require_perm($user, 'carta');
@@ -148,7 +168,9 @@ try {
         case 'dish_save':
             only_post();
             require_perm($user, 'carta');
-            out(save_dish($in, $_FILES['photo'] ?? null));
+            $res = save_dish($in, $_FILES['photo'] ?? null);
+            tr_after_save();
+            out($res);
         case 'dish_toggle':
             only_post();
             require_perm($user, 'carta');
@@ -180,6 +202,7 @@ try {
             if (array_keys($in) === ['closed_dates']) require_perm($user, user_can($user, 'ajustes') ? 'ajustes' : 'reservas');
             else require_perm($user, 'ajustes');
             settings_save($in);
+            tr_after_save();
             out(settings_admin());
         case 'mail_test':
             only_post();
@@ -197,7 +220,7 @@ try {
     }
     fail('Ruta desconocida', 404);
 } catch (ValidationError $e) {
-    fail($e->getMessage(), 422);
+    fail(t_msg($e->getMessage()), 422);
 } catch (Throwable $e) {
     error_log('[restaurante] ' . $e);
     fail(!empty(cfg()['debug']) ? $e->getMessage() : 'Error en el servidor. Inténtalo de nuevo.', 500);

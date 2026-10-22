@@ -350,3 +350,16 @@ a { color: inherit; }
 .hours-day, .hours-day > div, .set-body, .set-body .form { min-width: 0; }
 .range input { flex: 1 1 0; min-width: 0; }
 .hours-day .switch-row { gap: 8px; }
+
+/* Idiomas */
+.tr-status { display: grid; gap: 6px; }
+.tr-bar { display: grid; grid-template-columns: 84px 1fr auto; align-items: center; gap: 10px; font-size: .9rem; }
+.tr-bar i { position: relative; height: 8px; border-radius: 4px; background: var(--gris-bg); overflow: hidden; }
+.tr-bar i::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--p); background: var(--alga); }
+.tr-bar b { font-weight: 600; color: var(--granito); font-size: .85rem; }
+.tr-list { display: grid; gap: 12px; }
+.tr-item { background: var(--fondo); border-radius: 12px; padding: 12px; display: grid; gap: 8px; }
+.tr-src { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.tr-src small { display: block; font-weight: 400; color: var(--granito); font-size: .78rem; }
+.tr-item label { display: grid; gap: 4px; font-size: .85rem; font-weight: 600; }
+.tr-item textarea { width: 100%; min-height: 40px; padding: 8px 10px; border-radius: 10px; border: 1px solid #BCC5C1; font: inherit; font-weight: 400; resize: vertical; background: #fff; }

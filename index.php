@@ -28,9 +28,10 @@ $ribbon = $s['ribbon'] !== ''
     : array_values(array_filter(array_map('trim', preg_split('/,| y /u', $s['tagline']))));
 if (!$ribbon) $ribbon = [$s['name']];
 
-$description = $s['description'] ?: 'Una cocina de brasa y producto atlántico, una barra que se alarga hasta tarde y una sala pensada para quedarse. Ven a cenar; quédate a la siguiente copa.';
+$description = $s['description'] !== '' ? tr($s['description']) : t('Una cocina de brasa y producto atlántico, una barra que se alarga hasta tarde y una sala pensada para quedarse. Ven a cenar; quédate a la siguiente copa.');
+$ribbon = array_map('tr', $ribbon);
 
-page_start($s['name'] . ' · ' . $s['tagline'], '', 'home');
+page_start($s['name'] . ' · ' . tr($s['tagline']), '', 'home');
 ?>
 <script type="application/ld+json"><?= json_encode([
     '@context' => 'https://schema.org', '@type' => 'Restaurant', 'name' => $s['name'],
@@ -50,16 +51,16 @@ page_start($s['name'] . ' · ' . $s['tagline'], '', 'home');
 
 <main id="main">
   <section class="hero" aria-labelledby="hero-t">
-    <div class="hero-media" id="hero-media"><img class="hero-img" src="<?= h(photo('hero', 1600)) ?>" srcset="<?= h(photo_srcset('hero')) ?>" sizes="100vw" alt="<?= h(PHOTOS['hero']['alt']) ?>" fetchpriority="high"></div>
+    <div class="hero-media" id="hero-media"><img class="hero-img" src="<?= h(photo('hero', 1600)) ?>" srcset="<?= h(photo_srcset('hero')) ?>" sizes="100vw" alt="<?= h(t(PHOTOS['hero']['alt'])) ?>" fetchpriority="high"></div>
     <div class="hero-top">
       <p><?= h($s['city'] ?: 'Vigo') ?></p>
-      <p class="hero-status"><span class="dot<?= $todayRanges ? ' is-open' : '' ?>" aria-hidden="true"></span><?= $todayRanges ? 'Hoy abrimos ' . h(ranges_text($todayRanges)) : 'Hoy descansamos' ?></p>
+      <p class="hero-status"><span class="dot<?= $todayRanges ? ' is-open' : '' ?>" aria-hidden="true"></span><?= $todayRanges ? h(t('Hoy abrimos %s', ranges_text($todayRanges))) : t('Hoy descansamos') ?></p>
     </div>
     <div class="hero-mid">
-      <p class="hero-lead"><?= h($s['tagline']) ?></p>
+      <p class="hero-lead"><?= h(tr($s['tagline'])) ?></p>
       <div class="hero-actions">
-        <a class="btn btn-rubor" href="reservar.php" data-book>Reservar mesa</a>
-        <a class="btn btn-line" href="carta.php">Ver la carta</a>
+        <a class="btn btn-rubor" href="reservar.php" data-book><?= t('Reservar mesa') ?></a>
+        <a class="btn btn-line" href="carta.php"><?= t('Ver la carta') ?></a>
       </div>
     </div>
     <h1 class="hero-brand<?= mb_strlen($brand) > 9 ? ' is-long' : '' ?>" id="hero-t" style="--brand-size: <?= $brandSize ?>vw" aria-label="<?= h($s['name']) ?>"><?php
@@ -84,52 +85,52 @@ page_start($s['name'] . ' · ' . $s['tagline'], '', 'home');
 
   <section class="about" id="nosotros" aria-labelledby="about-t">
     <div class="wrap about-grid">
-      <h2 id="about-t" class="sr">Nosotros</h2>
+      <h2 id="about-t" class="sr"><?= t('Nosotros') ?></h2>
       <p class="about-text"><?= nl2br(h($description)) ?></p>
       <figure class="about-a rv-img">
-        <img src="<?= h(photo('sala', 1000)) ?>" srcset="<?= h(photo_srcset('sala', [480, 800, 1200])) ?>" sizes="(max-width: 760px) 90vw, 40vw" alt="<?= h(PHOTOS['sala']['alt']) ?>" loading="lazy">
-        <figcaption>La sala</figcaption>
+        <img src="<?= h(photo('sala', 1000)) ?>" srcset="<?= h(photo_srcset('sala', [480, 800, 1200])) ?>" sizes="(max-width: 760px) 90vw, 40vw" alt="<?= h(t(PHOTOS['sala']['alt'])) ?>" loading="lazy">
+        <figcaption><?= t('La sala') ?></figcaption>
       </figure>
       <figure class="about-b rv-img" data-speed="-0.08">
-        <img src="<?= h(photo('cocina', 900)) ?>" srcset="<?= h(photo_srcset('cocina', [480, 800, 1200])) ?>" sizes="(max-width: 760px) 70vw, 28vw" alt="<?= h(PHOTOS['cocina']['alt']) ?>" loading="lazy">
-        <figcaption>La cocina</figcaption>
+        <img src="<?= h(photo('cocina', 900)) ?>" srcset="<?= h(photo_srcset('cocina', [480, 800, 1200])) ?>" sizes="(max-width: 760px) 70vw, 28vw" alt="<?= h(t(PHOTOS['cocina']['alt'])) ?>" loading="lazy">
+        <figcaption><?= t('La cocina') ?></figcaption>
       </figure>
     </div>
   </section>
 
-  <section class="go" aria-label="La carta y las reservas">
+  <section class="go" aria-label="<?= t('La carta y las reservas') ?>">
     <div class="wrap go-grid">
       <a class="go-card" href="carta.php">
         <span class="go-k">01</span>
-        <span class="go-t">La carta</span>
-        <span class="go-d"><?= count($menu['categories']) ? 'Hojéala como en la mesa: ' . h(implode(', ', array_slice(array_column($menu['categories'], 'name'), 0, 3))) . (count($menu['categories']) > 3 ? '…' : '') : 'Platos, precios y alérgenos' ?></span>
+        <span class="go-t"><?= t('La carta') ?></span>
+        <span class="go-d"><?= count($menu['categories']) ? h(t('Hojéala como en la mesa:')) . ' ' . h(implode(', ', array_map('tr', array_slice(array_column($menu['categories'], 'name'), 0, 3)))) . (count($menu['categories']) > 3 ? '…' : '') : t('Platos, precios y alérgenos') ?></span>
         <span class="go-a" aria-hidden="true">→</span>
       </a>
       <a class="go-card" href="reservar.php">
         <span class="go-k">02</span>
-        <span class="go-t">Reservar</span>
-        <span class="go-d">Elige día, hora y cuántos venís. Cancelar es siempre gratis.</span>
+        <span class="go-t"><?= t('Reservar') ?></span>
+        <span class="go-d"><?= t('Elige día, hora y cuántos venís. Cancelar es siempre gratis.') ?></span>
         <span class="go-a" aria-hidden="true">→</span>
       </a>
     </div>
   </section>
 
-  <section class="gallery" aria-label="Fotos">
+  <section class="gallery" aria-label="<?= t('Fotos') ?>">
     <?php foreach (['barra', 'plato', 'coctel'] as $gi => $g): ?>
-      <figure class="rv-img" data-speed="<?= [0.08, -0.06, 0.12][$gi] ?>"><img src="<?= h(photo($g, 900)) ?>" srcset="<?= h(photo_srcset($g, [480, 900, 1300])) ?>" sizes="(max-width: 760px) 80vw, 33vw" alt="<?= h(PHOTOS[$g]['alt']) ?>" loading="lazy"></figure>
+      <figure class="rv-img" data-speed="<?= [0.08, -0.06, 0.12][$gi] ?>"><img src="<?= h(photo($g, 900)) ?>" srcset="<?= h(photo_srcset($g, [480, 900, 1300])) ?>" sizes="(max-width: 760px) 80vw, 33vw" alt="<?= h(t(PHOTOS[$g]['alt'])) ?>" loading="lazy"></figure>
     <?php endforeach; ?>
   </section>
 
   <section class="app" id="app" aria-labelledby="app-t">
     <div class="wrap app-grid">
       <div>
-        <h2 id="app-t" class="title"><?= h($s['name']) ?> en tu móvil</h2>
-        <p>Instala la web como una app: icono en tu pantalla de inicio, se abre a pantalla completa y reservas en dos toques. No ocupa espacio ni hay que pasar por ninguna tienda.</p>
+        <h2 id="app-t" class="title"><?= h(t('%s en tu móvil', $s['name'])) ?></h2>
+        <p><?= t('Instala la web como una app: icono en tu pantalla de inicio, se abre a pantalla completa y reservas en dos toques. No ocupa espacio ni hay que pasar por ninguna tienda.') ?></p>
         <div class="app-actions">
-          <button class="btn btn-hueso" type="button" id="install-btn" hidden>Instalar la app</button>
-          <p class="app-ios" id="install-ios" hidden>En iPhone: pulsa <strong>Compartir</strong> en Safari y luego <strong>Añadir a pantalla de inicio</strong>.</p>
-          <p class="app-help" id="install-help">En el móvil, abre el menú del navegador y elige <strong>Instalar app</strong> o <strong>Añadir a pantalla de inicio</strong>.</p>
-          <p class="app-done" id="install-done" hidden>Ya tienes la app instalada.</p>
+          <button class="btn btn-hueso" type="button" id="install-btn" hidden><?= t('Instalar la app') ?></button>
+          <p class="app-ios" id="install-ios" hidden><?= t('En iPhone: pulsa <strong>Compartir</strong> en Safari y luego <strong>Añadir a pantalla de inicio</strong>.') ?></p>
+          <p class="app-help" id="install-help"><?= t('En el móvil, abre el menú del navegador y elige <strong>Instalar app</strong> o <strong>Añadir a pantalla de inicio</strong>.') ?></p>
+          <p class="app-done" id="install-done" hidden><?= t('Ya tienes la app instalada.') ?></p>
         </div>
       </div>
       <div class="app-phone" aria-hidden="true">
@@ -144,7 +145,7 @@ page_start($s['name'] . ' · ' . $s['tagline'], '', 'home');
 <?php site_footer(); ?>
 
 <?php if ($s['whatsapp']): ?>
-  <a class="wa-float" href="https://wa.me/<?= h(wa_number($s['whatsapp'])) ?>" target="_blank" rel="noopener" aria-label="Escríbenos por WhatsApp">
+  <a class="wa-float" href="https://wa.me/<?= h(wa_number($s['whatsapp'])) ?>" target="_blank" rel="noopener" aria-label="<?= t('Escríbenos por WhatsApp') ?>">
     <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.2 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.4-.3Z"/></svg>
   </a>
 <?php endif; ?>

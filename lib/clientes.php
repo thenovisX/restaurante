@@ -112,8 +112,8 @@ function send_activation(int $id, string $email, string $name): void
     q('UPDATE customers SET verify_hash = ?, verify_expires = ? WHERE id = ?', [hash('sha256', $token), date('Y-m-d H:i:s', time() + 48 * 3600), $id]);
     $url = base_url() . '/cuenta.php?activar=' . $token . '&c=' . $id;
     $s = settings();
-    send_mail($email, "Activa tu cuenta en {$s['name']}",
-        "Hola $name:\n\nPara activar tu cuenta en {$s['name']} abre este enlace (caduca en 48 horas):\n\n$url\n\nSi no has creado tú esta cuenta, ignora este email y no se activará.");
+    send_mail($email, t('Activa tu cuenta en %s', $s['name']),
+        t('Hola %s:', $name) . "\n\n" . t('Para activar tu cuenta en %s abre este enlace (caduca en 48 horas):', $s['name']) . "\n\n$url\n\n" . t('Si no has creado tú esta cuenta, ignora este email y no se activará.'));
     if (!empty(cfg()['debug'])) error_log("[restaurante] enlace de activación: $url");
 }
 
@@ -227,7 +227,7 @@ function customer_reservations(array $c): array
     foreach ($rows as $row) {
         $r = res_out($row);
         $r['can_cancel'] = can_cancel($r);
-        $r['when'] = fmt_date_es($r['date']) . ', ' . $r['time'];
+        $r['when'] = fmt_date_l($r['date']) . ', ' . $r['time'];
         if ($r['date'] . ' ' . $r['time'] >= $now && in_array($r['status'], RES_ACTIVE, true)) array_unshift($up, $r);
         else $past[] = $r;
     }
@@ -241,13 +241,12 @@ function customer_cancel(array $c, int $id): array
     $r = res_out($row);
     if (!can_cancel($r)) {
         $s = settings();
-        throw new ValidationError('Esta reserva ya no se puede cancelar desde la web. Llámanos' . ($s['phone'] ? " al {$s['phone']}" : '') . '.');
+        throw new ValidationError($s['phone'] ? t('Esta reserva ya no se puede cancelar desde la web. Llámanos al %s.', $s['phone']) : t('Esta reserva ya no se puede cancelar desde la web. Llámanos.'));
     }
     q("UPDATE reservations SET status = 'cancelada', cancel_by = 'cliente', updated_at = ?, seq = ? WHERE id = ?", [now(), next_seq(), $id]);
     $r = get_reservation($id);
     $s = settings();
-    send_mail(
-        $s['notify_email'] ?: $s['email'],
+    restaurant_mail(
         "Reserva cancelada por el cliente: {$r['name']}, " . fmt_date_es($r['date']) . " {$r['time']}",
         "El cliente ha cancelado su reserva desde su cuenta.\n\nNombre: {$r['name']}\nDía: " . fmt_date_es($r['date']) . " a las {$r['time']}\nPersonas: {$r['people']}"
     );
