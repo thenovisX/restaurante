@@ -28,14 +28,6 @@ $ribbon = $s['ribbon'] !== ''
     : array_values(array_filter(array_map('trim', preg_split('/,| y /u', $s['tagline']))));
 if (!$ribbon) $ribbon = [$s['name']];
 
-// Políticas: cada línea "Título: texto"
-$policyItems = [];
-foreach (preg_split('/\R/', (string)$s['policies']) as $line) {
-    $line = trim($line);
-    if ($line === '') continue;
-    [$t, $txt] = array_pad(explode(':', $line, 2), 2, '');
-    $policyItems[] = $txt === '' ? ['', trim($t)] : [trim($t), trim($txt)];
-}
 $description = $s['description'] ?: 'Una cocina de brasa y producto atlántico, una barra que se alarga hasta tarde y una sala pensada para quedarse. Ven a cenar; quédate a la siguiente copa.';
 
 page_start($s['name'] . ' · ' . $s['tagline'], '', 'home');
@@ -51,7 +43,7 @@ page_start($s['name'] . ' · ' . $s['tagline'], '', 'home');
         'opens' => $r[0], 'closes' => $r[1],
     ], $s['hours'][$d] ?? []), array_keys(WEEKDAYS))),
     'sameAs' => array_values(array_filter([social_url('instagram', $s['instagram']), social_url('facebook', $s['facebook']), social_url('tiktok', $s['tiktok']), social_url('tripadvisor', $s['tripadvisor'])])),
-    'hasMenu' => base_url() . '/#carta',
+    'hasMenu' => base_url() . '/carta.php',
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG) ?></script>
 
 <?php site_header($customer, true); ?>
@@ -66,8 +58,8 @@ page_start($s['name'] . ' · ' . $s['tagline'], '', 'home');
     <div class="hero-mid">
       <p class="hero-lead"><?= h($s['tagline']) ?></p>
       <div class="hero-actions">
-        <a class="btn btn-rubor" href="#reservar" data-book>Reservar mesa</a>
-        <a class="btn btn-line" href="#carta">Ver la carta</a>
+        <a class="btn btn-rubor" href="reservar.php" data-book>Reservar mesa</a>
+        <a class="btn btn-line" href="carta.php">Ver la carta</a>
       </div>
     </div>
     <h1 class="hero-brand<?= mb_strlen($brand) > 9 ? ' is-long' : '' ?>" id="hero-t" style="--brand-size: <?= $brandSize ?>vw" aria-label="<?= h($s['name']) ?>"><?php
@@ -105,35 +97,27 @@ page_start($s['name'] . ' · ' . $s['tagline'], '', 'home');
     </div>
   </section>
 
-  <?php include __DIR__ . '/lib/carta-libro.php'; ?>
+  <section class="go" aria-label="La carta y las reservas">
+    <div class="wrap go-grid">
+      <a class="go-card" href="carta.php">
+        <span class="go-k">01</span>
+        <span class="go-t">La carta</span>
+        <span class="go-d"><?= count($menu['categories']) ? 'Hojéala como en la mesa: ' . h(implode(', ', array_slice(array_column($menu['categories'], 'name'), 0, 3))) . (count($menu['categories']) > 3 ? '…' : '') : 'Platos, precios y alérgenos' ?></span>
+        <span class="go-a" aria-hidden="true">→</span>
+      </a>
+      <a class="go-card" href="reservar.php">
+        <span class="go-k">02</span>
+        <span class="go-t">Reservar</span>
+        <span class="go-d">Elige día, hora y cuántos venís. Cancelar es siempre gratis.</span>
+        <span class="go-a" aria-hidden="true">→</span>
+      </a>
+    </div>
+  </section>
 
   <section class="gallery" aria-label="Fotos">
     <?php foreach (['barra', 'plato', 'coctel'] as $gi => $g): ?>
       <figure class="rv-img" data-speed="<?= [0.08, -0.06, 0.12][$gi] ?>"><img src="<?= h(photo($g, 900)) ?>" srcset="<?= h(photo_srcset($g, [480, 900, 1300])) ?>" sizes="(max-width: 760px) 80vw, 33vw" alt="<?= h(PHOTOS[$g]['alt']) ?>" loading="lazy"></figure>
     <?php endforeach; ?>
-  </section>
-
-  <section class="book" id="reservar" aria-labelledby="book-t">
-    <div class="wrap book-grid">
-      <div>
-        <h2 id="book-t" class="title">Reserva tu mesa</h2>
-        <p class="book-lead">Elige día, hora y cuántos venís. Te enviaremos un WhatsApp con un enlace para confirmar la reserva.</p>
-        <button class="btn btn-rubor btn-lg" type="button" data-book>Reservar mesa</button>
-        <p class="book-alt">
-          <?php if ($customer): ?>
-            Reservas como <?= h($customer['name']) ?>. Tus reservas están en <a href="cuenta.php">tu cuenta</a>.
-          <?php else: ?>
-            Con una <a href="cuenta.php?registro=1">cuenta</a> reservas más rápido y puedes ver o cancelar tus reservas.
-          <?php endif; ?>
-          <?php if ($s['phone']): ?><br>Grupos de más de <?= (int)$s['max_people'] ?>: <a href="<?= h(tel_href($s['phone'])) ?>"><?= h($s['phone']) ?></a>.<?php endif; ?>
-        </p>
-      </div>
-      <dl class="book-facts">
-        <div><dt>Hoy</dt><dd><?= $todayRanges ? h(ranges_text($todayRanges)) : 'Cerrado' ?></dd></div>
-        <div><dt>Cancelación</dt><dd>Siempre gratis</dd></div>
-        <div><dt>Retrasos</dt><dd>Guardamos la mesa <?= (int)$s['late_minutes'] ?> min</dd></div>
-      </dl>
-    </div>
   </section>
 
   <section class="app" id="app" aria-labelledby="app-t">
@@ -155,31 +139,6 @@ page_start($s['name'] . ' · ' . $s['tagline'], '', 'home');
     </div>
   </section>
 
-  <section class="policies" id="politicas" aria-labelledby="pol-t">
-    <div class="wrap pol-grid">
-      <h2 id="pol-t" class="title">Políticas</h2>
-      <div class="pol-list">
-        <details open>
-          <summary>Reservas y cancelaciones</summary>
-          <p>Al reservar envías una petición. El restaurante la revisa y te manda un WhatsApp con un enlace: al tocarlo, la reserva queda confirmada. Cancelar es siempre gratis. Si tienes cuenta, hazlo desde <a href="cuenta.php">Mi cuenta</a>; si no, avísanos por WhatsApp o llámanos<?= $s['phone'] ? ' al <a href="' . h(tel_href($s['phone'])) . '">' . h($s['phone']) . '</a>' : '' ?>.</p>
-        </details>
-        <details>
-          <summary>Si llegas tarde</summary>
-          <p>Guardamos la mesa <?= (int)$s['late_minutes'] ?> minutos. Pasado ese tiempo, si no nos has avisado, puede que la demos a otras personas.</p>
-        </details>
-        <?php foreach ($policyItems as [$t, $txt]): ?>
-          <details>
-            <summary><?= h($t ?: 'Más información') ?></summary>
-            <p><?= h($txt) ?></p>
-          </details>
-        <?php endforeach; ?>
-        <details>
-          <summary>Tus datos</summary>
-          <p>Usamos tus datos solo para gestionar tus reservas y se guardan cifrados. El nombre, el teléfono y el email de cada reserva se borran solos 24 horas después. No los cedemos a nadie ni te enviamos publicidad. Lee la <a href="legal.php#privacidad">política de privacidad</a>.</p>
-        </details>
-      </div>
-    </div>
-  </section>
 </main>
 
 <?php site_footer(); ?>

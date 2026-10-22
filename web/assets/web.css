@@ -843,3 +843,25 @@ html, body { max-width: 100%; }
 }
 .acc-res-btns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 .st-esperando { color: var(--rubor); }
+
+/* ---------- Portada más ligera: accesos a la carta y a las reservas ---------- */
+.go { padding: clamp(56px, 9vw, 120px) 0; border-top: 1px solid var(--linea); }
+.go-grid { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(16px, 2.5vw, 28px); }
+.go-card {
+  position: relative; display: grid; gap: 14px; align-content: start; min-height: clamp(220px, 26vw, 340px);
+  padding: clamp(24px, 3.5vw, 44px); border: 1px solid var(--linea-2); border-radius: 22px; text-decoration: none; overflow: hidden;
+  transition: border-color .3s, background .3s;
+}
+.go-card:hover { border-color: var(--hueso); background: rgba(255, 255, 255, .03); }
+.go-k { color: var(--rubor); font-size: .9rem; letter-spacing: .1em; }
+.go-t { font-family: var(--display); font-size: clamp(2.6rem, 6vw, 5rem); line-height: .95; letter-spacing: -.02em; }
+.go-d { color: var(--ceniza); max-width: 34ch; }
+.go-a { position: absolute; right: clamp(24px, 3.5vw, 44px); bottom: clamp(20px, 3vw, 36px); font-size: 2rem; transition: transform .3s; }
+.go-card:hover .go-a { transform: translateX(8px); }
+@media (max-width: 760px) { .go-grid { grid-template-columns: 1fr; } .go-card { min-height: 180px; } }
+/* Páginas propias de la carta y las reservas */
+.page-sub main > section:first-child { padding-top: calc(var(--hd-h) + clamp(40px, 7vw, 90px)); border-top: 0; }
+.hd-nav a[aria-current="page"] { color: var(--rubor); }
+.sub-cta { padding: 0 0 clamp(64px, 9vw, 110px); }
+.sub-cta-in { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 16px 24px; text-align: center; }
+.sub-cta-in p { margin: 0; font-family: var(--display); font-size: clamp(1.5rem, 3vw, 2.2rem); }

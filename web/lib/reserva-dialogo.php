@@ -55,7 +55,7 @@ $c = current_customer();
       <label class="hp" aria-hidden="true">No rellenar <input name="website" tabindex="-1" autocomplete="off"></label>
       <div class="bk-policy">
         <p>Cancelar es siempre gratis. Guardamos la mesa <?= (int)$s['late_minutes'] ?> minutos.</p>
-        <label class="check"><input type="checkbox" name="privacy" value="1"><span>Acepto las <a href="./#politicas" target="_blank">políticas de reserva</a> y las <a href="legal.php#condiciones" target="_blank">condiciones de uso</a>, y he leído la <a href="legal.php#privacidad" target="_blank">política de privacidad</a>.</span></label>
+        <label class="check"><input type="checkbox" name="privacy" value="1"><span>Acepto las <a href="reservar.php#politicas" target="_blank">políticas de reserva</a> y las <a href="legal.php#condiciones" target="_blank">condiciones de uso</a>, y he leído la <a href="legal.php#privacidad" target="_blank">política de privacidad</a>.</span></label>
         <p class="bk-info"><strong>Protección de datos.</strong> Responsable: <?= h($s['owner_name'] ?: $s['name']) ?>. Finalidad: gestionar tu reserva; el teléfono solo se usa para enviarte el WhatsApp de confirmación. Tus datos se borran 24 horas después de la reserva y no se ceden a nadie. Puedes acceder a ellos, corregirlos o borrarlos escribiendo a <?= h($s['email'] ?: $s['phone'] ?: 'nuestro contacto') ?>. <a href="legal.php#privacidad" target="_blank">Más información</a>.</p>
       </div>
       <p class="bk-err" id="bk-err" role="alert"></p>

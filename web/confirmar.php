@@ -102,13 +102,13 @@ site_header(current_customer());
       <input type="hidden" name="t" value="<?= h($token) ?>">
       <button class="btn btn-rubor cf-confirm" type="submit">Confirmar mi reserva</button>
     </form>
-    <p class="cf-help">¿Algún dato está mal? No la confirmes: <a href="./#reservar" data-book>haz una reserva nueva</a> con los datos correctos.</p>
+    <p class="cf-help">¿Algún dato está mal? No la confirmes: <a href="reservar.php" data-book>haz una reserva nueva</a> con los datos correctos.</p>
     <?php else: ?>
 
     <div class="cf-btns">
       <a class="btn btn-rubor" href="confirmar.php?ics=1&amp;r=<?= (int)$r['id'] ?>&amp;t=<?= h($token) ?>">Añadir al calendario</a>
       <?php if ($s['address']): ?><a class="btn btn-ghost" href="<?= h(maps_href()) ?>" target="_blank" rel="noopener">Cómo llegar</a><?php endif; ?>
-      <a class="btn btn-ghost" href="./#carta">Ver la carta</a>
+      <a class="btn btn-ghost" href="carta.php">Ver la carta</a>
     </div>
     <p class="cf-help">
       <?php if ($s['phone']): ?>¿Algún cambio? Llámanos al <a href="<?= h(tel_href($s['phone'])) ?>"><?= h($s['phone']) ?></a><?= $s['whatsapp'] ? ' o escríbenos por <a href="https://wa.me/' . h(wa_number($s['whatsapp'])) . '" target="_blank" rel="noopener">WhatsApp</a>' : '' ?>.<?php endif; ?>
@@ -126,7 +126,7 @@ site_header(current_customer());
     <h1 class="cf-title"><?= h($title) ?></h1>
     <p class="cf-lead"><?= h($text) ?></p>
     <div class="cf-btns">
-      <a class="btn btn-rubor" href="./#reservar" data-book>Hacer una reserva</a>
+      <a class="btn btn-rubor" href="reservar.php" data-book>Hacer una reserva</a>
       <?php if ($s['phone']): ?><a class="btn btn-ghost" href="<?= h(tel_href($s['phone'])) ?>">Llamar</a><?php endif; ?>
     </div>
   <?php endif; ?>

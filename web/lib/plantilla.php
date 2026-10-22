@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/tema.php';
 
-const ASSET_V = '25';
+const ASSET_V = '26';
 
 function tel_href(string $t): string
 {
@@ -78,28 +78,29 @@ function site_header(?array $customer, bool $overHero = false): void
 {
     $s = settings();
     $first = $customer ? explode(' ', $customer['name'])[0] : '';
+    $page = basename($_SERVER['SCRIPT_NAME'] ?? '');
     ?>
 <header class="hd<?= $overHero ? ' hd-over' : '' ?>" id="hd">
   <a class="hd-brand" href="./" aria-label="<?= h($s['name']) ?>, inicio"><?= h($s['name']) ?></a>
   <nav class="hd-nav" aria-label="Principal">
     <a href="./#nosotros">Nosotros</a>
-    <a href="./#carta">Carta</a>
+    <a href="carta.php"<?= $page === 'carta.php' ? ' aria-current="page"' : '' ?>>Carta</a>
+    <a href="reservar.php"<?= $page === 'reservar.php' ? ' aria-current="page"' : '' ?>>Reservas</a>
     <a href="./#app">App</a>
-    <a href="./#politicas">Políticas</a>
   </nav>
   <div class="hd-end">
     <a class="hd-account" href="cuenta.php"><?= $customer ? h($first) : 'Entrar' ?></a>
-    <a class="btn btn-rubor hd-book" href="./#reservar" data-book>Reservar</a>
+    <a class="btn btn-rubor hd-book" href="reservar.php" data-book>Reservar</a>
     <button class="hd-toggle" type="button" aria-expanded="false" aria-controls="menu" aria-label="Abrir el menú" data-menu><span></span><span></span><span></span></button>
   </div>
 </header>
 <div class="menu" id="menu" hidden>
   <nav aria-label="Menú">
     <a href="./#nosotros">Nosotros</a>
-    <a href="./#carta">Carta</a>
-    <a href="./#reservar" data-book>Reservar</a>
+    <a href="carta.php">Carta</a>
+    <a href="reservar.php">Reservas y políticas</a>
+    <a href="reservar.php" data-book>Reservar mesa</a>
     <a href="./#app">App</a>
-    <a href="./#politicas">Políticas</a>
     <a href="cuenta.php"><?= $customer ? 'Mi cuenta' : 'Entrar o registrarse' ?></a>
   </nav>
   <p class="menu-foot"><?= h(trim($s['address'] . ' · ' . $s['city'], ' ·')) ?></p>
@@ -141,7 +142,7 @@ function site_footer(): void
       </div>
       <div>
         <h2>Más</h2>
-        <p><a href="cuenta.php">Mi cuenta</a><br><a href="./#politicas">Políticas de reserva</a><br><a href="legal.php#aviso">Aviso legal</a><br><a href="legal.php#condiciones">Condiciones de uso</a><br><a href="legal.php#privacidad">Privacidad</a><br><a href="legal.php#cookies">Cookies</a><br><a href="legal.php#cookies" data-cookies>Configurar cookies</a></p>
+        <p><a href="cuenta.php">Mi cuenta</a><br><a href="carta.php">La carta</a><br><a href="reservar.php#politicas">Políticas de reserva</a><br><a href="legal.php#aviso">Aviso legal</a><br><a href="legal.php#condiciones">Condiciones de uso</a><br><a href="legal.php#privacidad">Privacidad</a><br><a href="legal.php#cookies">Cookies</a><br><a href="legal.php#cookies" data-cookies>Configurar cookies</a></p>
       </div>
     </div>
     <p class="ft-legal">© <?= date('Y') ?> <?= h($s['name']) ?>.<?php $cr = photo_credits(); if ($cr): ?> Fotos de
@@ -157,7 +158,7 @@ function mobile_bar(): void
     $wa = wa_number($s['whatsapp']);
     ?>
 <nav class="mbar" aria-label="Acciones rápidas">
-  <a class="btn btn-rubor" href="./#reservar" data-book>Reservar mesa</a>
+  <a class="btn btn-rubor" href="reservar.php" data-book>Reservar mesa</a>
   <?php if ($s['phone']): ?><a class="mbar-ic" href="<?= h(tel_href($s['phone'])) ?>" aria-label="Llamar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2Z"/></svg></a><?php endif; ?>
   <?php if ($wa): ?><a class="mbar-ic" href="https://wa.me/<?= h($wa) ?>" target="_blank" rel="noopener" aria-label="WhatsApp"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.2 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.4-.3Z"/></svg></a><?php endif; ?>
 </nav>

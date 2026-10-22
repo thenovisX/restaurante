@@ -54,7 +54,7 @@
       t.classList.add('rv-mask');
     });
     // Bloques que aparecen desde abajo, escalonados entre hermanos
-    var groups = ['.carta-intro', '.book-lead', '.book .btn-lg', '.book-alt', '.book-facts > div', '.pol-list details',
+    var groups = ['.go-card', '.sub-cta-in', '.carta-intro', '.book-lead', '.book .btn-lg', '.book-alt', '.book-facts > div', '.pol-list details',
       '.app-grid > div > p', '.app-actions', '.ft-cols > div', '.libro', '.ft-big', '.acc-lead', '.acc-box', '.acc-sec', '.legal h2', '.legal p'];
     groups.forEach(function (sel) {
       $$(sel).forEach(function (el, i) {
