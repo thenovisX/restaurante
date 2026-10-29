@@ -41,6 +41,12 @@
     });
   }
 
+  // Formularios que piden confirmación antes de enviarse: <form data-confirm="¿Seguro…?">
+  document.addEventListener('submit', function (e) {
+    var f = e.target.closest && e.target.closest('form[data-confirm]');
+    if (f && !window.confirm(f.dataset.confirm)) e.preventDefault();
+  });
+
   // Borrar mis datos (políticas y borrar-datos.php)
   document.addEventListener('submit', function (e) {
     var f = e.target.closest && e.target.closest('form[data-erase]');
@@ -457,7 +463,7 @@
           return;
         }
         if (f.dataset.api === 'c_profile') {
-          toast(T('Datos guardados'));
+          toast(r && r.email_pending ? T('Datos guardados. Para usar el email nuevo, abre el enlace que te hemos enviado a %s.', r.email_pending) : T('Datos guardados'));
           btn.disabled = false;
           btn.textContent = label;
           $$('input[type=password]', f).forEach(function (i) { i.value = ''; });

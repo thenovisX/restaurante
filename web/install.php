@@ -15,7 +15,9 @@ date_default_timezone_set('Europe/Madrid');
 $done = false;
 $error = '';
 $configText = '';
-$already = is_file(__DIR__ . '/config.php') && installed();
+// Con config.php ya creado no se vuelve a instalar nunca, aunque la base de datos falle un momento
+// (si no, cualquiera podría reinstalar con sus datos y quedarse con la web). Para reinstalar, borra config.php a mano.
+$already = is_file(__DIR__ . '/config.php');
 
 if (!$already && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     $f = fn($k) => trim((string)($_POST[$k] ?? ''));
@@ -30,6 +32,8 @@ if (!$already && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             'db_path'   => __DIR__ . '/data/restaurante.sqlite',
             'timezone'  => 'Europe/Madrid',
             'secret'    => bin2hex(random_bytes(16)),
+            // Dirección de la web para los enlaces de los emails (no se fía de la cabecera Host de cada visita)
+            'base_url'  => base_url(),
             'debug'     => false,
         ];
         if ($driver === 'mysql' && ($c['db_name'] === '' || $c['db_user'] === '')) throw new RuntimeException('Rellena los datos de la base de datos.');
@@ -37,6 +41,7 @@ if (!$already && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         $pass = (string)($_POST['admin_pass'] ?? '');
         if (!preg_match('/^[A-Za-z0-9_.-]{3,60}$/', $user)) throw new RuntimeException('El usuario solo puede llevar letras, números, punto o guion (mínimo 3).');
         if (strlen($pass) < 8) throw new RuntimeException('La contraseña de la app necesita al menos 8 caracteres.');
+        if (strlen($pass) > 256) throw new RuntimeException('La contraseña de la app es demasiado larga.');
 
         if ($driver === 'sqlite' && !is_dir(__DIR__ . '/data')) mkdir(__DIR__ . '/data', 0755, true);
         try {
@@ -51,7 +56,7 @@ if (!$already && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         $pdo->beginTransaction();
         $pdo->prepare('DELETE FROM users WHERE username = ?')->execute([$user]);
         $pdo->prepare('INSERT INTO users (username, pass_hash, created_at) VALUES (?, ?, ?)')
-            ->execute([$user, password_hash($pass, PASSWORD_DEFAULT), date('Y-m-d H:i:s')]);
+            ->execute([$user, pass_hash($pass), date('Y-m-d H:i:s')]);
         $set = $pdo->prepare('INSERT INTO settings (k, v) VALUES (?, ?)');
         $pdo->exec('DELETE FROM settings');
         $initial = SETTINGS_DEFAULTS;
