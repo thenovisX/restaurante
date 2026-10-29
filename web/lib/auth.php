@@ -59,6 +59,7 @@ function user_save(array $me, array $in): array
     $active = filter_var($in['active'] ?? true, FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
     $pass = (string)($in['password'] ?? '');
     if ($pass !== '' && strlen($pass) < 8) throw new ValidationError('La contraseña necesita al menos 8 caracteres');
+    if (strlen($pass) > 256) throw new ValidationError('La contraseña es demasiado larga');
     if (q('SELECT id FROM users WHERE username = ? AND id <> ?', [$username, $id])->fetch()) throw new ValidationError('Ya hay un usuario con ese nombre');
 
     if ($id) {
@@ -68,14 +69,14 @@ function user_save(array $me, array $in): array
             throw new ValidationError('Tiene que quedar al menos un administrador activo');
         }
         q('UPDATE users SET username = ?, name = ?, role = ?, perms = ?, active = ? WHERE id = ?', [$username, $name, $role, $perms, $active, $id]);
-        if ($pass !== '') q('UPDATE users SET pass_hash = ? WHERE id = ?', [password_hash($pass, PASSWORD_DEFAULT), $id]);
+        if ($pass !== '') q('UPDATE users SET pass_hash = ? WHERE id = ?', [pass_hash($pass), $id]);
         // Si se desactiva o se le cambia la contraseña, se cierran sus sesiones (salvo la tuya)
         if (!$active || ($pass !== '' && $id !== (int)$me['id'])) q('DELETE FROM tokens WHERE user_id = ?', [$id]);
         audit('usuario_editado', 0, "Usuario del panel «{$username}» editado por {$me['username']}");
     } else {
         if ($pass === '') throw new ValidationError('Pon una contraseña para el usuario nuevo');
         q('INSERT INTO users (username, pass_hash, created_at, name, role, perms, active) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [$username, password_hash($pass, PASSWORD_DEFAULT), now(), $name, $role, $perms, $active]);
+            [$username, pass_hash($pass), now(), $name, $role, $perms, $active]);
         $id = (int)db()->lastInsertId();
         audit('usuario_creado', 0, "Usuario del panel «{$username}» creado por {$me['username']}");
     }
@@ -99,15 +100,18 @@ function login(array $in): array
     $pass = (string)($in['password'] ?? '');
     $ip = client_ip();
 
-    q('DELETE FROM login_attempts WHERE at < ?', [date('Y-m-d H:i:s', time() - 900)]);
-    $fails = (int)q('SELECT COUNT(*) FROM login_attempts WHERE ip = ?', [$ip])->fetchColumn();
-    if ($fails >= 10) throw new ValidationError('Demasiados intentos. Espera 15 minutos.');
+    // Límite por IP y también por usuario (frena a quien prueba contraseñas desde muchas IP)
+    $acct = account_key('panel', $user);
+    if (attempts_count($ip) >= 10 || attempts_count($acct) >= 15) throw new ValidationError('Demasiados intentos. Espera 15 minutos.');
 
     $u = q('SELECT * FROM users WHERE username = ?', [$user])->fetch();
+    if (!$u) pass_dummy($pass);
     if (!$u || !password_verify($pass, $u['pass_hash'])) {
-        q('INSERT INTO login_attempts (ip, at) VALUES (?, ?)', [$ip, now()]);
+        attempt_add($ip);
+        attempt_add($acct);
         throw new ValidationError('Usuario o contraseña incorrectos');
     }
+    if (pass_old($u['pass_hash'])) q('UPDATE users SET pass_hash = ? WHERE id = ?', [pass_hash($pass), $u['id']]);
     if (isset($u['active']) && !(int)$u['active']) throw new ValidationError('Este usuario está desactivado. Habla con el administrador.');
     q('DELETE FROM login_attempts WHERE ip = ?', [$ip]);
     q('DELETE FROM tokens WHERE last_used < ?', [date('Y-m-d H:i:s', time() - TOKEN_DAYS * 86400)]);
@@ -150,7 +154,8 @@ function change_password(array $user, array $in): void
     $u = q('SELECT * FROM users WHERE id = ?', [$user['id']])->fetch();
     if (!password_verify($cur, $u['pass_hash'])) throw new ValidationError('La contraseña actual no es correcta');
     if (strlen($new) < 8) throw new ValidationError('La nueva contraseña necesita al menos 8 caracteres');
-    q('UPDATE users SET pass_hash = ? WHERE id = ?', [password_hash($new, PASSWORD_DEFAULT), $user['id']]);
+    if (strlen($new) > 256) throw new ValidationError('La contraseña es demasiado larga');
+    q('UPDATE users SET pass_hash = ? WHERE id = ?', [pass_hash($new), $user['id']]);
     audit('admin_cambio_contrasena', 0, 'Usuario del panel: ' . $user['username']);
     // Cierra las demás sesiones
     q('DELETE FROM tokens WHERE user_id = ? AND token <> ?', [$user['id'], hash('sha256', request_token())]);

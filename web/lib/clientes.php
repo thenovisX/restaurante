@@ -19,10 +19,9 @@ function customer_session(bool $create): bool
     if (is_dir($dir) && is_writable($dir)) session_save_path($dir);
     ini_set('session.gc_maxlifetime', (string)(CUSTOMER_DAYS * 86400));
     ini_set('session.use_strict_mode', '1');
-    $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
     session_name(CUSTOMER_COOKIE);
     session_set_cookie_params([
-        'lifetime' => CUSTOMER_DAYS * 86400, 'path' => '/', 'secure' => $https, 'httponly' => true, 'samesite' => 'Lax',
+        'lifetime' => CUSTOMER_DAYS * 86400, 'path' => '/', 'secure' => cookie_secure(), 'httponly' => true, 'samesite' => 'Lax',
     ]);
     return session_start();
 }
@@ -32,8 +31,14 @@ function current_customer(): ?array
     static $c = false;
     if ($c !== false) return $c;
     if (!customer_session(false) || empty($_SESSION['cid'])) return $c = null;
-    $row = q('SELECT id, name, email, phone, created_at FROM customers WHERE id = ?', [(int)$_SESSION['cid']])->fetch();
-    return $c = ($row ? customer_plain($row) : null);
+    $row = q('SELECT id, name, email, phone, created_at, pass_hash FROM customers WHERE id = ?', [(int)$_SESSION['cid']])->fetch();
+    // Si la contraseña cambió después de entrar (en este u otro dispositivo), la sesión deja de valer
+    $pv = $row ? pass_version($row['pass_hash']) : '';
+    if ($row && isset($_SESSION['pv']) && !hash_equals($_SESSION['pv'], $pv)) $row = null;
+    if (!$row) { $_SESSION = []; return $c = null; }
+    $_SESSION['pv'] ??= $pv;
+    unset($row['pass_hash']);
+    return $c = customer_plain($row);
 }
 
 /** Fila de cliente con los datos descifrados. */
@@ -57,11 +62,16 @@ function same_origin_only(): void
     }
 }
 
-function customer_attempts_guard(): string
+/** Huella de la contraseña guardada en la sesión: al cambiarla se cierran las demás sesiones de esa cuenta. */
+function pass_version(string $hash): string
+{
+    return substr(hash('sha256', $hash . (cfg()['secret'] ?? '')), 0, 32);
+}
+
+function customer_attempts_guard(string $email = ''): string
 {
     $ip = hash('sha256', 'cliente' . client_ip());
-    q('DELETE FROM login_attempts WHERE at < ?', [date('Y-m-d H:i:s', time() - 900)]);
-    if ((int)q('SELECT COUNT(*) FROM login_attempts WHERE ip = ?', [$ip])->fetchColumn() >= 10) {
+    if (attempts_count($ip) >= 10 || ($email !== '' && attempts_count(account_key('cliente', $email)) >= 15)) {
         throw new ValidationError('Demasiados intentos. Espera 15 minutos.');
     }
     return $ip;
@@ -72,6 +82,7 @@ function customer_login_session(int $id): void
     customer_session(true);
     session_regenerate_id(true);
     $_SESSION['cid'] = $id;
+    $_SESSION['pv'] = pass_version((string)q('SELECT pass_hash FROM customers WHERE id = ?', [$id])->fetchColumn());
     q('UPDATE customers SET last_login = ? WHERE id = ?', [now(), $id]);
 }
 
@@ -86,6 +97,7 @@ function customer_register(array $in): array
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) throw new ValidationError('El email no parece correcto');
     if ($phone !== '' && strlen(preg_replace('/\D/', '', $phone)) < 6) throw new ValidationError('El teléfono no parece correcto');
     if (strlen($pass) < 8) throw new ValidationError('La contraseña necesita al menos 8 caracteres');
+    if (strlen($pass) > 256) throw new ValidationError('La contraseña es demasiado larga');
     if (empty($in['privacy'])) throw new ValidationError('Tienes que aceptar las condiciones de uso y la política de privacidad');
     $ip = customer_attempts_guard();
     $old = q('SELECT id, verified_at FROM customers WHERE email_idx = ?', [email_idx($email)])->fetch();
@@ -98,7 +110,7 @@ function customer_register(array $in): array
         q('DELETE FROM customers WHERE id = ?', [$old['id']]);
     }
     q('INSERT INTO customers (name, email, email_idx, phone, pass_hash, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-        [enc($name), enc($email), email_idx($email), enc($phone), password_hash($pass, PASSWORD_DEFAULT), now()]);
+        [enc($name), enc($email), email_idx($email), enc($phone), pass_hash($pass), now()]);
     $id = (int)db()->lastInsertId();
     audit('registro', $id, 'Acepta condiciones de uso y privacidad, versión ' . LEGAL_VERSION);
     send_activation($id, $email, $name);
@@ -130,6 +142,31 @@ function customer_activate(int $id, string $token): bool
     return true;
 }
 
+/** Cambio de email: el nuevo solo se guarda cuando se abre el enlace que le llega a ese email (válido 48 horas). */
+function send_email_change(int $id, string $email, string $name): void
+{
+    $token = bin2hex(random_bytes(24));
+    q('UPDATE customers SET new_email = ?, verify_hash = ?, verify_expires = ? WHERE id = ?',
+        [enc($email), hash('sha256', $token), date('Y-m-d H:i:s', time() + 48 * 3600), $id]);
+    $url = base_url() . '/cuenta.php?email=' . $token . '&c=' . $id;
+    $s = settings();
+    send_mail($email, t('Confirma tu nuevo email en %s', $s['name']),
+        t('Hola %s:', $name) . "\n\n" . t('Para usar este email en tu cuenta de %s abre este enlace (caduca en 48 horas):', $s['name']) . "\n\n$url\n\n" . t('Si no lo has pedido tú, ignora este email: tu cuenta seguirá con el email de antes.'));
+    if (!empty(cfg()['debug'])) error_log("[restaurante] enlace de cambio de email: $url");
+}
+
+function customer_email_confirm(int $id, string $token): bool
+{
+    $c = q('SELECT * FROM customers WHERE id = ?', [$id])->fetch();
+    if (!$c || !$c['verified_at'] || ($c['new_email'] ?? '') === '' || !preg_match('/^[a-f0-9]{48}$/', $token)) return false;
+    if (!hash_equals($c['verify_hash'], hash('sha256', $token)) || strtotime((string)$c['verify_expires']) < time()) return false;
+    $email = dec($c['new_email']);
+    if (q('SELECT id FROM customers WHERE email_idx = ? AND id <> ?', [email_idx($email), $id])->fetch()) return false;
+    q("UPDATE customers SET email = ?, email_idx = ?, new_email = '', verify_hash = '', verify_expires = NULL WHERE id = ?", [enc($email), email_idx($email), $id]);
+    audit('cambio_email', $id);
+    return true;
+}
+
 function customer_resend(array $in): void
 {
     $email = mb_strtolower(str_in($in, 'email', 120, true, 'email'));
@@ -143,12 +180,15 @@ function customer_login(array $in): array
 {
     $email = mb_strtolower(str_in($in, 'email', 120, true, 'email'));
     $pass = (string)($in['password'] ?? '');
-    $ip = customer_attempts_guard();
+    $ip = customer_attempts_guard($email);
     $c = q('SELECT * FROM customers WHERE email_idx = ?', [email_idx($email)])->fetch();
+    if (!$c) pass_dummy($pass);
     if (!$c || !password_verify($pass, $c['pass_hash'])) {
-        q('INSERT INTO login_attempts (ip, at) VALUES (?, ?)', [$ip, now()]);
+        attempt_add($ip);
+        attempt_add(account_key('cliente', $email));
         throw new ValidationError('Email o contraseña incorrectos');
     }
+    if (pass_old($c['pass_hash'])) q('UPDATE customers SET pass_hash = ? WHERE id = ?', [pass_hash($pass), $c['id']]);
     if (!$c['verified_at']) {
         throw new ValidationError('Tu cuenta aún no está activada. Abre el enlace que te enviamos por email (mira también en spam).');
     }
@@ -192,13 +232,18 @@ function customer_update(array $c, array $in): array
     }
     if ($new !== '') {
         if (strlen($new) < 8) throw new ValidationError('La nueva contraseña necesita al menos 8 caracteres');
-        q('UPDATE customers SET pass_hash = ? WHERE id = ?', [password_hash($new, PASSWORD_DEFAULT), $c['id']]);
+        if (strlen($new) > 256) throw new ValidationError('La contraseña es demasiado larga');
+        $hash = pass_hash($new);
+        q('UPDATE customers SET pass_hash = ? WHERE id = ?', [$hash, $c['id']]);
+        $_SESSION['pv'] = pass_version($hash);   // esta sesión sigue; las de otros dispositivos se cierran
         audit('cambio_contrasena', (int)$c['id']);
     }
-    if ($emailChanged) audit('cambio_email', (int)$c['id']);
+    // El email nuevo no se usa hasta que se confirma desde ese email (si no, alguien podría quedarse con el email
+    // de otra persona y recibir en su cuenta las reservas que esa persona haga con él)
+    if ($emailChanged) send_email_change((int)$c['id'], $email, $name);
     if ($name !== $c['name'] || $phone !== $c['phone']) audit('cambio_datos', (int)$c['id']);
-    q('UPDATE customers SET name = ?, email = ?, email_idx = ?, phone = ? WHERE id = ?', [enc($name), enc($email), email_idx($email), enc($phone), $c['id']]);
-    return customer_out(customer_plain(q('SELECT * FROM customers WHERE id = ?', [$c['id']])->fetch()));
+    q('UPDATE customers SET name = ?, phone = ? WHERE id = ?', [enc($name), enc($phone), $c['id']]);
+    return customer_out(customer_plain(q('SELECT * FROM customers WHERE id = ?', [$c['id']])->fetch())) + ($emailChanged ? ['email_pending' => $email] : []);
 }
 
 function customer_delete(array $c, array $in): void

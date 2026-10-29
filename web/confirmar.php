@@ -113,7 +113,7 @@ site_header(current_customer());
       <?php if (current_customer()): ?><br><?= t('También la tienes en <a href="cuenta.php">tus reservas</a>.') ?><?php endif; ?>
     </p>
     <?php endif; ?>
-    <form class="cf-cancel" method="post" action="confirmar.php" onsubmit="return confirm(<?= h(json_encode(t('¿Seguro que quieres cancelar la reserva?'), JSON_UNESCAPED_UNICODE)) ?>)">
+    <form class="cf-cancel" method="post" action="confirmar.php" data-confirm="<?= h(t('¿Seguro que quieres cancelar la reserva?')) ?>">
       <input type="hidden" name="r" value="<?= (int)$r['id'] ?>">
       <input type="hidden" name="t" value="<?= h($token) ?>">
       <input type="hidden" name="accion" value="cancelar">
