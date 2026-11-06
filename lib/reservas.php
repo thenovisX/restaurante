@@ -10,6 +10,7 @@ declare(strict_types=1);
  */
 const RES_STATUSES = ['pendiente', 'esperando', 'confirmada', 'rechazada', 'cancelada'];
 const RES_ACTIVE = ['pendiente', 'esperando', 'confirmada']; // ocupan sitio
+const RES_MAX_ACTIVE = 3;   // reservas activas como máximo por email o cuenta desde la web
 
 function fmt_date_es(string $date): string
 {
@@ -116,20 +117,26 @@ function create_public_reservation(array $in): array
     $ip = client_ip();
     $recent = (int)q('SELECT COUNT(*) FROM reservations WHERE ip = ? AND created_at > ?', [$ip, date('Y-m-d H:i:s', time() - 3600)])->fetchColumn();
     if ($recent >= 5) throw new ValidationError('Has hecho demasiadas reservas seguidas. Llámanos por teléfono.');
+    // Que nadie pueda ocupar las mesas con reservas falsas: como mucho 3 reservas activas por email o cuenta
+    // y un tope de peticiones nuevas por hora entre todos (si se llega, se pide llamar por teléfono)
+    $ph = implode(',', array_fill(0, count(RES_ACTIVE), '?'));
+    $active = 0;
+    if ($d['email'] !== '') $active = (int)q("SELECT COUNT(*) FROM reservations WHERE email_idx = ? AND rdate >= ? AND deleted = 0 AND status IN ($ph)", array_merge([email_idx($d['email']), today()], RES_ACTIVE))->fetchColumn();
+    if ($customer) $active = max($active, (int)q("SELECT COUNT(*) FROM reservations WHERE customer_id = ? AND rdate >= ? AND deleted = 0 AND status IN ($ph)", array_merge([(int)$customer['id'], today()], RES_ACTIVE))->fetchColumn());
+    if ($active >= RES_MAX_ACTIVE) throw new ValidationError('Ya tienes varias reservas pendientes. Llámanos por teléfono si necesitas otra.');
+    $hour = (int)q("SELECT COUNT(*) FROM reservations WHERE source = 'web' AND created_at > ?", [date('Y-m-d H:i:s', time() - 3600)])->fetchColumn();
+    if ($hour >= max(10, (int)(cfg()['max_web_reservations_hour'] ?? 40))) throw new ValidationError('Ahora mismo no podemos recibir más reservas por la web. Llámanos por teléfono.');
 
-    $pdo = db();
-    $pdo->beginTransaction();
-    $slots = day_slots($d['rdate']);
-    $slot = null;
-    foreach ($slots['slots'] as $x) if ($x['time'] === $d['rtime']) $slot = $x;
-    if (!$slot) {
-        $pdo->rollBack();
-        throw new ValidationError($slots['reason'] ?: t('Esa hora no está disponible'));
-    }
-    if ($slot['left'] < $d['people']) {
-        $pdo->rollBack();
-        throw new ValidationError($slot['left'] > 0 ? t('A esa hora solo quedan %d plazas', $slot['left']) : t('Esa hora ya está completa, prueba otra'));
-    }
+    // Bloqueo del día: dos reservas a la vez no pueden quedarse con la misma plaza
+    booking_lock($d['rdate']);
+    try {
+        $slots = day_slots($d['rdate']);
+        $slot = null;
+        foreach ($slots['slots'] as $x) if ($x['time'] === $d['rtime']) $slot = $x;
+        if (!$slot) throw new ValidationError($slots['reason'] ?: t('Esa hora no está disponible'));
+        if ($slot['left'] < $d['people']) {
+            throw new ValidationError($slot['left'] > 0 ? t('A esa hora solo quedan %d plazas', $slot['left']) : t('Esa hora ya está completa, prueba otra'));
+        }
 
     $s = settings();
     $status = 'pendiente';
@@ -144,8 +151,12 @@ function create_public_reservation(array $in): array
         enc($d['name']), enc($d['phone']), enc($d['email']), email_idx($d['email']), $d['rdate'], $d['rtime'], $d['people'], enc($d['notes']),
         $status, 'web', $ip, now(), now(), $cid, enc($token), next_seq(), lang(),
     ]);
-    $id = (int)$pdo->lastInsertId();
-    $pdo->commit();
+    $id = (int)db()->lastInsertId();
+        booking_unlock($d['rdate'], true);
+    } catch (Throwable $e) {
+        booking_unlock($d['rdate'], false);
+        throw $e;
+    }
     audit('reserva', $cid, "Reserva #$id: acepta políticas de reserva y privacidad, versión " . LEGAL_VERSION);
 
     $when = fmt_date_es($d['rdate']) . ' a las ' . $d['rtime'];

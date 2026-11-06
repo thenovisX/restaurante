@@ -23,7 +23,7 @@ function schema_sql(bool $sqlite): array
         "CREATE TABLE IF NOT EXISTS translations (h CHAR(40) NOT NULL, lang CHAR(2) NOT NULL, src TEXT NOT NULL, txt TEXT NOT NULL, manual TINYINT NOT NULL DEFAULT 0, at DATETIME NOT NULL, PRIMARY KEY (h, lang))$tail",
         "CREATE TABLE IF NOT EXISTS customers (id $ai, name VARCHAR(512) NOT NULL, email VARCHAR(512) NOT NULL, email_idx VARCHAR(64) NOT NULL DEFAULT '', phone VARCHAR(255) NOT NULL DEFAULT '',
             pass_hash VARCHAR(255) NOT NULL, created_at DATETIME NOT NULL, last_login DATETIME NULL,
-            verified_at DATETIME NULL, verify_hash VARCHAR(64) NOT NULL DEFAULT '', verify_expires DATETIME NULL)$tail",
+            verified_at DATETIME NULL, verify_hash VARCHAR(64) NOT NULL DEFAULT '', verify_expires DATETIME NULL, new_email VARCHAR(512) NOT NULL DEFAULT '')$tail",
         "CREATE TABLE IF NOT EXISTS audit_log (id $ai, at DATETIME NOT NULL, customer_id INT NOT NULL DEFAULT 0, event VARCHAR(40) NOT NULL,
             detail VARCHAR(255) NOT NULL DEFAULT '', ip VARCHAR(512) NOT NULL DEFAULT '', ua VARCHAR(255) NOT NULL DEFAULT '')$tail",
         "CREATE TABLE IF NOT EXISTS erase_requests (id $ai, kind VARCHAR(10) NOT NULL, contact VARCHAR(512) NOT NULL, token_hash CHAR(64) NOT NULL DEFAULT '',

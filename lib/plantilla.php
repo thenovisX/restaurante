@@ -87,6 +87,7 @@ function page_start(string $title, string $description = '', string $bodyClass =
     $s = settings();
     // Las páginas siempre se piden de nuevo, así los cambios del panel se ven al momento
     if (!headers_sent()) header('Cache-Control: no-cache, must-revalidate, max-age=0');
+    send_csp();
     ?>
 <!doctype html>
 <html lang="<?= LANGS[lang()]['locale'] ?>">
@@ -101,14 +102,14 @@ function page_start(string $title, string $description = '', string $bodyClass =
 <?php endforeach; ?><link rel="alternate" hreflang="x-default" href="<?= h($pageUrl) ?>">
 <?php if ($s['gsc_verify'] !== ''): ?><meta name="google-site-verification" content="<?= h($s['gsc_verify']) ?>">
 <?php endif; ?>
-<script>
+<script nonce="<?= csp_nonce() ?>">
   window.I18N = <?= json_encode(js_i18n(), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;
   window.SITE_TRACKING = <?= json_encode(['ga' => $s['ga_id'], 'gtm' => $s['gtm_id'], 'pixel' => $s['pixel_id']], JSON_HEX_TAG) ?>;
   window.dataLayer = window.dataLayer || [];
   function gtag() { dataLayer.push(arguments); }
   gtag('consent', 'default', { analytics_storage: 'denied', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', wait_for_update: 500 });
 </script>
-<script src="assets/consent.js?v=<?= ASSET_V ?>" defer></script>
+<script src="assets/consent.js?v=<?= ASSET_V ?>" nonce="<?= csp_nonce() ?>" defer></script>
 <meta property="og:title" content="<?= h($s['name']) ?>">
 <meta property="og:description" content="<?= h(tr($s['tagline'])) ?>">
 <meta property="og:locale" content="<?= str_replace('-', '_', LANGS[lang()]['locale']) ?>">
@@ -122,7 +123,7 @@ function page_start(string $title, string $description = '', string $bodyClass =
 <link rel="apple-touch-icon" href="icon.php?s=180">
 <link rel="preload" href="assets/fonts/bodoni-moda-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="assets/web.css?v=<?= ASSET_V ?>">
-<script>
+<script nonce="<?= csp_nonce() ?>">
   // Animaciones: se preparan antes de pintar; si el JavaScript no llegara a cargar, todo se muestra igual
   (function (d) {
     try { if (matchMedia('(prefers-reduced-motion: reduce)').matches) return; } catch (e) { return; }
@@ -235,8 +236,8 @@ function page_end(array $data = []): void
     $data += ['today' => today(), 'daysAhead' => (int)$s['days_ahead'], 'maxPeople' => (int)$s['max_people'], 'name' => $s['name'],
         'hours' => $s['hours'], 'closed' => $s['closed_dates'], 'phone' => $s['phone'], 'now' => date('Y-m-d H:i')];
     ?>
-<script>window.RESTAURANT = <?= json_encode($data, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
-<script src="assets/web.js?v=<?= ASSET_V ?>" defer></script>
+<script nonce="<?= csp_nonce() ?>">window.RESTAURANT = <?= json_encode($data, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+<script src="assets/web.js?v=<?= ASSET_V ?>" nonce="<?= csp_nonce() ?>" defer></script>
 </body>
 </html>
     <?php

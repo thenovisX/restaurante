@@ -11,6 +11,12 @@ if (isset($_GET['activar'], $_GET['c'])) {
     header('Location: cuenta.php?' . ($ok ? 'activada=1' : 'enlace=caducado'));
     exit;
 }
+// Enlace para confirmar un email nuevo de la cuenta
+if (isset($_GET['email'], $_GET['c'])) {
+    $ok = customer_email_confirm((int)$_GET['c'], (string)$_GET['email']);
+    header('Location: cuenta.php?' . ($ok ? 'email_ok=1' : 'enlace=caducado'));
+    exit;
+}
 $c = current_customer();
 header('Cache-Control: no-store');
 page_start(($c ? t('Mi cuenta') : t('Entrar')) . ' · ' . $s['name'], '', 'page-account');
@@ -60,6 +66,7 @@ site_header($c);
     <div class="acc-head">
       <h1 class="title"><?= h(t('Hola, %s', explode(' ', $c['name'])[0])) ?></h1>
       <?php if (isset($_GET['activada'])): ?><p class="acc-aviso acc-ok"><?= t('Cuenta activada. Ya puedes reservar sin escribir tus datos.') ?></p><?php endif; ?>
+      <?php if (isset($_GET['email_ok'])): ?><p class="acc-aviso acc-ok"><?= t('Email cambiado. A partir de ahora usa el nuevo para entrar.') ?></p><?php endif; ?>
       <button class="btn btn-rubor" type="button" data-book><?= t('Nueva reserva') ?></button>
     </div>
 

@@ -8,7 +8,20 @@ declare(strict_types=1);
 
 require dirname(__DIR__) . '/lib/bootstrap.php';
 
-header('Access-Control-Allow-Origin: *');
+/*
+ * CORS: la propia web y la app del móvil (Capacitor usa https://localhost en Android y capacitor://localhost en iOS).
+ * Otros dominios solo pueden leer la información pública (carta, horario, horas libres).
+ * Para permitir otro dominio, añádelo en config.php: 'cors_origins' => ['https://otra-web.com'].
+ */
+$origin = (string)($_SERVER['HTTP_ORIGIN'] ?? '');
+$allowed = array_merge([base_url_origin(), 'https://localhost', 'http://localhost', 'capacitor://localhost', 'ionic://localhost'], (array)(cfg()['cors_origins'] ?? []));
+$r = (string)($_GET['r'] ?? '');
+if ($origin !== '' && in_array($origin, $allowed, true)) {
+    header('Access-Control-Allow-Origin: ' . $origin);
+    header('Vary: Origin');
+} elseif (in_array($r, ['ping', 'info', 'menu', 'slots'], true)) {
+    header('Access-Control-Allow-Origin: *');
+}
 header('Access-Control-Allow-Headers: Content-Type, X-Token, Authorization');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Max-Age: 86400');
@@ -22,7 +35,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') {
 }
 if (!installed()) fail('La web aún no está instalada. Abre install.php en el navegador.', 503);
 
-$r = (string)($_GET['r'] ?? '');
 $in = input();
 $id = (int)($in['id'] ?? $_GET['id'] ?? 0);
 
@@ -281,6 +293,13 @@ try {
 } catch (Throwable $e) {
     error_log('[restaurante] ' . $e);
     fail(!empty(cfg()['debug']) ? $e->getMessage() : 'Error en el servidor. Inténtalo de nuevo.', 500);
+}
+
+/** Origen de esta web (esquema y dominio, sin ruta). */
+function base_url_origin(): string
+{
+    $p = parse_url(base_url());
+    return ($p['scheme'] ?? 'https') . '://' . ($p['host'] ?? '') . (isset($p['port']) ? ':' . $p['port'] : '');
 }
 
 function public_info(): array
