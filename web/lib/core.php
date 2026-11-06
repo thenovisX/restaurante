@@ -56,7 +56,7 @@ function purge_old_reservations(bool $force = false): int
 }
 
 /** Actualiza la base de datos de instalaciones anteriores sin perder datos. */
-const SCHEMA_VERSION = 8;
+const SCHEMA_VERSION = 9;
 /** Versión de las condiciones y la privacidad: se guarda con cada aceptación. Súbela si cambias los textos. */
 const LEGAL_VERSION = '2026-10-22';
 function ensure_schema(): void
@@ -140,6 +140,10 @@ function ensure_schema(): void
         try { db()->exec("ALTER TABLE reservations ADD COLUMN lang CHAR(2) NOT NULL DEFAULT 'es'"); } catch (Throwable $e) { /* ya existe */ }
     }
     // v8: peticiones de borrado de datos (la tabla erase_requests la crea schema_sql)
+    if ($v < 9) {
+        // v9: el email nuevo de una cuenta espera aquí hasta que se confirma desde ese mismo email
+        try { db()->exec("ALTER TABLE customers ADD COLUMN new_email VARCHAR(512) NOT NULL DEFAULT ''"); } catch (Throwable $e) { /* ya existe */ }
+    }
     q("DELETE FROM settings WHERE k = '_schema'");
     q("INSERT INTO settings (k, v) VALUES ('_schema', ?)", [(string)SCHEMA_VERSION]);
 }
@@ -467,9 +471,124 @@ function client_ip(): string
     return hash('sha256', ($_SERVER['REMOTE_ADDR'] ?? '') . (cfg()['secret'] ?? ''));
 }
 
+/**
+ * Intentos fallidos recientes con una clave (IP o cuenta, siempre como huella). Sirve para el límite de intentos.
+ * Las filas de más de 15 minutos se borran solas.
+ */
+function attempts_count(string $key): int
+{
+    q('DELETE FROM login_attempts WHERE at < ?', [date('Y-m-d H:i:s', time() - 900)]);
+    return (int)q('SELECT COUNT(*) FROM login_attempts WHERE ip = ?', [$key])->fetchColumn();
+}
+
+function attempt_add(string $key): void
+{
+    q('INSERT INTO login_attempts (ip, at) VALUES (?, ?)', [$key, now()]);
+}
+
+/** Huella de una cuenta para contar sus intentos (frena a quien prueba contraseñas desde muchas IP). */
+function account_key(string $kind, string $login): string
+{
+    return hash('sha256', $kind . '|' . mb_strtolower(trim($login)) . '|' . (cfg()['secret'] ?? ''));
+}
+
+/** Hash de contraseñas: Argon2id si el PHP lo trae; si no, bcrypt con coste 12. */
+function pass_algo(): array
+{
+    return defined('PASSWORD_ARGON2ID')
+        ? [PASSWORD_ARGON2ID, ['memory_cost' => 19456, 'time_cost' => 2, 'threads' => 1]]
+        : [PASSWORD_BCRYPT, ['cost' => 12]];
+}
+
+function pass_hash(string $pass): string
+{
+    [$a, $o] = pass_algo();
+    return password_hash($pass, $a, $o);
+}
+
+/** Las contraseñas guardadas con un método anterior se rehacen al entrar. */
+function pass_old(string $hash): bool
+{
+    [$a, $o] = pass_algo();
+    return password_needs_rehash($hash, $a, $o);
+}
+
+/** Comprobación falsa para que una cuenta que no existe tarde lo mismo que una contraseña mal (no delata usuarios). */
+function pass_dummy(string $pass): void
+{
+    static $h = null;
+    $h ??= pass_hash('contraseña-de-relleno');
+    password_verify($pass, $h);
+}
+
+function is_https(): bool
+{
+    return (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+}
+
+/** Las cookies de sesión solo viajan por HTTPS, salvo en pruebas en el propio ordenador. */
+function cookie_secure(): bool
+{
+    $host = strtolower(preg_replace('/:\d+$/', '', (string)($_SERVER['HTTP_HOST'] ?? '')));
+    return is_https() || !in_array($host, ['localhost', '127.0.0.1', '[::1]'], true);
+}
+
+/**
+ * Bloquea las reservas de un día mientras se comprueba si queda sitio y se guarda la nueva,
+ * para que dos personas que reservan a la vez no puedan pasarse del aforo.
+ */
+function booking_lock(string $date): void
+{
+    $pdo = db();
+    if ((cfg()['db_driver'] ?? 'mysql') === 'sqlite') {
+        $pdo->exec('BEGIN IMMEDIATE');   // SQLite: solo una escritura a la vez
+        return;
+    }
+    if ((int)$pdo->query('SELECT GET_LOCK(' . $pdo->quote('reservas_' . $date) . ', 10)')->fetchColumn() !== 1) {
+        throw new ValidationError('Hay mucha gente reservando ahora mismo. Inténtalo de nuevo en unos segundos.');
+    }
+    $pdo->beginTransaction();
+}
+
+function booking_unlock(string $date, bool $commit): void
+{
+    $pdo = db();
+    if ((cfg()['db_driver'] ?? 'mysql') === 'sqlite') {
+        $pdo->exec($commit ? 'COMMIT' : 'ROLLBACK');
+        return;
+    }
+    if ($pdo->inTransaction()) $commit ? $pdo->commit() : $pdo->rollBack();
+    $pdo->query('SELECT RELEASE_LOCK(' . $pdo->quote('reservas_' . $date) . ')');
+}
+
+/** Código de un solo uso para los <script> de cada página (Content-Security-Policy). */
+function csp_nonce(): string
+{
+    static $n = null;
+    return $n ??= base64_encode(random_bytes(16));
+}
+
+/**
+ * Content-Security-Policy de las páginas públicas: solo scripts de esta web, los que llevan el código de la página
+ * y los de Google Analytics / Tag Manager y el píxel de Meta (se cargan solo si el cliente acepta las cookies).
+ * Si usas Tag Manager con etiquetas de otros servicios, añade sus dominios en config.php: 'csp_scripts' => 'https://…'.
+ */
+function send_csp(): void
+{
+    if (headers_sent()) return;
+    $extra = trim((string)(cfg()['csp_scripts'] ?? ''));
+    header("Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-" . csp_nonce() . "' https://www.googletagmanager.com https://*.google-analytics.com https://connect.facebook.net"
+        . ($extra !== '' ? ' ' . preg_replace('/[^a-zA-Z0-9:\/\.\*\- ]/', '', $extra) : '')
+        . "; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https:; "
+        . "frame-src 'self' https://www.googletagmanager.com https://www.facebook.com; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'"
+        . (is_https() ? '; upgrade-insecure-requests' : ''));
+}
+
 /** URL pública de la raíz de la web (sin barra final). */
 function base_url(): string
 {
+    // La que se guardó al instalar: así los enlaces de los emails no dependen de la cabecera Host que mande cada visita
+    if (!empty(cfg()['base_url'])) return rtrim((string)cfg()['base_url'], '/');
     $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
         || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
     $root = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/'));
